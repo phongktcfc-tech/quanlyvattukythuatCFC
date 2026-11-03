@@ -145,24 +145,37 @@ def match_from_alias_memory(raw_query: str, threshold: float = 88.0) -> dict | N
     return None
 
 def append_material_to_master_excel(code: str, name_normalized: str, unit: str = "Cái", spec: str = ""):
-    """Ghi trực tiếp mã mới vào Master_Inventory.xlsx bảo đảm định dạng text có số 0 đầu."""
+    """Ghi trực tiếp mã mới vào Master_Inventory.xlsx bảo đảm đầy đủ 12 cột và text có số 0 đầu."""
     if not MASTER_FILE.exists():
         return
     try:
-        wb = openpyxl.load_workbook(MASTER_FILE)
-        ws = wb.active
-        existing_codes = set()
-        for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
-            if row[0]:
-                existing_codes.add(str(row[0]).strip())
+        df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str, "Tên kho": str, "Tên hàng": str, "ĐVT": str})
+        df = df.loc[:, ~df.columns.duplicated()]
+        existing_codes = set(df["Mã hàng"].dropna().astype(str).str.strip()) if "Mã hàng" in df.columns else set()
         if code.strip() in existing_codes:
-            wb.close()
             return
         full_name = f"{name_normalized} {spec}".strip() if spec else name_normalized
-        new_row = [code.strip(), full_name, unit, 0, 0, 0, 0, 0, 0]
-        ws.append(new_row)
-        wb.save(MASTER_FILE)
-        wb.close()
+        new_row_dict = {
+            "Tên kho": "Kho vật tư phòng Kỹ thuật 01",
+            "Mã hàng": str(code).strip(),
+            "Tên hàng": full_name,
+            "ĐVT": str(unit).strip() if unit else "Cái",
+            "Đầu kỳ SL": 0,
+            "Đầu kỳ GT": 0,
+            "Nhập kho SL": 0,
+            "Nhập kho GT": 0,
+            "Xuất kho SL": 0,
+            "Xuất kho GT": 0,
+            "Cuối kỳ SL": 0,
+            "Cuối kỳ GT": 0
+        }
+        df = pd.concat([df, pd.DataFrame([new_row_dict])], ignore_index=True)
+        for sc in ["Tên kho", "Mã hàng", "Tên hàng", "ĐVT"]:
+            df[sc] = df[sc].astype(str).replace("nan", "").fillna("").str.strip()
+        num_cols = ["Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT", "Cuối kỳ SL", "Cuối kỳ GT"]
+        for nc in num_cols:
+            df[nc] = pd.to_numeric(df[nc], errors="coerce").fillna(0)
+        df.to_excel(MASTER_FILE, index=False)
     except Exception as e:
         print(f"Error appending to Master_Inventory.xlsx: {e}")
 
@@ -937,7 +950,12 @@ st.markdown("""
 def load_master_df() -> pd.DataFrame:
     if not MASTER_FILE.exists():
         return pd.DataFrame()
-    return pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
+    df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str, "Tên kho": str, "Tên hàng": str, "ĐVT": str})
+    df = df.loc[:, ~df.columns.duplicated()]
+    for col in ["Tên kho", "Mã hàng", "Tên hàng", "ĐVT"]:
+        if col in df.columns:
+            df[col] = df[col].astype(str).replace("nan", "").fillna("").str.strip()
+    return df
 
 
 def count_files_processed_today() -> int:
