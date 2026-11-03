@@ -17,6 +17,8 @@ import hashlib
 import unicodedata
 import html
 import sqlite3
+import shutil
+import zoneinfo
 from pathlib import Path
 
 import streamlit as st
@@ -63,6 +65,56 @@ def get_public_url() -> str:
     return "https://quanlyvattucfc.streamlit.app"
 
 PUBLIC_URL = get_public_url()
+
+# ── Xử lý múi giờ Việt Nam (GMT+7) & Đóng gói Cây Báo Cáo ──
+def get_vn_now() -> datetime.datetime:
+    """Lấy thời gian hiện tại chuẩn múi giờ Việt Nam (GMT+7 / Asia/Ho_Chi_Minh)."""
+    try:
+        tz = zoneinfo.ZoneInfo("Asia/Ho_Chi_Minh")
+        return datetime.datetime.now(tz)
+    except Exception:
+        return datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+
+def format_vn_time(dt_or_timestamp) -> str:
+    """Định dạng ngày giờ chuẩn Việt Nam: DD/MM/YYYY HH:mm:ss."""
+    try:
+        tz = zoneinfo.ZoneInfo("Asia/Ho_Chi_Minh")
+        if isinstance(dt_or_timestamp, (int, float)):
+            dt = datetime.datetime.fromtimestamp(dt_or_timestamp, tz=tz)
+        elif isinstance(dt_or_timestamp, datetime.datetime):
+            dt = dt_or_timestamp.astimezone(tz) if dt_or_timestamp.tzinfo else dt_or_timestamp
+        else:
+            return str(dt_or_timestamp)
+        return dt.strftime("%d/%m/%Y %H:%M:%S")
+    except Exception:
+        return str(dt_or_timestamp)
+
+def get_report_file_date(f: Path) -> tuple[int, int, int]:
+    """Trích xuất Năm, Tháng, Ngày của file báo cáo chuẩn múi giờ Việt Nam."""
+    m = re.search(r'(\d{4})(\d{2})(\d{2})_\d{6}', f.name)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    try:
+        tz = zoneinfo.ZoneInfo("Asia/Ho_Chi_Minh")
+        dt = datetime.datetime.fromtimestamp(f.stat().st_mtime, tz=tz)
+        return dt.year, dt.month, dt.day
+    except Exception:
+        dt = datetime.datetime.now()
+        return dt.year, dt.month, dt.day
+
+def organize_reports_into_tree():
+    """Tự động đóng gói tất cả các file báo cáo vào cây thư mục Năm / Tháng / Ngày (chuẩn giờ VN)."""
+    if not REPORT_DIR.exists():
+        return
+    for f in list(REPORT_DIR.glob("*.xlsx")):
+        if f.is_file():
+            y, m, d = get_report_file_date(f)
+            target_dir = REPORT_DIR / str(y) / f"Thang_{m:02d}" / f"Ngay_{d:02d}"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                shutil.move(str(f), str(target_dir / f.name))
+            except Exception:
+                pass
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CƠ SỞ DỮ LIỆU BỀN VỮNG & BỘ NHỚ ÁNH XẠ (SQLITE materials_memory.db)
@@ -959,19 +1011,18 @@ def load_master_df() -> pd.DataFrame:
 
 
 def count_files_processed_today() -> int:
-    today = datetime.date.today()
+    today_vn = get_vn_now().date()
     cnt = 0
-    for p in [REPORT_DIR, DAILY_DIR]:
-        if p.exists():
-            for f in p.glob("*"):
-                if f.is_file():
-                    try:
-                        mtime = datetime.date.fromtimestamp(f.stat().st_mtime)
-                        if mtime == today:
-                            cnt += 1
-                    except Exception:
-                        pass
-    return max(cnt // 2, cnt)
+    if REPORT_DIR.exists():
+        for f in REPORT_DIR.rglob("*.xlsx"):
+            if f.is_file():
+                try:
+                    y, m, d = get_report_file_date(f)
+                    if datetime.date(y, m, d) == today_vn:
+                        cnt += 1
+                except Exception:
+                    pass
+    return cnt
 
 
 @st.cache_data
@@ -1445,10 +1496,15 @@ def parse_json_from_response(text: str) -> list | None:
 
 
 def save_batch_report_excel(results: list, batch_name: str = "TongHop") -> Path:
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    now_vn = get_vn_now()
+    timestamp = now_vn.strftime("%Y%m%d_%H%M%S")
     safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in batch_name)
     report_name = f"BaoCao_TongHop_{safe_name}_{timestamp}.xlsx"
-    report_path = REPORT_DIR / report_name
+
+    # Đóng gói trực tiếp vào cây thư mục Năm / Tháng / Ngày chuẩn giờ VN
+    target_dir = REPORT_DIR / str(now_vn.year) / f"Thang_{now_vn.month:02d}" / f"Ngay_{now_vn.day:02d}"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    report_path = target_dir / report_name
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1492,6 +1548,94 @@ def save_batch_report_excel(results: list, batch_name: str = "TongHop") -> Path:
     ws.freeze_panes = "A2"
     wb.save(report_path)
     return report_path
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BỘ HIỂN THỊ NỘI DUNG PHIẾU BÁO CÁO GỌN GÀNG (100% TRONG KHUNG, KHÔNG TRƯỢT NGANG)
+# ═══════════════════════════════════════════════════════════════════════════
+def render_report_detail_html(df: pd.DataFrame) -> str:
+    """Hiển thị nội dung phiếu chi tiết gọn gàng 100% trong khung hình, tự động ngắt dòng, tuyệt đối không trượt ngang."""
+    if df.empty:
+        return "<div style='color:#94a3b8; font-size:0.85rem; padding:8px;'>Phiếu không có dữ liệu.</div>"
+
+    rows = []
+    for _, r in df.iterrows():
+        stt = r.get("STT", "")
+        doc = html.escape(str(r.get("Chứng từ gốc", "") or ""))
+        t_raw = html.escape(str(r.get("Tên trích xuất", "") or ""))
+        t_norm = html.escape(str(r.get("Tên chuẩn hóa", "") or t_raw))
+        spec = html.escape(str(r.get("Quy cách", "") or "-"))
+        qty = r.get("Số lượng", "-")
+        unit = html.escape(str(r.get("ĐVT", "") or ""))
+        cat = str(r.get("Phân loại", "")).upper()
+
+        old_code = r.get("Mã kho", "")
+        old_code_str = "" if pd.isna(old_code) or str(old_code).lower() in ["none", "nan", "-"] else str(old_code).strip()
+
+        new_code = r.get("Mã đề xuất mới (0x.xxxx)", "")
+        new_code_str = "" if pd.isna(new_code) or str(new_code).lower() in ["none", "nan", "-"] else str(new_code).strip()
+
+        ton = r.get("Tồn kho", 0)
+        note = html.escape(str(r.get("Ghi chú", "") or "-"))
+
+        # Phân loại Badge
+        if "KHỚP" in cat or old_code_str:
+            badge_html = (
+                f'<div style="text-align:center;">'
+                f'<span style="display:inline-block; padding:2px 7px; border-radius:8px; font-size:0.7rem; font-weight:700; background:rgba(0,230,118,0.15); color:#00e676; border:1px solid #00e676; margin-bottom:3px;">🟢 KHỚP KHO</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#00e676; font-size:0.88rem;">{old_code_str}</div>'
+                f'<div style="font-size:0.72rem; color:#94a3b8;">Tồn: <strong style="color:#ffffff;">{ton} {unit}</strong></div>'
+                f'</div>'
+            )
+        else:
+            badge_html = (
+                f'<div style="text-align:center;">'
+                f'<span style="display:inline-block; padding:2px 7px; border-radius:8px; font-size:0.7rem; font-weight:700; background:rgba(255,171,0,0.15); color:#ffab00; border:1px solid #ffab00; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#ffab00; font-size:0.88rem;">{new_code_str}</div>'
+                f'</div>'
+            )
+
+        doc_tag = f'<div style="color:#64748b; font-size:0.7rem; font-family:JetBrains Mono, monospace; margin-top:2px;">📄 {doc}</div>' if doc and doc != '-' else ''
+
+        row_html = (
+            f'<tr style="border-bottom: 1px solid #1e293b;">'
+            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#00e5ff; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
+            f'<td style="padding:8px 8px; word-break:break-word;">'
+            f'<div style="font-weight:700; color:#ffffff; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
+            f'<div style="color:#94a3b8; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
+            f'{doc_tag}'
+            f'</td>'
+            f'<td style="padding:8px 8px; color:#38bdf8; font-size:0.8rem; line-height:1.35; word-break:break-word;">{spec}</td>'
+            f'<td style="text-align:center; padding:8px 4px; white-space:nowrap;">'
+            f'<div style="font-size:0.95rem; font-weight:700; color:#00e5ff;">{qty}</div>'
+            f'<div style="font-size:0.72rem; color:#cbd5e1; font-weight:600;">{unit}</div>'
+            f'</td>'
+            f'<td style="padding:8px 4px;">{badge_html}</td>'
+            f'<td style="padding:8px 8px; color:#cbd5e1; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
+            f'</tr>'
+        )
+        rows.append(row_html)
+
+    table_html = (
+        f'<div style="width:100%; border:1px solid #1e293b; border-radius:8px; overflow:hidden; background:#0b1120; margin-top:6px;">'
+        f'<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:0.82rem; text-align:left;">'
+        f'<thead>'
+        f'<tr style="background:#0f172a; border-bottom:1px solid #334155; color:#94a3b8; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
+        f'<th style="width:5%; text-align:center; padding:8px 4px;">STT</th>'
+        f'<th style="width:28%; padding:8px 8px;">Vật tư (Chuẩn & Gốc)</th>'
+        f'<th style="width:25%; padding:8px 8px;">Quy cách kỹ thuật</th>'
+        f'<th style="width:8%; text-align:center; padding:8px 4px;">SL</th>'
+        f'<th style="width:14%; text-align:center; padding:8px 4px;">Phân loại & Mã</th>'
+        f'<th style="width:20%; padding:8px 8px;">Nhận định / Ghi chú</th>'
+        f'</tr>'
+        f'</thead>'
+        f'<tbody>'
+        f'{"".join(rows)}'
+        f'</tbody>'
+        f'</table>'
+        f'</div>'
+    )
+    return table_html
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2498,21 +2642,24 @@ with tab_master:
                 st.info("Chưa có từ khóa học nào trong bộ nhớ. Khi duyệt mã mới ở Tab 1, hệ thống sẽ tự động ghi nhớ vào đây.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SUB-TAB 3: BÁO CÁO / PHIẾU ĐÃ XỬ LÝ
+# SUB-TAB 3: BÁO CÁO / PHIẾU ĐÃ XỬ LÝ (ĐÓNG GÓI DẠNG CÂY NĂM / THÁNG / NGÀY)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab_reports:
-    reports = sorted(REPORT_DIR.glob("*.xlsx"), key=os.path.getmtime, reverse=True)
-    if reports:
+    # Tự động quét và đóng gói các file báo cáo vào cây thư mục Năm / Tháng / Ngày
+    organize_reports_into_tree()
+    all_reports = sorted(REPORT_DIR.rglob("*.xlsx"), key=os.path.getmtime, reverse=True)
+
+    if all_reports:
         col_rep_head, col_rep_del_all = st.columns([4, 1.5])
         with col_rep_head:
-            st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 LỊCH SỬ {len(reports)} BÁO CÁO / PHIẾU ĐÃ XỬ LÝ:</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 KHO LƯU TRỮ BÁO CÁO DẠNG CÂY ({len(all_reports)} PHIẾU ĐÃ ĐÓNG GÓI THEO NĂM / THÁNG / NGÀY):</div>", unsafe_allow_html=True)
         with col_rep_del_all:
             with st.popover("🗑️ Xóa toàn bộ lịch sử", use_container_width=True):
                 st.markdown("**Xác nhận xóa tất cả báo cáo?**")
-                st.caption("Thao tác này sẽ xóa vĩnh viễn tất cả các file báo cáo đã lưu.")
+                st.caption("Thao tác này sẽ xóa vĩnh viễn tất cả các file báo cáo trong cây lưu trữ.")
                 if st.button("Xác nhận xóa hết", type="primary", key="btn_confirm_del_all", use_container_width=True):
                     del_cnt = 0
-                    for r_item in reports:
+                    for r_item in all_reports:
                         try:
                             r_item.unlink()
                             del_cnt += 1
@@ -2522,39 +2669,64 @@ with tab_reports:
                     time.sleep(0.3)
                     st.rerun()
 
-        for idx, rf in enumerate(reports[:35]):
-            file_key = rf.stem
-            time_str = datetime.datetime.fromtimestamp(rf.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+        # Nhóm theo Cây phân cấp: Năm -> Tháng -> Ngày
+        tree_reports = {}
+        for rf in all_reports:
+            y, m, d = get_report_file_date(rf)
+            if y not in tree_reports:
+                tree_reports[y] = {}
+            if m not in tree_reports[y]:
+                tree_reports[y][m] = {}
+            if d not in tree_reports[y][m]:
+                tree_reports[y][m][d] = []
+            tree_reports[y][m][d].append(rf)
 
-            with st.expander(f"📄 {rf.name}  |  🕒 {time_str}", expanded=(idx == 0)):
-                c_dl, c_del, c_space = st.columns([2, 1.5, 4.5])
-                with c_dl:
-                    with open(rf, "rb") as f:
-                        st.download_button(
-                            label="💾 Tải file Excel (.xlsx)",
-                            data=f.read(),
-                            file_name=rf.name,
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_btn_{file_key}_{idx}",
-                            use_container_width=True
-                        )
-                with c_del:
-                    if st.button("🗑️ Xóa phiếu này", key=f"del_btn_{file_key}_{idx}", type="secondary", use_container_width=True):
-                        try:
-                            rf.unlink()
-                            st.toast(f"✓ Đã xóa thành công phiếu '{rf.name}'!", icon="🗑️")
-                            time.sleep(0.3)
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Lỗi khi xóa: {e}")
+        current_year = get_vn_now().year
+        current_month = get_vn_now().month
 
-                # Xem trực tiếp nội dung phiếu ngay trong giao diện
-                try:
-                    df_view = pd.read_excel(rf)
-                    n_rows = len(df_view)
-                    st.markdown(f"<div style='font-size:0.83rem; color:#94a3b8; margin: 8px 0 4px 0;'>📊 <b>Nội dung phiếu chi tiết ({n_rows} dòng vật tư):</b></div>", unsafe_allow_html=True)
-                    st.dataframe(df_view, use_container_width=True, height=260)
-                except Exception as e:
-                    st.warning(f"Không thể đọc xem trước nội dung: {e}")
+        for y in sorted(tree_reports.keys(), reverse=True):
+            total_y = sum(len(tree_reports[y][m][d]) for m in tree_reports[y] for d in tree_reports[y][m])
+            with st.expander(f"📁 **NĂM {y}** — Tổng {total_y} phiếu đã lưu trữ", expanded=(y == current_year)):
+                for m in sorted(tree_reports[y].keys(), reverse=True):
+                    total_m = sum(len(tree_reports[y][m][d]) for d in tree_reports[y][m])
+                    with st.expander(f"📂 **Tháng {m:02d}/{y}** — {total_m} phiếu", expanded=(y == current_year and m == current_month)):
+                        for d in sorted(tree_reports[y][m].keys(), reverse=True):
+                            day_files = tree_reports[y][m][d]
+                            st.markdown(f"<div style='color:#38bdf8; font-weight:700; font-size:0.86rem; margin:10px 0 6px 0; border-left:3px solid #00e5ff; padding-left:8px;'>📅 Ngày {d:02d}/{m:02d}/{y} ({len(day_files)} phiếu):</div>", unsafe_allow_html=True)
+
+                            for idx, rf in enumerate(day_files):
+                                file_key = f"{rf.stem}_{idx}_{y}_{m}_{d}"
+                                time_str = format_vn_time(rf.stat().st_mtime)
+
+                                with st.expander(f"📄 {rf.name}  |  🕒 {time_str}", expanded=(idx == 0 and y == current_year and m == current_month)):
+                                    c_dl, c_del, c_space = st.columns([2, 1.5, 4.5])
+                                    with c_dl:
+                                        with open(rf, "rb") as f:
+                                            st.download_button(
+                                                label="💾 Tải file Excel (.xlsx)",
+                                                data=f.read(),
+                                                file_name=rf.name,
+                                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                                key=f"dl_btn_{file_key}",
+                                                use_container_width=True
+                                            )
+                                    with c_del:
+                                        if st.button("🗑️ Xóa phiếu này", key=f"del_btn_{file_key}", type="secondary", use_container_width=True):
+                                            try:
+                                                rf.unlink()
+                                                st.toast(f"✓ Đã xóa thành công phiếu '{rf.name}'!", icon="🗑️")
+                                                time.sleep(0.3)
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Lỗi khi xóa: {e}")
+
+                                    # Xem trực tiếp nội dung phiếu dạng bảng compact 100% không trượt ngang
+                                    try:
+                                        df_view = pd.read_excel(rf)
+                                        n_rows = len(df_view)
+                                        st.markdown(f"<div style='font-size:0.83rem; color:#94a3b8; margin: 8px 0 4px 0;'>📊 <b>Nội dung phiếu chi tiết ({n_rows} dòng vật tư — Gói gọn trong khung hiển thị):</b></div>", unsafe_allow_html=True)
+                                        st.markdown(render_report_detail_html(df_view), unsafe_allow_html=True)
+                                    except Exception as e:
+                                        st.warning(f"Không thể đọc xem trước nội dung: {e}")
     else:
-        st.info("Chưa có báo cáo nào được tạo. Khi đối chiếu xong ở Tab 1, các phiếu sẽ tự động lưu trữ tại đây.")
+        st.info("Chưa có báo cáo nào được tạo. Khi đối chiếu xong ở Tab 1, các phiếu sẽ tự động đóng gói theo cây Năm / Tháng / Ngày tại đây.")
