@@ -16,6 +16,7 @@ import base64
 import hashlib
 import unicodedata
 import html
+import sqlite3
 from pathlib import Path
 
 import streamlit as st
@@ -62,6 +63,206 @@ def get_public_url() -> str:
     return "https://quanlyvattucfc.streamlit.app"
 
 PUBLIC_URL = get_public_url()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CƠ SỞ DỮ LIỆU BỀN VỮNG & BỘ NHỚ ÁNH XẠ (SQLITE materials_memory.db)
+# ═══════════════════════════════════════════════════════════════════════════
+DB_PATH = BASE_DIR / "materials_memory.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS approved_materials (
+        code TEXT PRIMARY KEY,
+        name_normalized TEXT,
+        spec TEXT,
+        unit TEXT,
+        group_code TEXT,
+        stock REAL DEFAULT 0,
+        source_doc TEXT,
+        notes TEXT,
+        approved_at TEXT
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS alias_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        raw_name TEXT UNIQUE,
+        target_code TEXT,
+        target_name TEXT,
+        spec TEXT,
+        unit TEXT,
+        created_at TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_all_approved_materials() -> list[dict]:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM approved_materials ORDER BY approved_at DESC")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+def get_all_aliases() -> list[dict]:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM alias_mapping ORDER BY id DESC")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+def match_from_alias_memory(raw_query: str, threshold: float = 88.0) -> dict | None:
+    """Kiểm tra ưu tiên: Quét Từ điển Ánh xạ đã học trước khi gọi AI."""
+    if not raw_query or not str(raw_query).strip():
+        return None
+    q_norm = unicodedata.normalize("NFC", str(raw_query)).strip().lower()
+    aliases = get_all_aliases()
+    if not aliases:
+        return None
+    
+    # 1. Khớp chính xác (exact match)
+    for al in aliases:
+        rn = unicodedata.normalize("NFC", str(al.get("raw_name", ""))).strip().lower()
+        if rn == q_norm:
+            return al
+            
+    # 2. Khớp tương đồng cao với token_set_ratio (xử lý tốt phụ từ như SKF, chính hãng...)
+    choices = [unicodedata.normalize("NFC", str(al.get("raw_name", ""))).strip().lower() for al in aliases]
+    best = rfprocess.extractOne(q_norm, choices, scorer=fuzz.token_set_ratio)
+    if best and best[1] >= threshold:
+        return aliases[best[2]]
+        
+    return None
+
+def append_material_to_master_excel(code: str, name_normalized: str, unit: str = "Cái", spec: str = ""):
+    """Ghi trực tiếp mã mới vào Master_Inventory.xlsx bảo đảm định dạng text có số 0 đầu."""
+    if not MASTER_FILE.exists():
+        return
+    try:
+        wb = openpyxl.load_workbook(MASTER_FILE)
+        ws = wb.active
+        existing_codes = set()
+        for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+            if row[0]:
+                existing_codes.add(str(row[0]).strip())
+        if code.strip() in existing_codes:
+            wb.close()
+            return
+        full_name = f"{name_normalized} {spec}".strip() if spec else name_normalized
+        new_row = [code.strip(), full_name, unit, 0, 0, 0, 0, 0, 0]
+        ws.append(new_row)
+        wb.save(MASTER_FILE)
+        wb.close()
+    except Exception as e:
+        print(f"Error appending to Master_Inventory.xlsx: {e}")
+
+def save_approved_material(
+    code: str,
+    name_normalized: str,
+    spec: str = "",
+    unit: str = "Cái",
+    group_code: str = "03",
+    raw_name: str = "",
+    source_doc: str = "",
+    notes: str = ""
+):
+    """Lưu vĩnh viễn: ghi vào SQLite approved_materials, alias_mapping và Master_Inventory.xlsx."""
+    init_db()
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+    INSERT INTO approved_materials (code, name_normalized, spec, unit, group_code, stock, source_doc, notes, approved_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+    ON CONFLICT(code) DO UPDATE SET
+        name_normalized=excluded.name_normalized,
+        spec=excluded.spec,
+        unit=excluded.unit,
+        notes=excluded.notes,
+        approved_at=excluded.approved_at
+    """, (code, name_normalized, spec, unit, group_code, source_doc, notes, now_str))
+    
+    if raw_name:
+        cur.execute("""
+        INSERT INTO alias_mapping (raw_name, target_code, target_name, spec, unit, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(raw_name) DO UPDATE SET
+            target_code=excluded.target_code,
+            target_name=excluded.target_name,
+            spec=excluded.spec,
+            unit=excluded.unit,
+            created_at=excluded.created_at
+        """, (raw_name.strip(), code, name_normalized, spec, unit, now_str))
+        
+    conn.commit()
+    conn.close()
+    
+    append_material_to_master_excel(code, name_normalized, unit, spec)
+    try:
+        load_master_df.clear()
+    except Exception:
+        pass
+
+def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge") -> tuple[bool, str]:
+    """Cập nhật Master_Inventory từ file tải lên (Merge/Upsert hoặc Overwrite), luôn bảo toàn mã đã duyệt."""
+    try:
+        if filename.lower().endswith(".csv"):
+            new_df = pd.read_csv(io.BytesIO(file_bytes), dtype={"Mã hàng": str})
+        else:
+            new_df = pd.read_excel(io.BytesIO(file_bytes), dtype={"Mã hàng": str})
+        
+        if "Mã hàng" not in new_df.columns or "Tên hàng" not in new_df.columns:
+            return False, "File thiếu cột bắt buộc 'Mã hàng' hoặc 'Tên hàng'."
+            
+        new_df["Mã hàng"] = new_df["Mã hàng"].astype(str).str.strip()
+        
+        if mode == "merge":
+            if MASTER_FILE.exists():
+                cur_df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
+                cur_df["Mã hàng"] = cur_df["Mã hàng"].astype(str).str.strip()
+                merged_df = pd.concat([new_df, cur_df[~cur_df["Mã hàng"].isin(new_df["Mã hàng"])]], ignore_index=True)
+            else:
+                merged_df = new_df
+        else:
+            merged_df = new_df.copy()
+            
+        appr = get_all_approved_materials()
+        if appr:
+            appr_codes = set(merged_df["Mã hàng"])
+            rows_to_add = []
+            for a in appr:
+                c = a["code"]
+                if c not in appr_codes:
+                    full_name = f"{a['name_normalized']} {a.get('spec', '')}".strip()
+                    rows_to_add.append({
+                        "Mã hàng": c,
+                        "Tên hàng": full_name,
+                        "ĐVT": a.get("unit", "Cái"),
+                        "Đầu kỳ SL": 0,
+                        "Đầu kỳ GT": 0,
+                        "Nhập kho SL": 0,
+                        "Xuất kho SL": 0,
+                        "Cuối kỳ SL": a.get("stock", 0),
+                        "Cuối kỳ GT": 0
+                    })
+            if rows_to_add:
+                merged_df = pd.concat([merged_df, pd.DataFrame(rows_to_add)], ignore_index=True)
+
+        merged_df.to_excel(MASTER_FILE, index=False)
+        load_master_df.clear()
+        return True, f"Cập nhật thành công kho vật tư ({len(merged_df):,} mã hàng)."
+    except Exception as e:
+        return False, f"Lỗi cập nhật kho: {e}"
 
 # ── Khởi tạo Custom Component nhận Ctrl + V ──
 _paste_component = components.declare_component("ctrl_v_paste_box", path=str(PASTE_BOX_DIR))
@@ -178,27 +379,38 @@ st.markdown("""
         color: #e2e8f0;
     }
     
+    /* ═══════════════════════════════════════════════════════════════
+       QUY CHUẨN SINGLE-VIEWPORT (ZERO-SCROLL): GỌN TRONG 1 MÀN HÌNH
+       ═══════════════════════════════════════════════════════════════ */
+    .block-container {
+        padding-top: 0.7rem !important;
+        padding-bottom: 0.3rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+    }
+    
     /* Top Bar HUD */
     .hud-header {
         background: linear-gradient(135deg, rgba(13, 27, 56, 0.85) 0%, rgba(9, 17, 36, 0.95) 100%);
         border: 1px solid rgba(0, 229, 255, 0.35);
-        box-shadow: 0 0 35px rgba(0, 229, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        padding: 1.1rem 1.8rem;
-        margin-bottom: 1.2rem;
+        box-shadow: 0 0 25px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 0.65rem 1.2rem;
+        margin-bottom: 0.65rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         backdrop-filter: blur(14px);
     }
     .hud-title {
-        font-size: 1.45rem;
+        font-size: 1.22rem;
         font-weight: 700;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         color: #ffffff;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
     }
     .hud-title span {
         background: linear-gradient(90deg, #00f2fe, #4facfe, #00e5ff);
@@ -206,27 +418,27 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
     }
     .hud-subtitle {
-        font-size: 0.82rem;
+        font-size: 0.74rem;
         color: #94a3b8;
-        letter-spacing: 1.2px;
+        letter-spacing: 1px;
         text-transform: uppercase;
         font-weight: 600;
-        margin-top: 4px;
+        margin-top: 2px;
     }
     .hud-chips {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
     }
     .hud-badge {
-        padding: 5px 14px;
-        border-radius: 20px;
-        font-size: 0.78rem;
+        padding: 4px 10px;
+        border-radius: 18px;
+        font-size: 0.75rem;
         font-family: 'JetBrains Mono', monospace;
         font-weight: 600;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         background: rgba(255, 255, 255, 0.04);
         backdrop-filter: blur(8px);
@@ -248,8 +460,8 @@ st.markdown("""
         100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
     }
     .status-dot-pulse {
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         background-color: #00e676;
         border-radius: 50%;
         display: inline-block;
@@ -260,22 +472,66 @@ st.markdown("""
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 14px;
-        margin-bottom: 1.4rem;
+        gap: 10px;
+        margin-bottom: 0.75rem;
     }
     .kpi-card {
         background: rgba(13, 22, 42, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 1rem 1.2rem;
+        border-radius: 10px;
+        padding: 0.65rem 0.95rem;
         position: relative;
         overflow: hidden;
         backdrop-filter: blur(12px);
-        transition: all 0.3s ease;
+        transition: all 0.25s ease;
     }
     .kpi-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
+        box-shadow: 0 6px 18px rgba(0, 229, 255, 0.12);
+    }
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+    }
+    .kpi-cyan::before   { background: linear-gradient(90deg, #00e5ff, #0091ea); }
+    .kpi-green::before  { background: linear-gradient(90deg, #00e676, #00c853); }
+    .kpi-purple::before { background: linear-gradient(90deg, #b388ff, #7c4dff); }
+    .kpi-amber::before  { background: linear-gradient(90deg, #ffab00, #ff6d00); }
+    
+    .kpi-header {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+    .kpi-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.15;
+    }
+    .kpi-sub {
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-top: 2px;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+    
+    /* Sub-tabs compact styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        margin-bottom: 0.55rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding-top: 5px !important;
+        padding-bottom: 5px !important;
+        font-weight: 600 !important;
+        font-size: 0.86rem !important;
     }
     .kpi-card::before {
         content: '';
@@ -625,16 +881,29 @@ def retrieve_inventory_data_for_chat(query: str, df: pd.DataFrame, max_rows=15) 
 
 
 def allocate_next_codes(df_master: pd.DataFrame, num_needed: int, group: str = "03") -> list[str]:
-    """Cấp phát danh sách mã số kế tiếp chuẩn hóa 0x.xxxx (DẠNG SỐ THUẦN TÚY)."""
+    """Cấp phát danh sách mã số kế tiếp chuẩn hóa 0x.xxxx (DẠNG SỐ THUẦN TÚY), đồng bộ cả Master & SQLite."""
     group_prefix = f"{group}."
     existing_nums = []
-    for code in df_master["Mã hàng"].dropna().astype(str):
-        if code.startswith(group_prefix):
-            try:
-                suffix = int(code.split(".", 1)[1])
-                existing_nums.append(suffix)
-            except ValueError:
-                pass
+    if not df_master.empty and "Mã hàng" in df_master.columns:
+        for code in df_master["Mã hàng"].dropna().astype(str):
+            if code.startswith(group_prefix):
+                try:
+                    suffix = int(code.split(".", 1)[1])
+                    existing_nums.append(suffix)
+                except ValueError:
+                    pass
+    try:
+        appr_list = get_all_approved_materials()
+        for item in appr_list:
+            c = str(item.get("code", "")).strip()
+            if c.startswith(group_prefix):
+                try:
+                    suffix = int(c.split(".", 1)[1])
+                    existing_nums.append(suffix)
+                except ValueError:
+                    pass
+    except Exception:
+        pass
     max_num = max(existing_nums) if existing_nums else 0
     return [f"{group}.{max_num + i:04d}" for i in range(1, num_needed + 1)]
 
@@ -848,9 +1117,102 @@ def render_compact_table_html(items: list) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# MINI CHAT ASSISTANT (TRỢ LÝ CƠ - ĐIỆN DẠNG POPOVER NỔI CỐ ĐỊNH)
+# ═══════════════════════════════════════════════════════════════════════════
+def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name: str):
+    st.markdown("""
+    <div style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 2px;">
+        👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN
+    </div>
+    <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 8px;">
+        Tra cứu kho 1.318 mã + tra barem, tiêu chuẩn công nghiệp (ASTM/JIS/DIN/IEC) và tương đương realtime.
+    </div>
+    """, unsafe_allow_html=True)
+
+    c_q1, c_q2 = st.columns(2)
+    quick_q = None
+    with c_q1:
+        if st.button("🔩 Thép ống 60?", key="pop_q1", use_container_width=True):
+            quick_q = "Kiểm tra thép ống phi 60 trong kho còn bao nhiêu, quy cách tiêu chuẩn thế nào?"
+        if st.button("⚡ Động cơ 15kW?", key="pop_q3", use_container_width=True):
+            quick_q = "Thông tin động cơ điện 15kW 4P trong kho và thông số dòng định mức, tốc độ?"
+    with c_q2:
+        if st.button("⚙️ Vòng bi 6205?", key="pop_q2", use_container_width=True):
+            quick_q = "Vòng bi 6205 trong kho còn mấy cái, thông số kỹ thuật và hãng tương đương?"
+        if st.button("⚠️ Tồn kho = 0?", key="pop_q4", use_container_width=True):
+            quick_q = "Liệt kê các mã vật tư đang hết hàng (tồn bằng 0) cần chú ý bổ sung gấp?"
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    chat_container = st.container(height=340)
+    with chat_container:
+        if not st.session_state.chat_history:
+            st.caption("Chưa có tin nhắn. Nhập câu hỏi bên dưới hoặc bấm gợi ý nhanh.")
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"], avatar="👨‍🔧" if msg["role"] == "user" else "🤖"):
+                st.markdown(msg["content"])
+
+    input_text = st.chat_input("Hỏi quy cách, tồn kho, tiêu chuẩn...", key="pop_chat_input")
+    q = quick_q or input_text
+
+    if q:
+        if not api_key:
+            st.error("Chưa nhập Google AI Key tại sidebar!")
+        else:
+            st.session_state.chat_history.append({"role": "user", "content": q})
+            with chat_container:
+                with st.chat_message("user", avatar="👨‍🔧"):
+                    st.markdown(q)
+                with st.chat_message("assistant", avatar="🤖"):
+                    with st.spinner("Kỹ sư Trưởng AI đang tra cứu kho 1.318 mã & barem kỹ thuật..."):
+                        inv_info = retrieve_inventory_data_for_chat(q, df_master)
+                        prompt = f"""
+{inv_info}
+
+CÂU HỎI CỦA KỸ SƯ / NGƯỜI DÙNG:
+"{q}"
+
+Hãy trả lời thật chi tiết, trực quan, chuyên nghiệp theo đúng 3 phần:
+1. 📦 TÌNH TRẠNG TỒN KHO THỰC TẾ TẠI NHÀ MÁY (lập Bảng Markdown rõ ràng gồm Mã hàng, Tên hàng, ĐVT, Tồn cuối kỳ, Đánh giá)
+2. 🛠️ THÔNG SỐ KỸ THUẬT & TIÊU CHUẨN CÔNG NGHIỆP (kiến thức mở rộng: quy cách DN, OD, ID, cấp độ dày SCH, barem trọng lượng, tiêu chuẩn ASTM/JIS/DIN/TCVN/IEC...)
+3. 💡 TƯ VẤN KỸ THUẬT & LƯU Ý BẢO TRÌ NHÀ MÁY (phụ kiện đi kèm khi lắp đặt, vật tư thay thế tương đương, lưu ý ăn mòn phân bón/hóa chất)
+
+TRÌNH BÀY DẠNG BẢNG VÀ THẺ THÔNG TIN MARKDOWN ĐẸP MẮT. TUYỆT ĐỐI KHÔNG XUẤT JSON.
+"""
+                        try:
+                            ans = generate_content_safe(
+                                prompt,
+                                preferred_model=model_name,
+                                system_instruction=SYSTEM_PROMPT_ASSISTANT
+                            ).text
+                        except Exception as err:
+                            ans = f"Lỗi: {err}"
+                        st.markdown(ans)
+                        st.session_state.chat_history.append({"role": "assistant", "content": ans})
+            st.rerun()
+
+    if st.session_state.chat_history:
+        if st.button("🗑️ XÓA LỊCH SỬ CHAT", key="pop_clear_chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SIDEBAR — CẤU HÌNH & THIẾT LẬP
 # ═══════════════════════════════════════════════════════════════════════════
 with st.sidebar:
+    st.markdown("### 🤖 PHÂN HỆ AGENT THÔNG MINH")
+    current_agent = st.selectbox(
+        "MODULE ĐIỀU HÀNH",
+        [
+            "🤖 Agent 1: Đối chiếu thông tin vật tư",
+            "⚡ Agent 2: Giám sát thiết bị & Bảo trì (Sắp ra mắt)",
+            "📊 Agent 3: Dự báo tồn kho & Đặt hàng (Sắp ra mắt)"
+        ],
+        index=0,
+        label_visibility="collapsed"
+    )
+    st.markdown("---")
     st.markdown("### ⚙️ THIẾT LẬP HỆ THỐNG")
     
     default_key = os.environ.get("GOOGLE_API_KEY", "")
@@ -885,63 +1247,77 @@ with st.sidebar:
     st.markdown(f"**📁 THƯ MỤC BÁO CÁO**: `Processed_Reports/`")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HEADER CONSOLE — CHÍNH QUY & ẤN TƯỢNG (KÈM LINK PUBLIC INTERNET)
+# HEADER CONSOLE — CHÍNH QUY & ẤN TƯỢNG (KÈM LINK PUBLIC INTERNET & MINI CHAT)
 # ═══════════════════════════════════════════════════════════════════════════
 current_public_url = get_public_url()
-st.markdown(f"""
-<div class="hud-header">
-    <div>
-        <div class="hud-title">
-            ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
+col_hud_main, col_hud_chat = st.columns([5.2, 1.4], vertical_alignment="center")
+
+with col_hud_main:
+    st.markdown(f"""
+    <div class="hud-header" style="margin-bottom: 0;">
+        <div>
+            <div class="hud-title">
+                ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
+            </div>
+            <div class="hud-subtitle">
+                🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
+            </div>
         </div>
-        <div class="hud-subtitle">
-            🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
+        <div class="hud-chips">
+            <span class="hud-badge badge-green">
+                <span class="status-dot-pulse"></span> READY
+            </span>
+            <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
+            <span class="hud-badge">LAN: 192.168.1.189:8501</span>
+            <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link toàn cầu cho internet truy cập">
+                🌐 CLOUD ↗
+            </a>
         </div>
     </div>
-    <div class="hud-chips">
-        <span class="hud-badge badge-green">
-            <span class="status-dot-pulse"></span> SYSTEM READY
-        </span>
-        <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
-        <span class="hud-badge">LAN: 192.168.1.189:8501</span>
-        <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link cho toàn bộ internet truy cập">
-            🌐 CLOUD: quanlyvattucfc ↗
-        </a>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with col_hud_chat:
+    with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
+        render_mini_chat_assistant(df_master, api_key, model_name)
+
+st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TABS
+# PHÂN HỆ: AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ (3 SUB-TABS)
 # ═══════════════════════════════════════════════════════════════════════════
-tab_scan, tab_chat, tab_master, tab_reports = st.tabs([
+tab_scan, tab_master, tab_reports = st.tabs([
     "⚡ ĐỐI CHIẾU CHỨNG TỪ",
-    "💬 TRỢ LÝ CƠ - ĐIỆN",
-    "📦 KHO VẬT TƯ (1.318)",
-    "📑 BÁO CÁO ĐÃ XỬ LÝ"
+    "📦 KHO VẬT TƯ & CẬP NHẬT DANH MỤC",
+    "📋 BÁO CÁO / PHIẾU ĐÃ XỬ LÝ"
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 1: ĐỐI CHIẾU HÀNG LOẠT (MULTI-INPUT BATCH)
+# SUB-TAB 1: ĐỐI CHIẾU CHỨNG TỪ (CORE / MẶC ĐỊNH)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab_scan:
-    # ── DẢI 4 THẺ CHỈ SỐ KPI METRIC CARDS ──
+    # ── DẢI 4 THẺ CHỈ SỐ KPI METRIC CARDS ĐỘNG THEO REAL-TIME ──
+    total_cnt = len(df_master)
+    cnt_02 = sum(1 for c in df_master["Mã hàng"].dropna().astype(str) if c.startswith("02."))
+    cnt_03 = sum(1 for c in df_master["Mã hàng"].dropna().astype(str) if c.startswith("03."))
+    next_03_top = allocate_next_codes(df_master, 1, group="03")[0]
+    next_02_top = allocate_next_codes(df_master, 1, group="02")[0]
     processed_today = count_files_processed_today()
+
     st.markdown(f"""
     <div class="kpi-grid">
         <div class="kpi-card kpi-cyan">
             <div class="kpi-header">📦 TỔNG DANH MỤC KHO</div>
-            <div class="kpi-value">1,318 Mã</div>
-            <div class="kpi-sub">77 mã Nhóm 02 | 1,241 mã Nhóm 03</div>
+            <div class="kpi-value">{total_cnt:,} Mã</div>
+            <div class="kpi-sub">{cnt_02} mã Nhóm 02 | {cnt_03} mã Nhóm 03</div>
         </div>
         <div class="kpi-card kpi-green">
             <div class="kpi-header">🏷️ MÃ GỢI Ý TIẾP THEO</div>
-            <div class="kpi-value">03.9347</div>
-            <div class="kpi-sub">Nhóm 02 tiếp theo: 02.2841</div>
+            <div class="kpi-value">{next_03_top}</div>
+            <div class="kpi-sub">Nhóm 02 tiếp theo: {next_02_top}</div>
         </div>
         <div class="kpi-card kpi-purple">
             <div class="kpi-header">🧠 CHẾ ĐỘ AI ENGINE</div>
-            <div class="kpi-value" style="font-size: 1.45rem;">Chuyên gia Cơ-Điện</div>
+            <div class="kpi-value" style="font-size: 1.32rem;">Chuyên gia Cơ-Điện</div>
             <div class="kpi-sub">Tự động quy đổi tiếng lóng & quy cách</div>
         </div>
         <div class="kpi-card kpi-amber">
@@ -1182,8 +1558,27 @@ with tab_scan:
                     t_goc = r.get("ten_trich_xuat", "") or ""
                     t_chuan = r.get("ten_chuan_hoa", "") or ""
                     q_cach = r.get("quy_cach", "") or ""
-                    search_str = f"{t_goc} {q_cach}"
+                    search_str = f"{t_goc} {q_cach}".strip()
 
+                    # ── BƯỚC 1: KIỂM TRA ƯU TIÊN TỪ ĐIỂN ÁNH XẠ ĐÃ HỌC (PERSISTENT ALIAS MEMORY) ──
+                    alias_match = match_from_alias_memory(t_goc)
+                    if not alias_match and t_chuan:
+                        alias_match = match_from_alias_memory(t_chuan)
+
+                    if alias_match:
+                        target_code = alias_match.get("target_code", "")
+                        target_name = alias_match.get("target_name", "")
+                        r["trang_thai"] = "KHỚP"
+                        r["ma_vat_tu_cu"] = target_code
+                        r["ten_trong_kho"] = target_name
+                        r["ton_kho"] = 0
+                        r["ma_de_xuat"] = "-"
+                        r["goi_y_tuong_duong"] = f"{target_code} ({target_name} — Trí nhớ đã học)"
+                        r["ghi_chu"] = f"✓ Khớp 100% từ Trí nhớ đã học (Mã: {target_code})"
+                        consolidated_results.append(r)
+                        continue
+
+                    # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC ──
                     candidates = get_candidate_matches(search_str, corpus, top_k=3)
                     best = candidates[0] if candidates else None
 
@@ -1277,6 +1672,91 @@ with tab_scan:
         </div>
         """, unsafe_allow_html=True)
 
+        # ── KHU VỰC PHÊ DUYỆT MÃ MỚI (LƯU VĨNH VIỄN VÀO SQLITE & MASTER EXCEL) ──
+        if n_moi > 0:
+            st.markdown(f"""
+            <div style="background: rgba(255, 171, 0, 0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 10px 14px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <span style="font-weight: 700; color: #ffab00; font-size: 0.95rem;">⚡ PHÁT HIỆN {n_moi} VẬT TƯ MỚI CHỜ PHÊ DUYỆT:</span>
+                    <span style="color: #cbd5e1; font-size: 0.82rem; margin-left: 6px;">Bấm nút dưới để nạp vĩnh viễn vào Kho & Từ điển Ánh xạ đã học (SQLite).</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_btn_appr, col_btn_opt = st.columns([3, 1])
+            with col_btn_appr:
+                if st.button(f"✅ PHÊ DUYỆT & LƯU TẤT CẢ {n_moi} MÃ MỚI VÀO KHO VĨNH VIỄN", type="primary", use_container_width=True):
+                    approved_count = 0
+                    for r in res_list:
+                        if r.get("trang_thai") == "MỚI":
+                            code = r.get("ma_de_xuat")
+                            if code and code != "-":
+                                name_norm = r.get("ten_chuan_hoa") or r.get("ten_trich_xuat")
+                                spec = r.get("quy_cach", "")
+                                unit = r.get("don_vi", "Cái")
+                                raw_name = r.get("ten_trich_xuat", "")
+                                grp = "02" if str(code).startswith("02.") else "03"
+                                src = r.get("chung_tu_goc", "")
+                                note = r.get("ghi_chu", "")
+                                save_approved_material(
+                                    code=code,
+                                    name_normalized=name_norm,
+                                    spec=spec,
+                                    unit=unit,
+                                    group_code=grp,
+                                    raw_name=raw_name,
+                                    source_doc=src,
+                                    notes=note
+                                )
+                                r["trang_thai"] = "KHỚP"
+                                r["ma_vat_tu_cu"] = code
+                                r["ten_trong_kho"] = name_norm
+                                r["ton_kho"] = 0
+                                r["ma_de_xuat"] = "-"
+                                r["goi_y_tuong_duong"] = f"{code} (Vừa duyệt vào kho)"
+                                r["ghi_chu"] = f"✓ Đã duyệt & học vào bộ nhớ kho (Mã: {code})"
+                                approved_count += 1
+                    if approved_count > 0:
+                        st.session_state["reconciled_results"] = res_list
+                        batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
+                        st.session_state["reconciled_file_path"] = str(batch_file)
+                        st.toast(f"✓ Đã phê duyệt và lưu {approved_count} mã mới vào kho & bộ nhớ vĩnh viễn!", icon="✅")
+                        time.sleep(0.4)
+                        st.rerun()
+
+            with col_btn_opt:
+                with st.expander(f"⚙️ Duyệt từng mã lẻ ({n_moi})", expanded=False):
+                    moi_items = [r for r in res_list if r.get("trang_thai") == "MỚI"]
+                    for item in moi_items:
+                        st.markdown(f"**{item.get('ma_de_xuat')}** — {item.get('ten_chuan_hoa')}")
+                        st.caption(f"Gốc: `{item.get('ten_trich_xuat')}` | Quy cách: {item.get('quy_cach')}")
+                        if st.button("Duyệt mã này ✅", key=f"appr_single_{item.get('ma_de_xuat')}_{item.get('stt')}", use_container_width=True):
+                            code = item.get("ma_de_xuat")
+                            name_norm = item.get("ten_chuan_hoa") or item.get("ten_trich_xuat")
+                            save_approved_material(
+                                code=code,
+                                name_normalized=name_norm,
+                                spec=item.get("quy_cach", ""),
+                                unit=item.get("don_vi", "Cái"),
+                                group_code="02" if str(code).startswith("02.") else "03",
+                                raw_name=item.get("ten_trich_xuat", ""),
+                                source_doc=item.get("chung_tu_goc", ""),
+                                notes=item.get("ghi_chu", "")
+                            )
+                            item["trang_thai"] = "KHỚP"
+                            item["ma_vat_tu_cu"] = code
+                            item["ten_trong_kho"] = name_norm
+                            item["ton_kho"] = 0
+                            item["ma_de_xuat"] = "-"
+                            item["goi_y_tuong_duong"] = f"{code} (Vừa duyệt vào kho)"
+                            item["ghi_chu"] = f"✓ Đã duyệt & học vào bộ nhớ kho (Mã: {code})"
+                            st.session_state["reconciled_results"] = res_list
+                            batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
+                            st.session_state["reconciled_file_path"] = str(batch_file)
+                            st.toast(f"✓ Đã duyệt mã {code}!", icon="✅")
+                            time.sleep(0.4)
+                            st.rerun()
+
         # Thanh công cụ: Bộ lọc trạng thái & Tìm kiếm nhanh
         col_f, col_s = st.columns([3, 1])
         with col_f:
@@ -1315,14 +1795,19 @@ with tab_scan:
                 or kw in str(r.get("ghi_chu", "")).lower()
             ]
 
-        # Hiển thị Bảng đối chiếu gọn gàng (100% trong 1 màn hình, tự động xuống dòng)
+        # Hiển thị Bảng đối chiếu gọn gàng (Single-Viewport Lock, cuộn nội bộ 350px)
         if not filtered_items:
             st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
         else:
-            st.markdown(render_compact_table_html(filtered_items), unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='max-height: 350px; overflow-y: auto; border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; margin: 8px 0;'>"
+                f"{render_compact_table_html(filtered_items)}"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
         # Nút xuất Excel & Nút Xóa kết quả
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         col_down, col_clear_res = st.columns([3, 1])
         with col_down:
             if file_path and Path(file_path).exists():
@@ -1341,104 +1826,112 @@ with tab_scan:
                 st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 2: TRỢ LÝ CƠ - ĐIỆN (CHUYÊN GIA KỸ THUẬT: KHO + THÔNG TIN MẠNG / BẢNG THẺ ĐẸP MẮT)
-# ═══════════════════════════════════════════════════════════════════════════
-with tab_chat:
-    st.markdown("""
-    <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;">
-        <span style="font-weight: 700; color: #00e5ff;">👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN:</span>
-        <span style="color: #94a3b8; font-size: 0.88rem;">Tra cứu dữ liệu tồn kho 1.318 mã kết hợp kiến thức tiêu chuẩn công nghiệp (ASTM/JIS/DIN), barem quy cách và tư vấn kỹ thuật.</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── GỢI Ý CÂU HỎI NHANH ──
-    st.markdown("<div style='font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 600;'>💡 CÂU HỎI GỢI Ý NHANH:</div>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    quick_q = None
-    if c1.button("🔩 Thép ống phi 60 trong kho?", use_container_width=True):
-        quick_q = "Kiểm tra thép ống phi 60 trong kho còn bao nhiêu, quy cách tiêu chuẩn thế nào?"
-    if c2.button("⚙️ Vòng bi 6205 còn mấy cái?", use_container_width=True):
-        quick_q = "Vòng bi 6205 trong kho còn mấy cái, thông số kỹ thuật và hãng tương đương?"
-    if c3.button("⚡ Động cơ điện 15kW 4 cực", use_container_width=True):
-        quick_q = "Thông tin động cơ điện 15kW 4P trong kho và thông số dòng định mức, tốc độ?"
-    if c4.button("⚠️ Vật tư sắp hết (Tồn = 0)", use_container_width=True):
-        quick_q = "Liệt kê các mã vật tư đang hết hàng (tồn bằng 0) cần chú ý bổ sung gấp?"
-
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"], avatar="👨‍🔧" if msg["role"] == "user" else "🤖"):
-            st.markdown(msg["content"])
-
-    input_text = st.chat_input("Hỏi bất kỳ điều gì: quy cách, tồn kho, tiêu chuẩn, tương đương... (VD: 'thép ống 60', 'vòng bi 6205')")
-    q = quick_q or input_text
-
-    if q:
-        if not api_key:
-            st.error("Chưa nhập Google AI Key tại sidebar bên trái!")
-        else:
-            st.session_state.chat_history.append({"role": "user", "content": q})
-            with st.chat_message("user", avatar="👨‍🔧"):
-                st.markdown(q)
-
-            with st.chat_message("assistant", avatar="🤖"):
-                with st.spinner("Kỹ sư Trưởng AI đang tra cứu kho 1.318 mã & phân tích tiêu chuẩn kỹ thuật..."):
-                    inv_info = retrieve_inventory_data_for_chat(q, df_master)
-
-                    prompt = f"""
-{inv_info}
-
-CÂU HỎI CỦA KỸ SƯ / NGƯỜI DÙNG:
-"{q}"
-
-Hãy trả lời thật chi tiết, trực quan, chuyên nghiệp theo đúng 3 phần:
-1. 📦 TÌNH TRẠNG TỒN KHO THỰC TẾ TẠI NHÀ MÁY (lập Bảng Markdown rõ ràng gồm Mã hàng, Tên hàng, ĐVT, Tồn cuối kỳ, Đánh giá)
-2. 🛠️ THÔNG SỐ KỸ THUẬT & TIÊU CHUẨN CÔNG NGHIỆP (kiến thức mở rộng: quy cách DN, OD, ID, cấp độ dày SCH, barem trọng lượng, tiêu chuẩn ASTM/JIS/DIN/TCVN/IEC...)
-3. 💡 TƯ VẤN KỸ THUẬT & LƯU Ý BẢO TRÌ NHÀ MÁY (phụ kiện đi kèm khi lắp đặt, vật tư thay thế tương đương, lưu ý ăn mòn phân bón/hóa chất)
-
-TRÌNH BÀY DẠNG BẢNG VÀ THẺ THÔNG TIN MARKDOWN ĐẸP MẮT. TUYỆT ĐỐI KHÔNG XUẤT JSON.
-"""
-                    try:
-                        ans = generate_content_safe(
-                            prompt,
-                            preferred_model=model_name,
-                            system_instruction=SYSTEM_PROMPT_ASSISTANT
-                        ).text
-                    except Exception as err:
-                        ans = f"Lỗi: {err}"
-                    st.markdown(ans)
-                    st.session_state.chat_history.append({"role": "assistant", "content": ans})
-                    if quick_q:
-                        st.rerun()
-
-# ═══════════════════════════════════════════════════════════════════════════
-# TAB 3: DANH MỤC KHO MASTER (1.318 MÃ)
+# SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC
 # ═══════════════════════════════════════════════════════════════════════════
 with tab_master:
-    col_s1, col_s2 = st.columns([3, 1])
-    with col_s1:
-        kw = st.text_input("🔍 Tra cứu nhanh kho gốc:", placeholder="Nhập tên, mã hàng (02.xxx, 03.xxx), quy cách...")
-    with col_s2:
-        zero_filter = st.checkbox("Chỉ hiện hàng tồn = 0", value=False)
+    # ── HÀNG ĐIỀU KHIỂN & BỘ LỌC ──
+    col_search, col_group, col_zero, col_dl = st.columns([3, 2, 1.3, 2.5])
+    with col_search:
+        kw = st.text_input("🔍 Tìm kiếm danh mục kho:", placeholder="Nhập tên, mã (02.xxx, 03.xxx), quy cách...", key="master_search_input")
+    with col_group:
+        group_filter = st.selectbox(
+            "Phân nhóm:",
+            ["Tất cả danh mục", "Nhóm 02 (VLXD / Tiêu hao)", "Nhóm 03 (Cơ - Điện)"],
+            index=0,
+            key="master_group_select"
+        )
+    with col_zero:
+        zero_filter = st.checkbox("Chỉ tồn = 0", value=False, key="master_zero_check")
+    with col_dl:
+        if MASTER_FILE.exists():
+            with open(MASTER_FILE, "rb") as mf:
+                st.download_button(
+                    label="💾 TẢI FILE KHO HIỆN TẠI (.XLSX)",
+                    data=mf.read(),
+                    file_name=f"Master_Inventory_CFC_{datetime.date.today().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_dl_master_current"
+                )
 
     df_display = df_master.copy()
+    if group_filter == "Nhóm 02 (VLXD / Tiêu hao)":
+        df_display = df_display[df_display["Mã hàng"].astype(str).str.startswith("02.")]
+    elif group_filter == "Nhóm 03 (Cơ - Điện)":
+        df_display = df_display[df_display["Mã hàng"].astype(str).str.startswith("03.")]
+
     if kw:
         mask = df_display.apply(lambda r: r.astype(str).str.contains(kw, case=False, na=False).any(), axis=1)
         df_display = df_display[mask]
     if zero_filter and "Cuối kỳ SL" in df_display.columns:
         df_display = df_display[df_display["Cuối kỳ SL"] == 0]
 
-    st.dataframe(df_display, use_container_width=True, height=520)
-    st.caption(f"Hiển thị {len(df_display):,} / {len(df_master):,} mã hàng")
+    st.dataframe(df_display, use_container_width=True, height=320)
+    st.caption(f"Đang hiển thị {len(df_display):,} / {len(df_master):,} mã hàng trong kho.")
+
+    # ── KHU VỰC CẬP NHẬT FILE KHO MỚI & TỪ ĐIỂN ÁNH XẠ ──
+    col_up_box, col_alias_box = st.columns([1, 1], gap="medium")
+
+    with col_up_box:
+        with st.expander("📤 CẬP NHẬT FILE KHO VẬT TƯ MỚI (HÀNG TUẦN / THÁNG)", expanded=False):
+            st.markdown("""
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px;">
+                Tải lên bảng tổng hợp kho mới (.xlsx, .xls, .csv). Hệ thống sẽ tự động đối chiếu và cập nhật cơ sở dữ liệu.
+            </div>
+            """, unsafe_allow_html=True)
+
+            up_inv_file = st.file_uploader(
+                "Chọn file kho mới:",
+                type=["xlsx", "xls", "csv"],
+                key="uploader_master_inventory"
+            )
+            up_mode = st.radio(
+                "Chế độ cập nhật:",
+                [
+                    "🔄 Hợp nhất (Merge/Upsert): Cập nhật thông tin mới và nối thêm mã chưa có",
+                    "⚠️ Ghi đè (Overwrite): Thay thế danh mục nhưng bảo toàn toàn bộ mã mới đã duyệt"
+                ],
+                index=0,
+                key="radio_master_up_mode"
+            )
+            mode_val = "merge" if "Merge" in up_mode else "overwrite"
+
+            if st.button("🚀 XÁC NHẬN CẬP NHẬT KHO VẬT TƯ", type="primary", use_container_width=True, key="btn_confirm_up_master"):
+                if not up_inv_file:
+                    st.error("Vui lòng chọn file Excel hoặc CSV trước khi bấm cập nhật!")
+                else:
+                    success, msg = update_master_inventory(up_inv_file.read(), up_inv_file.name, mode=mode_val)
+                    if success:
+                        st.success(f"✓ {msg}")
+                        st.toast(f"✓ {msg}", icon="✅")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error(f"Thất bại: {msg}")
+
+    with col_alias_box:
+        aliases = get_all_aliases()
+        with st.expander(f"🧠 TỪ ĐIỂN ÁNH XẠ ĐÃ HỌC ({len(aliases)} MỤC ĐÃ NHỚ)", expanded=False):
+            st.markdown("""
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px;">
+                Danh sách từ vựng/tên gọi thợ thuyền đã học. Các lần quét sau gặp lại tên này sẽ tự động khớp 100% về mã kho đã lưu.
+            </div>
+            """, unsafe_allow_html=True)
+            if aliases:
+                df_alias = pd.DataFrame(aliases)[["raw_name", "target_code", "target_name", "created_at"]]
+                df_alias.columns = ["Tên chứng từ gốc", "Mã chuẩn kho", "Tên kỹ thuật chuẩn", "Thời gian học"]
+                st.dataframe(df_alias, use_container_width=True, height=220)
+            else:
+                st.info("Chưa có từ khóa học nào trong bộ nhớ. Khi duyệt mã mới ở Tab 1, hệ thống sẽ tự động ghi nhớ vào đây.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 4: LỊCH SỬ BÁO CÁO
+# SUB-TAB 3: BÁO CÁO / PHIẾU ĐÃ XỬ LÝ
 # ═══════════════════════════════════════════════════════════════════════════
 with tab_reports:
     reports = sorted(REPORT_DIR.glob("*.xlsx"), key=os.path.getmtime, reverse=True)
     if reports:
-        for rf in reports[:20]:
+        st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 LỊCH SỬ {len(reports)} BÁO CÁO ĐÃ XỬ LÝ (TẢI LẠI BẤT KỲ LÚC NÀO):</div>", unsafe_allow_html=True)
+        for rf in reports[:25]:
             c1, c2, c3 = st.columns([5, 2, 1])
             with c1:
                 st.markdown(f"📄 **{rf.name}**")
@@ -1446,6 +1939,6 @@ with tab_reports:
                 st.caption(datetime.datetime.fromtimestamp(rf.stat().st_mtime).strftime("%d/%m/%Y %H:%M"))
             with c3:
                 with open(rf, "rb") as f:
-                    st.download_button("⬇️", f.read(), rf.name, key=f"dl_{rf.name}")
+                    st.download_button("⬇️ Tải", f.read(), rf.name, key=f"dl_rep_{rf.name}")
     else:
-        st.info("Chưa có báo cáo nào.")
+        st.info("Chưa có báo cáo nào được tạo.")
