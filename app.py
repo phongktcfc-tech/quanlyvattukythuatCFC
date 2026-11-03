@@ -213,29 +213,147 @@ def save_approved_material(
     except Exception:
         pass
 
-def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge") -> tuple[bool, str]:
-    """Cập nhật Master_Inventory từ file tải lên (Merge/Upsert hoặc Overwrite), luôn bảo toàn mã đã duyệt."""
+def parse_inventory_upload(file_bytes: bytes, filename: str) -> tuple[pd.DataFrame | None, str]:
+    """Quét thông minh file kho Excel/CSV từ phần mềm kế toán/ERP (MISA, FAST, Bravo, Excel tự lập)."""
     try:
         if filename.lower().endswith(".csv"):
-            new_df = pd.read_csv(io.BytesIO(file_bytes), dtype={"Mã hàng": str})
+            try:
+                raw_df = pd.read_csv(io.BytesIO(file_bytes), header=None, dtype=str, encoding="utf-8")
+            except Exception:
+                raw_df = pd.read_csv(io.BytesIO(file_bytes), header=None, dtype=str, encoding="latin1")
         else:
-            new_df = pd.read_excel(io.BytesIO(file_bytes), dtype={"Mã hàng": str})
-        
-        if "Mã hàng" not in new_df.columns or "Tên hàng" not in new_df.columns:
-            return False, "File thiếu cột bắt buộc 'Mã hàng' hoặc 'Tên hàng'."
-            
-        new_df["Mã hàng"] = new_df["Mã hàng"].astype(str).str.strip()
-        
-        if mode == "merge":
-            if MASTER_FILE.exists():
-                cur_df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
-                cur_df["Mã hàng"] = cur_df["Mã hàng"].astype(str).str.strip()
-                merged_df = pd.concat([new_df, cur_df[~cur_df["Mã hàng"].isin(new_df["Mã hàng"])]], ignore_index=True)
-            else:
-                merged_df = new_df
+            raw_df = pd.read_excel(io.BytesIO(file_bytes), header=None, dtype=str)
+    except Exception as e:
+        return None, f"Không thể đọc file: {e}"
+
+    if raw_df.empty:
+        return None, "File tải lên không có dữ liệu."
+
+    # Quét tìm dòng header (chứa Mã hàng và Tên hàng) trong 25 dòng đầu tiên
+    header_idx = None
+    for i in range(min(25, len(raw_df))):
+        row_vals = [str(x).strip().lower() for x in raw_df.iloc[i].dropna()]
+        has_code = any(any(k in x for k in ["mã hàng", "mã vật tư", "mã vt", "mã sp", "mã hàng hóa", "item code"]) for x in row_vals)
+        has_name = any(any(k in x for k in ["tên hàng", "tên vật tư", "tên vt", "tên sp", "tên hàng hóa", "item name"]) for x in row_vals)
+        if has_code and has_name:
+            header_idx = i
+            break
+
+    if header_idx is None:
+        row0 = [str(x).strip().lower() for x in raw_df.iloc[0].dropna()]
+        if any("mã" in x for x in row0) and any("tên" in x for x in row0):
+            header_idx = 0
         else:
-            merged_df = new_df.copy()
-            
+            return None, "File không chứa dòng tiêu đề có cột 'Mã hàng' và 'Tên hàng'."
+
+    h_row = raw_df.iloc[header_idx].tolist()
+    has_sub = False
+    if header_idx + 1 < len(raw_df):
+        next_row_vals = [str(x).strip().lower() for x in raw_df.iloc[header_idx + 1].dropna()]
+        if any("số lượng" in x or "sl" in x for x in next_row_vals) and any("giá trị" in x or "gt" in x for x in next_row_vals):
+            has_sub = True
+            sub_row = raw_df.iloc[header_idx + 1].tolist()
+
+    new_cols = []
+    last_main = ""
+    for col_i in range(len(h_row)):
+        main_val = str(h_row[col_i]).strip() if pd.notna(h_row[col_i]) else ""
+        if main_val and main_val.lower() != "nan":
+            last_main = main_val
+        sub_val = ""
+        if has_sub and col_i < len(sub_row):
+            s = str(sub_row[col_i]).strip() if pd.notna(sub_row[col_i]) else ""
+            if s and s.lower() != "nan":
+                sub_val = s
+        if sub_val:
+            col_name = f"{last_main} {sub_val}" if last_main else sub_val
+        else:
+            col_name = main_val if main_val else f"Col_{col_i}"
+        new_cols.append(col_name)
+
+    start_data_idx = header_idx + 2 if has_sub else header_idx + 1
+    data_df = raw_df.iloc[start_data_idx:].copy()
+    data_df.columns = new_cols
+
+    col_mapping = {}
+    for c in data_df.columns:
+        c_low = c.lower().strip()
+        if any(k in c_low for k in ["mã hàng", "mã vật tư", "mã vt", "mã sp", "item code"]):
+            col_mapping[c] = "Mã hàng"
+        elif any(k in c_low for k in ["tên hàng", "tên vật tư", "tên vt", "tên sp", "item name"]):
+            col_mapping[c] = "Tên hàng"
+        elif any(k in c_low for k in ["đvt", "đơn vị tính", "đơn vị", "uom", "unit"]):
+            col_mapping[c] = "ĐVT"
+        elif "tên kho" in c_low or "kho" in c_low:
+            col_mapping[c] = "Tên kho"
+        elif "cuối kỳ" in c_low and ("số lượng" in c_low or "sl" in c_low):
+            col_mapping[c] = "Cuối kỳ SL"
+        elif "cuối kỳ" in c_low and ("giá trị" in c_low or "gt" in c_low):
+            col_mapping[c] = "Cuối kỳ GT"
+        elif "đầu kỳ" in c_low and ("số lượng" in c_low or "sl" in c_low):
+            col_mapping[c] = "Đầu kỳ SL"
+        elif "đầu kỳ" in c_low and ("giá trị" in c_low or "gt" in c_low):
+            col_mapping[c] = "Đầu kỳ GT"
+        elif "nhập kho" in c_low and ("số lượng" in c_low or "sl" in c_low):
+            col_mapping[c] = "Nhập kho SL"
+        elif "nhập kho" in c_low and ("giá trị" in c_low or "gt" in c_low):
+            col_mapping[c] = "Nhập kho GT"
+        elif "xuất kho" in c_low and ("số lượng" in c_low or "sl" in c_low):
+            col_mapping[c] = "Xuất kho SL"
+        elif "xuất kho" in c_low and ("giá trị" in c_low or "gt" in c_low):
+            col_mapping[c] = "Xuất kho GT"
+
+    data_df = data_df.rename(columns=col_mapping)
+
+    if "Mã hàng" not in data_df.columns or "Tên hàng" not in data_df.columns:
+        return None, "File thiếu cột bắt buộc 'Mã hàng' hoặc 'Tên hàng'."
+
+    # Lọc bỏ các dòng tiêu đề nhóm hoặc dòng tổng cộng không phải mã vật tư
+    data_df = data_df[data_df["Mã hàng"].notna()]
+    data_df["Mã hàng"] = data_df["Mã hàng"].astype(str).str.strip()
+    data_df = data_df[~data_df["Mã hàng"].str.lower().isin(["", "nan", "none", "null"])]
+    data_df = data_df[~data_df["Mã hàng"].str.contains("tên kho|số dòng|cộng|tổng cộng|ngày|từ ngày", case=False, na=False)]
+
+    data_df = data_df[data_df["Tên hàng"].notna()]
+    data_df["Tên hàng"] = data_df["Tên hàng"].astype(str).str.strip()
+    data_df = data_df[~data_df["Tên hàng"].str.lower().isin(["", "nan", "none", "null"])]
+
+    # Chuyển đổi các cột số lượng và giá trị
+    for num_col in ["Cuối kỳ SL", "Cuối kỳ GT", "Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT"]:
+        if num_col in data_df.columns:
+            data_df[num_col] = pd.to_numeric(data_df[num_col].astype(str).str.replace(",", "").str.strip(), errors="coerce").fillna(0)
+        else:
+            data_df[num_col] = 0
+
+    if "Tên kho" not in data_df.columns:
+        data_df["Tên kho"] = "Kho vật tư"
+    if "ĐVT" not in data_df.columns:
+        data_df["ĐVT"] = "Cái"
+
+    standard_cols = ["Tên kho", "Mã hàng", "Tên hàng", "ĐVT", "Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT", "Cuối kỳ SL", "Cuối kỳ GT"]
+    final_df = data_df[standard_cols].copy()
+    return final_df, f"Đã nhận diện {len(final_df)} vật tư."
+
+
+def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge") -> tuple[bool, str]:
+    """Cập nhật Master_Inventory: tự động bóc tách định dạng ERP/Kế toán, luôn cố định chế độ Hợp nhất (Merge/Upsert)."""
+    try:
+        new_df, parse_msg = parse_inventory_upload(file_bytes, filename)
+        if new_df is None:
+            return False, parse_msg
+
+        # Luôn thực hiện chế độ Hợp nhất (Merge / Upsert)
+        if MASTER_FILE.exists():
+            cur_df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
+            cur_df["Mã hàng"] = cur_df["Mã hàng"].astype(str).str.strip()
+            # Cập nhật thông tin mới từ new_df, giữ các mã cũ không có trong new_df
+            new_codes = set(new_df["Mã hàng"])
+            remaining_cur = cur_df[~cur_df["Mã hàng"].isin(new_codes)]
+            merged_df = pd.concat([new_df, remaining_cur], ignore_index=True)
+        else:
+            merged_df = new_df
+
+        # Bảo toàn tất cả các mã đã được kỹ sư duyệt trong SQLite materials_memory.db
         appr = get_all_approved_materials()
         if appr:
             appr_codes = set(merged_df["Mã hàng"])
@@ -245,22 +363,27 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
                 if c not in appr_codes:
                     full_name = f"{a['name_normalized']} {a.get('spec', '')}".strip()
                     rows_to_add.append({
+                        "Tên kho": "Kho vật tư phòng Kỹ thuật 01",
                         "Mã hàng": c,
                         "Tên hàng": full_name,
                         "ĐVT": a.get("unit", "Cái"),
                         "Đầu kỳ SL": 0,
                         "Đầu kỳ GT": 0,
                         "Nhập kho SL": 0,
+                        "Nhập kho GT": 0,
                         "Xuất kho SL": 0,
+                        "Xuất kho GT": 0,
                         "Cuối kỳ SL": a.get("stock", 0),
                         "Cuối kỳ GT": 0
                     })
             if rows_to_add:
                 merged_df = pd.concat([merged_df, pd.DataFrame(rows_to_add)], ignore_index=True)
 
+        merged_df = merged_df.sort_values(by="Mã hàng").reset_index(drop=True)
         merged_df.to_excel(MASTER_FILE, index=False)
         load_master_df.clear()
-        return True, f"Cập nhật thành công kho vật tư ({len(merged_df):,} mã hàng)."
+        build_search_corpus.clear()
+        return True, f"Hợp nhất thành công kho vật tư: Tổng {len(merged_df):,} mã hàng (Đã cập nhật từ file '{filename}')."
     except Exception as e:
         return False, f"Lỗi cập nhật kho: {e}"
 
@@ -2119,22 +2242,18 @@ with tab_master:
                 type=["xlsx", "xls", "csv"],
                 key="uploader_master_inventory"
             )
-            up_mode = st.radio(
-                "Chế độ cập nhật:",
-                [
-                    "🔄 Hợp nhất (Merge/Upsert): Cập nhật thông tin mới và nối thêm mã chưa có",
-                    "⚠️ Ghi đè (Overwrite): Thay thế danh mục nhưng bảo toàn toàn bộ mã mới đã duyệt"
-                ],
-                index=0,
-                key="radio_master_up_mode"
-            )
-            mode_val = "merge" if "Merge" in up_mode else "overwrite"
+            st.markdown("""
+            <div style="background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; color: #cbd5e1;">
+                🔄 <b>Chế độ cập nhật cố định: Hợp nhất (Merge / Upsert)</b><br>
+                Tự động nhận diện định dạng ERP/Kế toán, cập nhật số lượng tồn mới và bổ sung các mã hàng mới mà <b>không làm mất</b> danh mục và các mã đã học.
+            </div>
+            """, unsafe_allow_html=True)
 
             if st.button("🚀 XÁC NHẬN CẬP NHẬT KHO VẬT TƯ", type="primary", use_container_width=True, key="btn_confirm_up_master"):
                 if not up_inv_file:
                     st.error("Vui lòng chọn file Excel hoặc CSV trước khi bấm cập nhật!")
                 else:
-                    success, msg = update_master_inventory(up_inv_file.read(), up_inv_file.name, mode=mode_val)
+                    success, msg = update_master_inventory(up_inv_file.read(), up_inv_file.name, mode="merge")
                     if success:
                         st.success(f"✓ {msg}")
                         st.toast(f"✓ {msg}", icon="✅")
@@ -2164,15 +2283,58 @@ with tab_master:
 with tab_reports:
     reports = sorted(REPORT_DIR.glob("*.xlsx"), key=os.path.getmtime, reverse=True)
     if reports:
-        st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 LỊCH SỬ {len(reports)} BÁO CÁO ĐÃ XỬ LÝ (TẢI LẠI BẤT KỲ LÚC NÀO):</div>", unsafe_allow_html=True)
-        for rf in reports[:25]:
-            c1, c2, c3 = st.columns([5, 2, 1])
-            with c1:
-                st.markdown(f"📄 **{rf.name}**")
-            with c2:
-                st.caption(datetime.datetime.fromtimestamp(rf.stat().st_mtime).strftime("%d/%m/%Y %H:%M"))
-            with c3:
-                with open(rf, "rb") as f:
-                    st.download_button("⬇️ Tải", f.read(), rf.name, key=f"dl_rep_{rf.name}")
+        col_rep_head, col_rep_del_all = st.columns([4, 1.5])
+        with col_rep_head:
+            st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 LỊCH SỬ {len(reports)} BÁO CÁO / PHIẾU ĐÃ XỬ LÝ:</div>", unsafe_allow_html=True)
+        with col_rep_del_all:
+            with st.popover("🗑️ Xóa toàn bộ lịch sử", use_container_width=True):
+                st.markdown("**Xác nhận xóa tất cả báo cáo?**")
+                st.caption("Thao tác này sẽ xóa vĩnh viễn tất cả các file báo cáo đã lưu.")
+                if st.button("Xác nhận xóa hết", type="primary", key="btn_confirm_del_all", use_container_width=True):
+                    del_cnt = 0
+                    for r_item in reports:
+                        try:
+                            r_item.unlink()
+                            del_cnt += 1
+                        except Exception:
+                            pass
+                    st.toast(f"✓ Đã xóa {del_cnt} báo cáo!", icon="🗑️")
+                    time.sleep(0.3)
+                    st.rerun()
+
+        for idx, rf in enumerate(reports[:35]):
+            file_key = rf.stem
+            time_str = datetime.datetime.fromtimestamp(rf.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+
+            with st.expander(f"📄 {rf.name}  |  🕒 {time_str}", expanded=(idx == 0)):
+                c_dl, c_del, c_space = st.columns([2, 1.5, 4.5])
+                with c_dl:
+                    with open(rf, "rb") as f:
+                        st.download_button(
+                            label="💾 Tải file Excel (.xlsx)",
+                            data=f.read(),
+                            file_name=rf.name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key=f"dl_btn_{file_key}_{idx}",
+                            use_container_width=True
+                        )
+                with c_del:
+                    if st.button("🗑️ Xóa phiếu này", key=f"del_btn_{file_key}_{idx}", type="secondary", use_container_width=True):
+                        try:
+                            rf.unlink()
+                            st.toast(f"✓ Đã xóa thành công phiếu '{rf.name}'!", icon="🗑️")
+                            time.sleep(0.3)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Lỗi khi xóa: {e}")
+
+                # Xem trực tiếp nội dung phiếu ngay trong giao diện
+                try:
+                    df_view = pd.read_excel(rf)
+                    n_rows = len(df_view)
+                    st.markdown(f"<div style='font-size:0.83rem; color:#94a3b8; margin: 8px 0 4px 0;'>📊 <b>Nội dung phiếu chi tiết ({n_rows} dòng vật tư):</b></div>", unsafe_allow_html=True)
+                    st.dataframe(df_view, use_container_width=True, height=260)
+                except Exception as e:
+                    st.warning(f"Không thể đọc xem trước nội dung: {e}")
     else:
-        st.info("Chưa có báo cáo nào được tạo.")
+        st.info("Chưa có báo cáo nào được tạo. Khi đối chiếu xong ở Tab 1, các phiếu sẽ tự động lưu trữ tại đây.")
