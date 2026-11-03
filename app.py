@@ -283,12 +283,14 @@ KIẾN THỨC BẮT BUỘC:
 • Tiêu hao & Phụ kiện: Bu lông Gr 8.8/10.9/Inox, Phớt dầu NBR/Viton/FKM, Que hàn E6013/E7016/Inox, Dầu mỡ công nghiệp (EP2, VG68, Gear oil 140).
 • Tiếng lóng thợ thuyền: "bạc đạn" = vòng bi, "curoa" = dây đai, "ru lô" = con lăn, "nhông" = bánh răng, "mô tơ" = động cơ, "hộp số" = hộp giảm tốc, "áp tô mát" = aptomat, "khởi động từ" = contactor, "mỡ bò" = mỡ bôi trơn, "que hàn xanh" = E7016, "10 ngựa" = 7.5kW.
 
-NGUYÊN TẮC ĐỐI CHIẾU VÀ MÃ ĐỀ XUẤT:
+NGUYÊN TẮC ĐỐI CHIẾU VÀ MÃ ĐỀ XUẤT (THUẬT TOÁN ĐỐI CHIẾU THÔNG MINH ĐA THUỘC TÍNH):
 1. Trích xuất chính xác từng dòng: tên vật tư, quy cách kỹ thuật, số lượng, đơn vị tính.
 2. Chuẩn hóa tên kỹ thuật, xóa bỏ cách gọi dân dã/tiếng lóng.
-3. So khớp với danh sách ứng viên trong kho gốc:
-   - KHỚP: Cùng chủng loại và thông số -> Trả mã hàng cũ chuẩn (ví dụ 02.0483, 03.1477, 03.9341), tên trong kho, tồn kho hiện tại.
-   - MỚI: Chưa có trong kho -> Quy cách mã BẮT BUỘC dạng số 0x.xxxx (ví dụ 03.9347, 03.9348, 02.2841). TUYỆT ĐỐI KHÔNG dùng mã chữ cái như VB.INOX hay TB.KN.
+3. QUY TẮC ĐỐI CHIẾU THÔNG MINH (QUY CÁCH + CÔNG DỤNG + TỪ ĐỒNG NGHĨA):
+   - TUYỆT ĐỐI KHÔNG cứng nhắc chỉ tìm theo tên chữ cái trùng lặp. Trong nhà máy, vật tư thường có 2 tên gọi khác nhau nhưng CÙNG CÔNG DỤNG & CÙNG THÔNG SỐ (Ví dụ: "Đá mài 100mm" và "Đá mài fi 10"; "Chén cước 100" và "Chén cước"; "Nhựa cây tròn PE phi 60" và "Cây nhựa đặc phi 60"; "Nhám xếp 100mm" và "Nhám xếp").
+   - Hãy căn cứ vào danh sách ỨNG VIÊN KHO được cung cấp: Nếu ứng viên có cùng nhóm công dụng (mài cắt, đánh rỉ, làm kín, tiện gia công nhựa, vòng bi, đai truyền...) và quy cách kỹ thuật tương đương (đường kính phi/fi, kích thước mm, bước ren M...), BẮT BUỘC ưu tiên KHỚP về mã kho đó, TRÁNH tự ý sinh mã mới gây trùng lặp danh mục.
+   - KHỚP: Cùng chủng loại, công dụng và thông số -> Trả mã hàng cũ chuẩn (ví dụ 02.0483, 03.1477, 03.9341), tên trong kho, tồn kho hiện tại.
+   - MỚI: Chỉ khi kho hoàn toàn không có vật tư cùng công dụng/thông số tương đương -> Quy cách mã BẮT BUỘC dạng số 0x.xxxx (ví dụ 03.9347, 03.9348, 02.2841). TUYỆT ĐỐI KHÔNG dùng mã chữ cái như VB.INOX hay TB.KN.
    - CẦN_XÁC_NHẬN: Thiếu thông số quan trọng để phân biệt.
 
 ĐỊNH DẠNG ĐẦU RA BẮT BUỘC:
@@ -802,6 +804,7 @@ def count_files_processed_today() -> int:
     return max(cnt // 2, cnt)
 
 
+@st.cache_data
 def build_search_corpus(df: pd.DataFrame):
     """Xây dựng chỉ mục chuẩn hóa Unicode NFC cho tiếng Việt."""
     corpus = []
@@ -815,24 +818,107 @@ def build_search_corpus(df: pd.DataFrame):
     return corpus
 
 
-def get_candidate_matches(query: str, corpus: list, top_k: int = 3):
-    """Tìm ứng viên gần giống / tương đương với độ chính xác cao."""
+FUNCTION_CLUSTERS = [
+    {"name": "mai_cat", "label": "Dụng cụ mài cắt", "synonyms": ["đá mài", "đá cắt", "đĩa mài", "đĩa cắt", "đá chà", "lưỡi mài", "lưỡi cắt", "đá mài fi", "đá cắt fi"]},
+    {"name": "nham", "label": "Nhám mài bóng", "synonyms": ["nhám xếp", "đĩa nhám", "bánh nhám", "nhám lá", "nhám chuôi", "giấy nhám", "nhám"]},
+    {"name": "cuoc", "label": "Cước đánh rỉ", "synonyms": ["chén cước", "bát cước", "chổi cước", "đĩa cước", "bánh cước", "cước"]},
+    {"name": "vong_bi", "label": "Vòng bi & Gối đỡ", "synonyms": ["vòng bi", "bạc đạn", "gối đỡ", "ucp", "ucf", "ổ bi", "đỡ chặn", "bạc đạn chéo", "bạc đạn nhào"]},
+    {"name": "nhua_kt", "label": "Nhựa kỹ thuật gia công", "synonyms": ["nhựa cây", "nhựa tròn", "nhựa pe", "nhựa pom", "nhựa teflon", "nhựa ptfe", "nhựa tấm", "cây nhựa", "nhựa đặc", "nhựa mc", "nhựa pu"]},
+    {"name": "curoa", "label": "Dây curoa & Đai truyền", "synonyms": ["dây curoa", "dây đai", "curoa", "đai thang", "bản a", "bản b", "bản c"]},
+    {"name": "thep_ong", "label": "Thép ống & Ống dẫn", "synonyms": ["thép ống", "ống thép", "ống kẽm", "ống đúc", "ống đen", "ống hàn"]},
+    {"name": "bulon", "label": "Bu lông & Liên kết", "synonyms": ["bu lông", "bulon", "bulông", "ốc vít", "tán", "đai ốc", "long đền", "vòng đệm"]},
+    {"name": "dong_co", "label": "Động cơ & Hộp số", "synonyms": ["động cơ", "mô tơ", "motor", "motor giảm tốc", "hộp giảm tốc"]},
+    {"name": "dien", "label": "Thiết bị điện & Đóng cắt", "synonyms": ["khởi động từ", "contactor", "khởi từ", "áp tô mát", "aptomat", "mcb", "mccb", "rơ le", "biến tần"]},
+    {"name": "que_han", "label": "Vật liệu hàn", "synonyms": ["que hàn", "dây hàn", "thuốc hàn", "que hàn inox"]},
+    {"name": "lam_kin", "label": "Gioăng & Phớt làm kín", "synonyms": ["phốt", "phớt", "sin", "gioăng", "seal", "o-ring", "phớt chắn dầu"]},
+    {"name": "dau_mo", "label": "Dầu mỡ bôi trơn", "synonyms": ["dầu nhớt", "dầu mỡ", "mỡ bò", "mỡ bôi trơn", "nhớt 68", "nhớt 140", "dầu thủy lực"]},
+]
+
+def get_functional_cluster(text: str) -> dict | None:
+    t = str(text).lower()
+    for c in FUNCTION_CLUSTERS:
+        for s in c["synonyms"]:
+            if s in t:
+                return c
+    return None
+
+def extract_technical_dimensions(text: str) -> set[str]:
+    dims = set()
+    t = str(text).lower()
+    for m in re.finditer(r'(?:phi|fi|d)\s*(\d+)', t):
+        dims.add(m.group(1))
+    for m in re.finditer(r'(\d+)\s*(?:mm|cm|m\b)', t):
+        val = int(m.group(1))
+        dims.add(str(val))
+        if val == 100:
+            dims.add("10")
+    for m in re.finditer(r'\b(m\d+)\b', t):
+        dims.add(m.group(1).upper())
+    for m in re.finditer(r'\b(dn\d+)\b', t):
+        dims.add(m.group(1).upper())
+    for m in re.finditer(r'\b(\d{4,5})\b', t):
+        dims.add(m.group(1))
+    return dims
+
+def get_candidate_matches(query: str, corpus: list, top_k: int = 5) -> list[dict]:
+    """
+    Thuật toán đối chiếu thông minh đa thuộc tính:
+    Dò tìm theo Quy cách kỹ thuật (kích thước, model), Công dụng thực tế và Từ ngữ tương đương.
+    """
     if not corpus or not query:
         return []
-    q_norm = unicodedata.normalize("NFC", query).lower().strip()
-    texts = [c[0].lower() for c in corpus]
-    matches = rfprocess.extract(q_norm, texts, scorer=fuzz.token_set_ratio, limit=top_k)
+    q_norm = unicodedata.normalize("NFC", str(query)).lower().strip()
+    q_cluster = get_functional_cluster(q_norm)
+    q_dims = extract_technical_dimensions(q_norm)
+
     results = []
-    for text_val, score, match_idx in matches:
-        _, real_idx, ma, ten, dvt, ton = corpus[match_idx]
-        results.append({
-            "score": score,
-            "ma": ma,
-            "ten": ten,
-            "dvt": dvt,
-            "ton": ton,
-        })
-    return results
+    for item in corpus:
+        text_val, real_idx, ma, ten, dvt, ton = item
+        t_norm = unicodedata.normalize("NFC", str(ten)).lower().strip()
+
+        # 1. Điểm tương đồng từ ngữ
+        fuzzy_score = fuzz.token_set_ratio(q_norm, t_norm)
+
+        # 2. Cùng nhóm công dụng kỹ thuật thực tế
+        cluster_bonus = 0
+        t_cluster = get_functional_cluster(t_norm)
+        same_function = (q_cluster is not None and t_cluster is not None and q_cluster["name"] == t_cluster["name"])
+        if same_function:
+            cluster_bonus = 35
+
+        # 3. Cùng thông số kích thước / model kỹ thuật cốt lõi
+        dim_bonus = 0
+        t_dims = extract_technical_dimensions(t_norm)
+        same_dim = bool(q_dims and t_dims and (q_dims & t_dims))
+        if same_dim:
+            dim_bonus = 30
+
+        total_score = fuzzy_score * 0.45 + cluster_bonus + dim_bonus
+
+        ly_do = ""
+        if same_function and same_dim:
+            ly_do = f"Cùng công dụng ({q_cluster['label']}) & quy cách tương đương"
+        elif same_function:
+            ly_do = f"Cùng nhóm công dụng ({q_cluster['label']})"
+        elif same_dim:
+            ly_do = f"Cùng thông số kỹ thuật ({', '.join(q_dims & t_dims)})"
+        else:
+            ly_do = f"Tương đồng từ ngữ ({fuzzy_score:.0f}%)"
+
+        if total_score >= 38:
+            results.append({
+                "score": total_score,
+                "ma": ma,
+                "ten": ten,
+                "dvt": dvt,
+                "ton": ton,
+                "same_function": same_function,
+                "same_dim": same_dim,
+                "ly_do": ly_do
+            })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:top_k]
 
 
 def retrieve_inventory_data_for_chat(query: str, df: pd.DataFrame, max_rows=15) -> str:
@@ -917,7 +1003,8 @@ def find_candidates(query: str, df: pd.DataFrame, corpus: list, top_k: int = 5) 
     matches = get_candidate_matches(query, corpus, top_k=top_k)
     lines = []
     for c in matches:
-        lines.append(f"  [{c['score']:.0f}% match] Mã: {c['ma']} | Tên: {c['ten']} | ĐVT: {c['dvt']} | Tồn: {c['ton']}")
+        ly_do_str = f" ({c['ly_do']})" if c.get("ly_do") else ""
+        lines.append(f"  [{c['score']:.0f}% phù hợp] Mã: {c['ma']} | Tên: {c['ten']} | ĐVT: {c['dvt']} | Tồn: {c['ton']}{ly_do_str}")
     return "\n".join(lines)
 
 
@@ -1315,38 +1402,7 @@ tab_scan, tab_master, tab_reports = st.tabs([
 # SUB-TAB 1: ĐỐI CHIẾU CHỨNG TỪ (CORE / MẶC ĐỊNH)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab_scan:
-    # ── DẢI 4 THẺ CHỈ SỐ KPI METRIC CARDS ĐỘNG THEO REAL-TIME ──
-    total_cnt = len(df_master)
-    cnt_02 = sum(1 for c in df_master["Mã hàng"].dropna().astype(str) if c.startswith("02."))
-    cnt_03 = sum(1 for c in df_master["Mã hàng"].dropna().astype(str) if c.startswith("03."))
-    next_03_top = allocate_next_codes(df_master, 1, group="03")[0]
-    next_02_top = allocate_next_codes(df_master, 1, group="02")[0]
-    processed_today = count_files_processed_today()
-
-    st.markdown(f"""
-    <div class="kpi-grid">
-        <div class="kpi-card kpi-cyan">
-            <div class="kpi-header">📦 TỔNG DANH MỤC KHO</div>
-            <div class="kpi-value">{total_cnt:,} Mã</div>
-            <div class="kpi-sub">{cnt_02} mã Nhóm 02 | {cnt_03} mã Nhóm 03</div>
-        </div>
-        <div class="kpi-card kpi-green">
-            <div class="kpi-header">🏷️ MÃ GỢI Ý TIẾP THEO</div>
-            <div class="kpi-value">{next_03_top}</div>
-            <div class="kpi-sub">Nhóm 02 tiếp theo: {next_02_top}</div>
-        </div>
-        <div class="kpi-card kpi-purple">
-            <div class="kpi-header">🧠 CHẾ ĐỘ AI ENGINE</div>
-            <div class="kpi-value" style="font-size: 1.32rem;">Chuyên gia Cơ-Điện</div>
-            <div class="kpi-sub">Tự động quy đổi tiếng lóng & quy cách</div>
-        </div>
-        <div class="kpi-card kpi-amber">
-            <div class="kpi-header">📊 PHIẾU ĐÃ XỬ LÝ HÔM NAY</div>
-            <div class="kpi-value">{processed_today} Phiếu</div>
-            <div class="kpi-sub">Dữ liệu cập nhật real-time</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    corpus = build_search_corpus(df_master)
 
     # Khởi tạo danh sách ảnh dán clipboard trong Session State
     if "pasted_gallery" not in st.session_state:
@@ -1598,33 +1654,35 @@ with tab_scan:
                         consolidated_results.append(r)
                         continue
 
-                    # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC ──
-                    candidates = get_candidate_matches(search_str, corpus, top_k=3)
+                    # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC (THUẬT TOÁN ĐA THUỘC TÍNH: CÔNG DỤNG + QUY CÁCH + TỪ ĐỒNG NGHĨA) ──
+                    candidates = get_candidate_matches(search_str, corpus, top_k=4)
+                    r["candidates"] = candidates
                     best = candidates[0] if candidates else None
 
-                    # Khớp tuyệt đối nếu trùng khớp từ ngữ cao
-                    if best and best["score"] >= 95 and r.get("trang_thai") != "KHỚP":
+                    # Gợi ý danh sách tương đương đa thuộc tính để kỹ sư xem và chọn mã
+                    sim_items = []
+                    for c in candidates:
+                        ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
+                        sim_items.append(f"{c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
+                    r["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
+
+                    # Khớp tự động nếu:
+                    # 1. Ứng viên có độ tương đồng kỹ thuật cao (>= 78 điểm) và cùng công dụng / quy cách
+                    if best and best["score"] >= 78 and r.get("trang_thai") != "KHỚP":
                         r["trang_thai"] = "KHỚP"
                         r["ma_vat_tu_cu"] = best["ma"]
                         r["ten_trong_kho"] = best["ten"]
                         r["ton_kho"] = best["ton"]
                         r["ma_de_xuat"] = "-"
-                        r["goi_y_tuong_duong"] = f"{best['ma']} ({best['ten']} - Tồn: {best['ton']})"
-                        r["ghi_chu"] = f"Khớp hoàn toàn với mã kho {best['ma']}"
+                        r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Tương đương kỹ thuật')})"
 
                     elif r.get("trang_thai") == "KHỚP":
                         r["ma_de_xuat"] = "-"
                         old_code = r.get("ma_vat_tu_cu", "") or ""
-                        r["goi_y_tuong_duong"] = f"{old_code} (Đang dùng)"
                         if not r.get("ghi_chu"):
-                            r["ghi_chu"] = f"Khớp mã kho {old_code}"
+                            r["ghi_chu"] = f"✓ Khớp mã kho {old_code}"
 
                     else:
-                        sim_items = []
-                        for c in candidates:
-                            sim_items.append(f"{c['ma']}: {c['ten']} (Tồn: {c['ton']})")
-                        r["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
-
                         full_kw = (t_goc + " " + t_chuan + " " + q_cach).lower()
                         if any(w in full_kw for w in ["xi măng", "cát", "đá 1*", "đá 4*", "gạch", "vôi bột", "bê tông tươi"]):
                             r["ma_de_xuat"] = next_02_codes[idx_02]
@@ -1667,27 +1725,6 @@ with tab_scan:
             </div>
             <div style="font-size: 0.85rem; color: #94a3b8;">
                 ✓ Hiển thị đầy đủ 100% nội dung • Không cần cuộn ngang • Dễ dàng kiểm tra & duyệt mã
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="metric-grid">
-            <div class="metric-box box-total">
-                <div class="metric-num" style="color: #00e5ff;">{len(res_list)}</div>
-                <div class="metric-lbl">TỔNG MÃ ({total_docs} CHỨNG TỪ)</div>
-            </div>
-            <div class="metric-box box-match">
-                <div class="metric-num" style="color: #00e676;">{n_khop}</div>
-                <div class="metric-lbl">KHỚP MÃ CŨ TRONG KHO</div>
-            </div>
-            <div class="metric-box box-new">
-                <div class="metric-num" style="color: #ffab00;">{n_moi}</div>
-                <div class="metric-lbl">ĐỀ XUẤT MÃ MỚI (0x.xxxx)</div>
-            </div>
-            <div class="metric-box box-check">
-                <div class="metric-num" style="color: #ff5252;">{n_xn}</div>
-                <div class="metric-lbl">CẦN BỔ SUNG QUY CÁCH</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1825,6 +1862,91 @@ with tab_scan:
                 f"</div>",
                 unsafe_allow_html=True
             )
+
+        # ── KHU VỰC TÙY CHỌN & ĐỔI MÃ VẬT TƯ THEO GỢI Ý KHO (SMART CANDIDATE OVERRIDE) ──
+        with st.expander("🛠️ LỰA CHỌN & ĐỔI MÃ VẬT TƯ (TÙY CHỌN MÃ PHÙ HỢP TỪ KHO)", expanded=True):
+            st.markdown("""
+            <div style="font-size:0.83rem; color:#94a3b8; margin-bottom:12px;">
+                💡 <b>Dò tìm đa thuộc tính:</b> Hệ thống đã tự động liên kết các vật tư trong kho có cùng <b>công dụng kỹ thuật</b> và <b>quy cách tương đương</b> (không cứng nhắc theo tên).
+                Nếu bạn muốn đổi sang mã tương đương khác hoặc chỉ định mã kho, hãy chọn bên dưới và bấm <b>Áp dụng</b>:
+            </div>
+            """, unsafe_allow_html=True)
+
+            for item in filtered_items:
+                stt_num = item.get("stt", 1)
+                t_raw = item.get("ten_trich_xuat", "")
+                q_spec = item.get("quy_cach", "")
+                curr_code = item.get("ma_vat_tu_cu") if item.get("trang_thai") == "KHỚP" else item.get("ma_de_xuat")
+                status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else "🟡 Cấp mã mới"
+
+                # Lấy danh sách ứng viên
+                item_cands = item.get("candidates") or []
+                if not item_cands:
+                    item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=4)
+                    item["candidates"] = item_cands
+
+                options_map = {}
+                # Lựa chọn hiện tại
+                curr_label = f"Đang gán: {curr_code} ({item.get('ten_chuan_hoa', '')}) [{status_txt}]"
+                options_map[curr_label] = {"type": "current"}
+
+                # Các ứng viên từ kho
+                for c in item_cands:
+                    ly_do = f" — {c['ly_do']}" if c.get("ly_do") else ""
+                    opt_lbl = f"👉 Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
+                    options_map[opt_lbl] = {
+                        "type": "candidate",
+                        "code": c["ma"],
+                        "name": c["ten"],
+                        "ton": c["ton"],
+                        "ly_do": c.get("ly_do", "")
+                    }
+
+                c_info, c_sel, c_act = st.columns([3, 4.5, 1.3])
+                with c_info:
+                    st.markdown(f"**#{stt_num}. {t_raw}**")
+                    st.caption(f"Quy cách: `{q_spec}` | SL: {item.get('so_luong')} {item.get('don_vi')}")
+                with c_sel:
+                    chosen_lbl = st.selectbox(
+                        f"Gợi ý cho #{stt_num}",
+                        options=list(options_map.keys()),
+                        key=f"sel_cand_{stt_num}_{item.get('chung_tu_goc')}",
+                        label_visibility="collapsed"
+                    )
+                with c_act:
+                    chosen_val = options_map.get(chosen_lbl, {})
+                    if chosen_val.get("type") == "candidate":
+                        if st.button("Áp dụng 🔁", key=f"btn_apply_{stt_num}_{item.get('chung_tu_goc')}", type="secondary", use_container_width=True):
+                            new_code = chosen_val["code"]
+                            new_name = chosen_val["name"]
+                            new_ton = chosen_val["ton"]
+                            new_ly_do = chosen_val.get("ly_do", "")
+
+                            item["trang_thai"] = "KHỚP"
+                            item["ma_vat_tu_cu"] = new_code
+                            item["ten_trong_kho"] = new_name
+                            item["ton_kho"] = new_ton
+                            item["ma_de_xuat"] = "-"
+                            item["ghi_chu"] = f"✓ Kỹ sư chọn mã kho {new_code} ({new_ly_do})"
+
+                            # Lưu vào SQLite để ghi nhớ vĩnh viễn
+                            save_approved_material(
+                                code=new_code,
+                                name_normalized=new_name,
+                                spec=q_spec,
+                                unit=item.get("don_vi", "Cái"),
+                                group_code="02" if str(new_code).startswith("02.") else "03",
+                                raw_name=t_raw,
+                                source_doc=item.get("chung_tu_goc", ""),
+                                notes=f"Kỹ sư chọn từ gợi ý tương đương: {new_ly_do}"
+                            )
+
+                            st.session_state["reconciled_results"] = res_list
+                            batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
+                            st.session_state["reconciled_file_path"] = str(batch_file)
+                            st.toast(f"✓ Đã gán mã {new_code} ({new_name}) và ghi nhớ vĩnh viễn!", icon="✅")
+                            time.sleep(0.3)
+                            st.rerun()
 
         # Nút xuất Excel & Nút Xóa kết quả
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
