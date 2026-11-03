@@ -275,35 +275,40 @@ def parse_inventory_upload(file_bytes: bytes, filename: str) -> tuple[pd.DataFra
     data_df = raw_df.iloc[start_data_idx:].copy()
     data_df.columns = new_cols
 
-    col_mapping = {}
-    for c in data_df.columns:
+    def _map_col(c: str) -> str:
         c_low = c.lower().strip()
+        # Ưu tiên nhận diện các cột số lượng và giá trị 2 cấp
+        if "nhập kho" in c_low and any(k in c_low for k in ["số lượng", "sl"]):
+            return "Nhập kho SL"
+        if "nhập kho" in c_low and any(k in c_low for k in ["giá trị", "gt", "tiền"]):
+            return "Nhập kho GT"
+        if "xuất kho" in c_low and any(k in c_low for k in ["số lượng", "sl"]):
+            return "Xuất kho SL"
+        if "xuất kho" in c_low and any(k in c_low for k in ["giá trị", "gt", "tiền"]):
+            return "Xuất kho GT"
+        if "cuối kỳ" in c_low and any(k in c_low for k in ["số lượng", "sl"]):
+            return "Cuối kỳ SL"
+        if "cuối kỳ" in c_low and any(k in c_low for k in ["giá trị", "gt", "tiền"]):
+            return "Cuối kỳ GT"
+        if "đầu kỳ" in c_low and any(k in c_low for k in ["số lượng", "sl"]):
+            return "Đầu kỳ SL"
+        if "đầu kỳ" in c_low and any(k in c_low for k in ["giá trị", "gt", "tiền"]):
+            return "Đầu kỳ GT"
+        # Các cột định danh vật tư
         if any(k in c_low for k in ["mã hàng", "mã vật tư", "mã vt", "mã sp", "item code"]):
-            col_mapping[c] = "Mã hàng"
-        elif any(k in c_low for k in ["tên hàng", "tên vật tư", "tên vt", "tên sp", "item name"]):
-            col_mapping[c] = "Tên hàng"
-        elif any(k in c_low for k in ["đvt", "đơn vị tính", "đơn vị", "uom", "unit"]):
-            col_mapping[c] = "ĐVT"
-        elif "tên kho" in c_low or "kho" in c_low:
-            col_mapping[c] = "Tên kho"
-        elif "cuối kỳ" in c_low and ("số lượng" in c_low or "sl" in c_low):
-            col_mapping[c] = "Cuối kỳ SL"
-        elif "cuối kỳ" in c_low and ("giá trị" in c_low or "gt" in c_low):
-            col_mapping[c] = "Cuối kỳ GT"
-        elif "đầu kỳ" in c_low and ("số lượng" in c_low or "sl" in c_low):
-            col_mapping[c] = "Đầu kỳ SL"
-        elif "đầu kỳ" in c_low and ("giá trị" in c_low or "gt" in c_low):
-            col_mapping[c] = "Đầu kỳ GT"
-        elif "nhập kho" in c_low and ("số lượng" in c_low or "sl" in c_low):
-            col_mapping[c] = "Nhập kho SL"
-        elif "nhập kho" in c_low and ("giá trị" in c_low or "gt" in c_low):
-            col_mapping[c] = "Nhập kho GT"
-        elif "xuất kho" in c_low and ("số lượng" in c_low or "sl" in c_low):
-            col_mapping[c] = "Xuất kho SL"
-        elif "xuất kho" in c_low and ("giá trị" in c_low or "gt" in c_low):
-            col_mapping[c] = "Xuất kho GT"
+            return "Mã hàng"
+        if any(k in c_low for k in ["tên hàng", "tên vật tư", "tên vt", "tên sp", "item name"]):
+            return "Tên hàng"
+        if any(k in c_low for k in ["đvt", "đơn vị tính", "đơn vị", "uom", "unit"]):
+            return "ĐVT"
+        if "tên kho" in c_low or c_low == "kho" or "kho hàng" in c_low:
+            return "Tên kho"
+        return c
 
+    col_mapping = {c: _map_col(c) for c in data_df.columns}
     data_df = data_df.rename(columns=col_mapping)
+    # Khử trùng lặp tên cột nếu có
+    data_df = data_df.loc[:, ~data_df.columns.duplicated()]
 
     if "Mã hàng" not in data_df.columns or "Tên hàng" not in data_df.columns:
         return None, "File thiếu cột bắt buộc 'Mã hàng' hoặc 'Tên hàng'."
@@ -319,19 +324,32 @@ def parse_inventory_upload(file_bytes: bytes, filename: str) -> tuple[pd.DataFra
     data_df = data_df[~data_df["Tên hàng"].str.lower().isin(["", "nan", "none", "null"])]
 
     # Chuyển đổi các cột số lượng và giá trị
-    for num_col in ["Cuối kỳ SL", "Cuối kỳ GT", "Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT"]:
+    num_cols = ["Cuối kỳ SL", "Cuối kỳ GT", "Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT"]
+    for num_col in num_cols:
         if num_col in data_df.columns:
             data_df[num_col] = pd.to_numeric(data_df[num_col].astype(str).str.replace(",", "").str.strip(), errors="coerce").fillna(0)
         else:
-            data_df[num_col] = 0
+            data_df[num_col] = 0.0
 
     if "Tên kho" not in data_df.columns:
-        data_df["Tên kho"] = "Kho vật tư"
+        data_df["Tên kho"] = "Kho vật tư phòng Kỹ thuật 01"
     if "ĐVT" not in data_df.columns:
         data_df["ĐVT"] = "Cái"
 
+    # Tổng hợp nếu mã hàng xuất hiện ở nhiều kho hoặc nhiều dòng trong bảng
+    agg_dict = {
+        "Tên kho": "first",
+        "Tên hàng": "first",
+        "ĐVT": "first"
+    }
+    for nc in num_cols:
+        agg_dict[nc] = "sum"
+
+    data_df = data_df.groupby("Mã hàng", as_index=False).agg(agg_dict)
+
     standard_cols = ["Tên kho", "Mã hàng", "Tên hàng", "ĐVT", "Đầu kỳ SL", "Đầu kỳ GT", "Nhập kho SL", "Nhập kho GT", "Xuất kho SL", "Xuất kho GT", "Cuối kỳ SL", "Cuối kỳ GT"]
     final_df = data_df[standard_cols].copy()
+    final_df = final_df.reset_index(drop=True)
     return final_df, f"Đã nhận diện {len(final_df)} vật tư."
 
 
@@ -346,12 +364,18 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
         if MASTER_FILE.exists():
             cur_df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
             cur_df["Mã hàng"] = cur_df["Mã hàng"].astype(str).str.strip()
+            cur_df = cur_df.loc[:, ~cur_df.columns.duplicated()]
+            new_df = new_df.reset_index(drop=True)
+            cur_df = cur_df.reset_index(drop=True)
             # Cập nhật thông tin mới từ new_df, giữ các mã cũ không có trong new_df
             new_codes = set(new_df["Mã hàng"])
-            remaining_cur = cur_df[~cur_df["Mã hàng"].isin(new_codes)]
+            remaining_cur = cur_df[~cur_df["Mã hàng"].isin(new_codes)].reset_index(drop=True)
             merged_df = pd.concat([new_df, remaining_cur], ignore_index=True)
         else:
             merged_df = new_df
+
+        merged_df = merged_df.loc[:, ~merged_df.columns.duplicated()]
+        merged_df = merged_df.reset_index(drop=True)
 
         # Bảo toàn tất cả các mã đã được kỹ sư duyệt trong SQLite materials_memory.db
         appr = get_all_approved_materials()
