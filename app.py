@@ -988,141 +988,316 @@ def build_search_corpus(df: pd.DataFrame):
     return corpus
 
 
-CATEGORY_RULES = [
-    {"cat": "luoi", "name": "Lưới các loại", "keywords": ["lưới", "luoi"]},
-    {"cat": "mai_cat", "name": "Đá mài & Đá cắt", "keywords": ["đá mài", "đá cắt", "đĩa mài", "đĩa cắt", "lưỡi cắt", "lưỡi mài", "đá chà"]},
-    {"cat": "nham", "name": "Nhám đánh bóng", "keywords": ["nhám", "giấy nhám", "vải nhám", "bánh nhám"]},
-    {"cat": "cuoc", "name": "Cước đánh rỉ", "keywords": ["cước", "chén cước", "bát cước", "chổi cước"]},
-    {"cat": "vong_bi", "name": "Vòng bi & Gối đỡ", "keywords": ["vòng bi", "bạc đạn", "gối đỡ", "ổ bi", "ucp", "ucf"]},
-    {"cat": "nhua_kt", "name": "Nhựa kỹ thuật", "keywords": ["nhựa", "cây nhựa", "nhựa pe", "nhựa pom", "nhựa teflon", "nhựa ptfe", "nhựa mc"]},
-    {"cat": "curoa", "name": "Dây curoa", "keywords": ["curoa", "dây curoa", "dây đai"]},
-    {"cat": "bulon", "name": "Bu lông & Ốc vít", "keywords": ["bu lông", "bulon", "bulông", "ốc vít", "tán", "đai ốc", "long đền", "vòng đệm"]},
-    {"cat": "lam_kin", "name": "Phớt & Gioăng làm kín", "keywords": ["phớt", "phốt", "gioăng", "sin cao su", "vòng sin", "seal", "o-ring", "fos"]},
-    {"cat": "thep_tam", "name": "Thép tấm", "keywords": ["thép tấm", "tấm thép", "lá thép"]},
-    {"cat": "thep_ong", "name": "Thép ống", "keywords": ["thép ống", "ống thép", "ống kẽm", "ống đúc"]},
-    {"cat": "thep_hinh", "name": "Thép hình", "keywords": ["thép v", "thép u", "thép i", "thép h", "thép góc", "thép hộp"]},
-    {"cat": "ong", "name": "Ống các loại", "keywords": ["ống nhựa", "ống mềm", "ống cao su", "ống hút", "ống xả"]},
-    {"cat": "que_han", "name": "Que hàn & Dây hàn", "keywords": ["que hàn", "dây hàn", "thuốc hàn"]},
-    {"cat": "dong_co", "name": "Động cơ & Hộp số", "keywords": ["động cơ", "mô tơ", "motor", "hộp số", "hộp giảm tốc"]},
-    {"cat": "dien", "name": "Thiết bị điện", "keywords": ["khởi động từ", "contactor", "aptomat", "áp tô mát", "mcb", "mccb", "rơ le", "biến tần"]},
-    {"cat": "van", "name": "Van các loại", "keywords": ["van bi", "van bướm", "van một chiều", "van cổng", "van an toàn", "van"]},
-    {"cat": "bich", "name": "Mặt bích", "keywords": ["mặt bích", "bích"]},
-    {"cat": "son", "name": "Sơn & Hóa chất", "keywords": ["sơn", "sơn dầu", "sơn chống rỉ", "dung môi", "xăng nhật"]}
-]
+# ═══════════════════════════════════════════════════════════════════════════
+# THUẬT TOÁN ĐỐI CHIẾU THÔNG MINH 3 CẤP ĐỘ (3-TIER TECHNICAL MATCHER)
+# 1. Trùng khớp Tên / Chủng loại cốt lõi
+# 2. Trùng khớp Quy cách hàng hóa (Kích thước, Cỡ phi, Độ dày, Mắt lưới, Mã chuẩn)
+# 3. Trùng khớp Đặc tính kỹ thuật sử dụng (Đúc vs Hàn vs Kẽm vs Inox vs Áp lực)
+# ═══════════════════════════════════════════════════════════════════════════
 
-def normalize_technical_text(text: str) -> str:
-    """Chuẩn hóa tiếng Việt, ký hiệu kỹ thuật, đồng nhất đơn vị mm/ly và thuật ngữ công nghiệp."""
-    if not text:
-        return ""
-    t = unicodedata.normalize("NFC", str(text)).lower().strip()
-    # 1. Chuẩn hóa dấu phẩy thập phân: 1,5 -> 1.5
+CAT_TAXONOMY = {
+    "thep_ong": {
+        "name": "Thép ống các loại",
+        "keywords": ["thép ống", "ống thép", "ống đúc", "ống kẽm", "ống áp lực", "uốn ống", "ống tròn"],
+        "exclude": ["ống nhựa", "ống gen", "ống mềm", "ống tuýp", "ống cao su", "ống hút", "ống xả", "kính quan sát", "ke đỡ", "kẹp", "băng lót"]
+    },
+    "ong_inox": {
+        "name": "Ống Inox",
+        "keywords": ["ống inox", "inox ống", "ống đúc inox"],
+        "exclude": ["ống mềm", "ống nối mềm"]
+    },
+    "ong_nhua_mem": {
+        "name": "Ống nhựa & Ống mềm",
+        "keywords": ["ống nhựa", "ống pvc", "ống ppr", "ống hdpe", "ống bm", "ống mềm", "ống cao su", "ống khí nén", "ống gen", "ống dẻo"],
+        "exclude": []
+    },
+    "thep_tam": {
+        "name": "Thép tấm & Lá thép",
+        "keywords": ["thép tấm", "tấm thép", "lá thép", "bản mã"],
+        "exclude": ["tấm nhựa", "tấm xốp", "tấm lợp"]
+    },
+    "thep_hinh": {
+        "name": "Thép hình (V/U/I/H)",
+        "keywords": ["thép v", "thép u", "thép i", "thép h", "thép góc", "thép hộp", "inox v", "v63", "v50", "v40", "u100", "i150"],
+        "exclude": ["ống"]
+    },
+    "vong_bi": {
+        "name": "Vòng bi & Gối đỡ",
+        "keywords": ["vòng bi", "bạc đạn", "gối đỡ", "ổ bi", "ucp", "ucf", "ucfl", "ucpa"],
+        "exclude": []
+    },
+    "mai_cat": {
+        "name": "Đá mài & Đá cắt",
+        "keywords": ["đá mài", "đá cắt", "đĩa mài", "đĩa cắt", "lưỡi cắt", "lưỡi mài", "đá chà"],
+        "exclude": []
+    },
+    "nham": {
+        "name": "Nhám đánh bóng",
+        "keywords": ["nhám", "giấy nhám", "vải nhám", "bánh nhám", "đĩa nhám"],
+        "exclude": []
+    },
+    "cuoc": {
+        "name": "Cước đánh rỉ",
+        "keywords": ["cước", "chén cước", "bát cước", "chổi cước"],
+        "exclude": []
+    },
+    "luoi": {
+        "name": "Lưới các loại",
+        "keywords": ["lưới", "luoi"],
+        "exclude": ["ống lưới"]
+    },
+    "nhua_kt": {
+        "name": "Nhựa kỹ thuật",
+        "keywords": ["tấm nhựa", "cây nhựa", "nhựa pe", "nhựa pom", "nhựa teflon", "nhựa ptfe", "nhựa mc", "nhựa rrp"],
+        "exclude": ["ống nhựa"]
+    },
+    "bulon": {
+        "name": "Bu lông & Ốc vít",
+        "keywords": ["bu lông", "bulon", "bulông", "ốc vít", "tán", "đai ốc", "long đền", "vòng đệm"],
+        "exclude": []
+    },
+    "lam_kin": {
+        "name": "Phớt & Gioăng làm kín",
+        "keywords": ["phớt", "phốt", "gioăng", "sin cao su", "vòng sin", "seal", "o-ring", "vòng đệm chì"],
+        "exclude": []
+    },
+    "curoa": {
+        "name": "Dây curoa",
+        "keywords": ["curoa", "dây curoa", "dây đai"],
+        "exclude": []
+    },
+    "van": {
+        "name": "Van công nghiệp",
+        "keywords": ["van bi", "van bướm", "van một chiều", "van cổng", "van an toàn", "van cầu", "van điện từ", "van"],
+        "exclude": ["vỏ van", "tay van"]
+    },
+    "bich": {
+        "name": "Mặt bích",
+        "keywords": ["mặt bích", "bích"],
+        "exclude": []
+    },
+    "que_han": {
+        "name": "Que hàn & Dây hàn",
+        "keywords": ["que hàn", "dây hàn", "thuốc hàn"],
+        "exclude": []
+    },
+    "dong_co": {
+        "name": "Động cơ & Hộp số",
+        "keywords": ["động cơ", "mô tơ", "motor", "hộp số", "hộp giảm tốc"],
+        "exclude": []
+    },
+    "dien": {
+        "name": "Thiết bị điện",
+        "keywords": ["khởi động từ", "contactor", "aptomat", "áp tô mát", "mcb", "mccb", "rơ le", "biến tần"],
+        "exclude": []
+    },
+    "son": {
+        "name": "Sơn & Hóa chất",
+        "keywords": ["sơn", "sơn dầu", "sơn chống rỉ", "dung môi", "xăng nhật"],
+        "exclude": []
+    }
+}
+
+def detect_category(text: str) -> str:
+    t = unicodedata.normalize("NFC", str(text)).lower()
+    for cat_key, info in CAT_TAXONOMY.items():
+        if any(ex in t for ex in info["exclude"]):
+            continue
+        if any(kw in t for kw in info["keywords"]):
+            return cat_key
+    return "khac"
+
+def extract_tech_specs(text: str) -> dict:
+    t = unicodedata.normalize("NFC", str(text)).lower()
     t = re.sub(r'(\d+),(\d+)', r'\1.\2', t)
-    # 2. Quy đổi ly/li sang mm (1,5ly = 1.5mm)
-    t = re.sub(r'(\d+(?:\.\d+)?)\s*(?:ly|li)\b', r'\1mm', t)
-    # 3. Quy đổi khổ 1m0 -> 1m
-    t = re.sub(r'\b1m0\b', '1m', t)
-    # 4. Quy đổi đường kính: fi/phi/d/ø -> phi
-    t = re.sub(r'\b(?:fi|d|ø)\s*(\d+)', r'phi \1', t)
-    # 5. Đồng nhất thuật ngữ tương đương
-    t = t.replace("ô vuông", "ô")
-    t = re.sub(r'\binox\s*304\b', 'inox', t)
-    t = re.sub(r'\b(?:bạc đạn|ổ bi)\b', 'vòng bi', t)
-    t = re.sub(r'\b(?:curoa|dây đai)\b', 'dây curoa', t)
-    t = re.sub(r'\b(?:mô tơ|motor)\b', 'động cơ', t)
-    t = re.sub(r'\b(?:nhựa cây|nhựa tròn|cây nhựa đặc)\b', 'cây nhựa', t)
-    t = re.sub(r'[\(\)\[\]\{\}\,\;]', ' ', t)
-    t = re.sub(r'\s+', ' ', t).strip()
-    return t
 
-def get_category(text: str) -> str | None:
-    t = text.lower()
-    for r in CATEGORY_RULES:
-        for kw in r["keywords"]:
-            if kw in t:
-                return r["cat"]
-    return None
+    spec = {
+        "cat": detect_category(t),
+        "dia": None,
+        "thick": None,
+        "length": None,
+        "bearing": None,
+        "mesh": None,
+        "is_duc": "đúc" in t,
+        "is_kem": "kẽm" in t,
+        "is_ap_luc": "áp lực" in t,
+        "is_inox": "inox" in t or "304" in t or "316" in t
+    }
 
-def extract_numbers_and_dimensions(text: str) -> set:
-    dims = set()
-    t = text.lower()
-    t = re.sub(r'(\d+),(\d+)', r'\1.\2', t)
-    for m in re.finditer(r'(\d+(?:\.\d+)?)\s*(?:mm|ly|li|cm|m\b)', t):
-        dims.add(m.group(1))
-    for m in re.finditer(r'(?:phi|fi|d)\s*(\d+)', t):
-        val = m.group(1)
-        dims.add(val)
-        if val == "10":
-            dims.add("100")
-    for m in re.finditer(r'\b(m\d+)\b', t):
-        dims.add(m.group(1).upper())
-    for m in re.finditer(r'\b(dn\d+)\b', t):
-        dims.add(m.group(1).upper())
-    for m in re.finditer(r'\b(\d{4,5})\b', t):
-        dims.add(m.group(1))
-    return dims
+    # 1. Bóc tách chiều dài m/cây (loại trừ để không nhầm với độ dày hoặc đường kính)
+    m_len = re.search(r'(?:x|\*|\s)\s*(\d+(?:\.\d+)?)\s*(?:m/cây|mét|m\b)', t)
+    if m_len:
+        spec["length"] = float(m_len.group(1))
+        t = t[:m_len.start()] + " " + t[m_len.end():]
 
-def get_candidate_matches(query: str, corpus: list, top_k: int = 5) -> list[dict]:
+    # 2. Mã vòng bi chuẩn kỹ thuật (608, 6205, 6205ZZ, 7205, UCP208, UC 210, NJ 212, NU 322...)
+    m_brg = re.search(r'\b(6\d{2,3}|7\d{3}|2\d{4}|3\d{4}|uc[pf]?\s*\d{3}|n[jup]\s*\d{3,4})(?:[a-z]{1,4})?\b', t)
+    if m_brg:
+        code_clean = re.sub(r'\s+', '', m_brg.group(1)).upper()
+        spec["bearing"] = code_clean
+        spec["cat"] = "vong_bi"
+
+    # 3. Kích thước mắt lưới (ô 1.5mm, ô 1,5ly, ô 10ly...)
+    m_mesh = re.search(r'ô\s*(?:vuông\s*)?(\d+(?:\.\d+)?)\s*(?:mm|ly|li)?', t)
+    if m_mesh:
+        spec["mesh"] = float(m_mesh.group(1))
+        spec["cat"] = "luoi"
+
+    # 4. Đường kính phi (phi 60, fi 60, d60, ø60, dn50...)
+    m_dia = re.search(r'(?:phi|fi|d|ø|dn)\s*(\d+(?:\.\d+)?)', t)
+    if m_dia:
+        spec["dia"] = float(m_dia.group(1))
+        if spec["dia"] == 10 and any(k in t for k in ["đá", "mài", "cắt"]):
+            spec["dia"] = 100.0  # phi 10 đá mài thợ gọi = 100mm
+
+    # 5. Cặp kích thước AxB (ví dụ: 60x7mm, 27x5mm...)
+    m_dim = re.search(r'(?:phi|fi|d|ø)?\s*(\d+(?:\.\d+)?)\s*(?:x|\*)\s*(\d+(?:\.\d+)?)\s*(?:mm|ly|li)?', t)
+    if m_dim:
+        v1 = float(m_dim.group(1))
+        v2 = float(m_dim.group(2))
+        if v1 > v2 and v2 <= 35:
+            if spec["dia"] is None:
+                spec["dia"] = v1
+            if spec["thick"] is None:
+                spec["thick"] = v2
+
+    # 6. Độ dày thành ống / tấm (6ly, 6mm, dày 5mm...)
+    if spec["thick"] is None:
+        m_th = re.search(r'(?:dày\s*)?(\d+(?:\.\d+)?)\s*(?:ly|li|mm)\b', t)
+        if m_th:
+            v_th = float(m_th.group(1))
+            if v_th != spec["dia"]:
+                spec["thick"] = v_th
+
+    return spec
+
+def compute_technical_match_pct(q_text: str, cand_text: str, cand_ton: float = 0) -> tuple[int, str]:
+    """Tính toán % độ trùng khớp theo 3 tầng kỹ thuật: Tên chủng loại (35%) -> Quy cách (45%) -> Đặc tính sử dụng (20%)."""
+    q_spec = extract_tech_specs(q_text)
+    c_spec = extract_tech_specs(cand_text)
+
+    # ── TẦNG 1: TRÙNG KHỚP TÊN / CHỦNG LOẠI CỐT LÕI (35%) ──
+    if q_spec["cat"] != "khac" and c_spec["cat"] != "khac":
+        if q_spec["cat"] != c_spec["cat"]:
+            # Trường hợp có thể dùng thay thế gần: thép ống và ống inox
+            if {q_spec["cat"], c_spec["cat"]} == {"thep_ong", "ong_inox"}:
+                cat_score = 70
+            else:
+                return 0, "Khác chủng loại vật tư"
+        else:
+            cat_score = 100
+    else:
+        base_fuzz = fuzz.token_set_ratio(q_text, cand_text)
+        if base_fuzz < 40:
+            return 0, "Tên gọi không tương đồng"
+        cat_score = base_fuzz
+
+    # ── TẦNG 2: TRÙNG KHỚP QUY CÁCH HÀNG HÓA (45%) ──
+    spec_score = 100
+    spec_notes = []
+
+    # 2.1 Vòng bi: Bắt buộc đúng mã bi
+    if q_spec["bearing"]:
+        if c_spec["bearing"] == q_spec["bearing"]:
+            spec_score = 100
+            spec_notes.append(f"Cùng mã bi {q_spec['bearing']}")
+        else:
+            return 0, "Khác mã vòng bi"
+
+    # 2.2 Mắt lưới
+    elif q_spec["mesh"] is not None and c_spec["mesh"] is not None:
+        if abs(q_spec["mesh"] - c_spec["mesh"]) < 0.05:
+            spec_score = 100
+            spec_notes.append(f"Cùng ô {q_spec['mesh']}mm")
+        else:
+            diff = abs(q_spec["mesh"] - c_spec["mesh"])
+            spec_score = max(30, int(100 - diff * 20))
+            spec_notes.append(f"Ô {c_spec['mesh']}mm")
+
+    # 2.3 Đường kính phi & Độ dày
+    elif q_spec["dia"] is not None and c_spec["dia"] is not None:
+        qd = q_spec["dia"]
+        cd = c_spec["dia"]
+        if abs(qd - cd) < 0.5:
+            dia_score = 100
+            spec_notes.append(f"Cùng phi {int(qd)}")
+        else:
+            ratio = max(qd, cd) / min(qd, cd)
+            if ratio > 1.4:
+                return 0, "Khác cỡ phi quá lớn"
+            dia_score = max(40, int(100 - (ratio - 1.0) * 150))
+            spec_notes.append(f"Cỡ phi {int(cd)}")
+
+        thick_score = 100
+        if q_spec["thick"] is not None and c_spec["thick"] is not None:
+            qt = q_spec["thick"]
+            ct = c_spec["thick"]
+            if abs(qt - ct) < 0.2:
+                thick_score = 100
+                spec_notes.append(f"dày {qt}mm")
+            else:
+                thick_diff = abs(qt - ct)
+                thick_score = max(50, int(100 - thick_diff * 15))
+                spec_notes.append(f"dày {ct}mm vs {qt}mm")
+        elif q_spec["thick"] is not None or c_spec["thick"] is not None:
+            thick_score = 80
+
+        spec_score = int(dia_score * 0.7 + thick_score * 0.3)
+    else:
+        spec_score = fuzz.token_sort_ratio(q_text, cand_text)
+
+    # ── TẦNG 3: TRÙNG KHỚP ĐẶC TÍNH KỸ THUẬT SỬ DỤNG (20%) ──
+    feat_score = 100
+    feat_notes = []
+    if q_spec["is_duc"]:
+        if c_spec["is_duc"]:
+            feat_score = 100
+            feat_notes.append("thép đúc chịu áp")
+        elif c_spec["is_ap_luc"]:
+            feat_score = 90
+            feat_notes.append("ống chịu áp lực")
+        elif c_spec["is_kem"]:
+            feat_score = 65
+            feat_notes.append("thép kẽm hàn")
+        elif c_spec["is_inox"]:
+            feat_score = 75
+            feat_notes.append("vật liệu Inox")
+        else:
+            feat_score = 70
+
+    total_pct = int(cat_score * 0.35 + spec_score * 0.45 + feat_score * 0.20)
+    total_pct = min(100, max(0, total_pct))
+
+    all_notes = spec_notes + feat_notes
+    reason_str = ", ".join(all_notes) if all_notes else "Tương đương kỹ thuật"
+    return total_pct, reason_str
+
+
+def get_candidate_matches(query: str, corpus: list, top_k: int = 3) -> list[dict]:
     """
-    Thuật toán đối chiếu thông minh đa thuộc tính (Surgical Multi-Attribute Matcher):
-    1. Chuẩn hóa quy cách kỹ thuật (ly = mm, 1m0 = 1m, fi 10 = 100mm).
-    2. Bảo vệ chủng loại vật tư (Lưới chỉ so với Lưới, Vòng bi chỉ so với Vòng bi, tuyệt đối không gợi ý chéo linh tinh).
-    3. Ưu tiên số 1 theo sự trùng khớp quy cách kích thước thực tế.
+    Thuật toán đối chiếu thông minh đa thuộc tính chuẩn kỹ sư:
+    1. Trùng khớp tên/chủng loại (Triệt tiêu 100% gợi ý khác loại như thép ống sang tấm nhựa/Inox V).
+    2. Trùng khớp quy cách hàng hóa (Cỡ phi, độ dày, mắt lưới, mã chuẩn).
+    3. Trùng khớp đặc tính kỹ thuật sử dụng (đúc chịu áp, kẽm, inox...).
+    -> Sắp xếp độ trùng khớp theo % giảm dần, lấy tối đa 3 món gần giống nhất.
     """
     if not corpus or not query:
         return []
-    q_norm = normalize_technical_text(query)
-    q_cat = get_category(str(query))
-    q_dims = extract_numbers_and_dimensions(str(query))
 
     results = []
     for item in corpus:
         text_val, real_idx, ma, ten, dvt, ton = item
-        t_norm = normalize_technical_text(ten)
-        t_cat = get_category(str(ten))
-        t_dims = extract_numbers_and_dimensions(str(ten))
-
-        # 1. Điểm tương đồng từ ngữ trên văn bản chuẩn hóa
-        f_set = fuzz.token_set_ratio(q_norm, t_norm)
-        f_sort = fuzz.token_sort_ratio(q_norm, t_norm)
-        base_fuzzy = max(f_set * 0.7 + f_sort * 0.3, f_set * 0.85)
-
-        # 2. Xử lý nhóm chủng loại vật tư (Core Category Gate)
-        cat_score = 0
-        same_cat = False
-        if q_cat is not None:
-            if t_cat == q_cat:
-                cat_score = 35
-                same_cat = True
-            elif t_cat is not None and t_cat != q_cat:
-                cat_score = -60  # Triệt tiêu các gợi ý khác chủng loại
-
-        # 3. Trùng khớp thông số kỹ thuật (Kích thước, quy cách, đường kính)
-        dim_score = 0
-        shared_dims = q_dims & t_dims
-        if shared_dims:
-            dim_score = min(len(shared_dims) * 15, 30)
-
-        total_score = base_fuzzy + cat_score + dim_score
-
-        # Diễn giải lý do kỹ thuật rõ ràng
-        ly_do_parts = []
-        if same_cat:
-            cat_name = next((r["name"] for r in CATEGORY_RULES if r["cat"] == q_cat), q_cat)
-            ly_do_parts.append(f"Cùng chủng loại ({cat_name})")
-        if shared_dims:
-            ly_do_parts.append(f"Trùng quy cách ({', '.join(sorted(shared_dims))})")
-        if not ly_do_parts:
-            ly_do_parts.append(f"Tương đồng từ ngữ ({base_fuzzy:.0f}%)")
-
-        if total_score >= 45:
+        pct, reason = compute_technical_match_pct(str(query), str(ten), ton)
+        if pct >= 45:
             results.append({
-                "score": total_score,
-                "ma": ma,
-                "ten": ten,
-                "dvt": dvt,
+                "score": pct,
+                "pct_str": f"[{pct}%]",
+                "ma": str(ma),
+                "ten": str(ten),
+                "dvt": str(dvt),
                 "ton": ton,
-                "same_cat": same_cat,
-                "ly_do": " | ".join(ly_do_parts)
+                "same_cat": True,
+                "ly_do": reason
             })
 
     results.sort(key=lambda x: x["score"], reverse=True)
@@ -1207,12 +1382,12 @@ def allocate_next_codes(df_master: pd.DataFrame, num_needed: int, group: str = "
     return [f"{group}.{max_num + i:04d}" for i in range(1, num_needed + 1)]
 
 
-def find_candidates(query: str, df: pd.DataFrame, corpus: list, top_k: int = 5) -> str:
+def find_candidates(query: str, df: pd.DataFrame, corpus: list, top_k: int = 3) -> str:
     matches = get_candidate_matches(query, corpus, top_k=top_k)
     lines = []
     for c in matches:
-        ly_do_str = f" ({c['ly_do']})" if c.get("ly_do") else ""
-        lines.append(f"  [{c['score']:.0f}% phù hợp] Mã: {c['ma']} | Tên: {c['ten']} | ĐVT: {c['dvt']} | Tồn: {c['ton']}{ly_do_str}")
+        ly_do_str = f" [{c['ly_do']}]" if c.get("ly_do") else ""
+        lines.append(f"  • [{c['score']}%] Mã: {c['ma']} | Tên: {c['ten']} | ĐVT: {c['dvt']} | Tồn: {c['ton']}{ly_do_str}")
     return "\n".join(lines)
 
 
@@ -1340,8 +1515,12 @@ def render_compact_table_html(items: list) -> str:
 
         raw_goi_y = str(item.get("goi_y_tuong_duong", "") or "-")
         if raw_goi_y and raw_goi_y != "-":
-            bullets = [b.strip() for b in raw_goi_y.split("|") if b.strip()]
-            goi_y_html = "".join(f"<div style='margin-bottom:3px; line-height:1.35; color:#cbd5e1;'>• {html.escape(b)}</div>" for b in bullets)
+            raw_bullets = [b.strip() for b in re.split(r'[|\n]', raw_goi_y) if b.strip()]
+            formatted_bullets = []
+            for b in raw_bullets[:3]:
+                b_clean = b.lstrip("•").strip()
+                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#cbd5e1; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
+            goi_y_html = "".join(formatted_bullets) if formatted_bullets else "<span style='color:#64748b;'>-</span>"
         else:
             goi_y_html = "<span style='color:#64748b;'>-</span>"
 
@@ -1885,27 +2064,26 @@ with tab_scan:
                         consolidated_results.append(r)
                         continue
 
-                    # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC (THUẬT TOÁN ĐA THUỘC TÍNH: CÔNG DỤNG + QUY CÁCH + TỪ ĐỒNG NGHĨA) ──
-                    candidates = get_candidate_matches(search_str, corpus, top_k=4)
+                    # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC (THUẬT TOÁN ĐA THUỘC TÍNH: TÊN + QUY CÁCH + ĐẶC TÍNH KỸ THUẬT) ──
+                    candidates = get_candidate_matches(search_str, corpus, top_k=3)
                     r["candidates"] = candidates
                     best = candidates[0] if candidates else None
 
-                    # Gợi ý danh sách tương đương đa thuộc tính để kỹ sư xem và chọn mã
+                    # Gợi ý danh sách tương đương: Sắp xếp theo % giảm dần, tối đa 3 món gần nhất
                     sim_items = []
                     for c in candidates:
                         ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
-                        sim_items.append(f"{c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
-                    r["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
+                        sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
+                    r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
-                    # Khớp tự động nếu:
-                    # 1. Ứng viên có độ tương đồng kỹ thuật cao (>= 75 điểm) và cùng chủng loại / quy cách
-                    if best and best["score"] >= 75 and (r.get("trang_thai") != "KHỚP" or not r.get("ma_vat_tu_cu") or (best["score"] >= 95 and r.get("ma_vat_tu_cu") != best["ma"])):
+                    # Khớp tự động: Chỉ tự động khớp kho khi độ trùng khớp chuẩn kỹ thuật >= 95%
+                    if best and best["score"] >= 95 and (r.get("trang_thai") != "KHỚP" or not r.get("ma_vat_tu_cu") or (best["score"] >= 98 and r.get("ma_vat_tu_cu") != best["ma"])):
                         r["trang_thai"] = "KHỚP"
                         r["ma_vat_tu_cu"] = best["ma"]
                         r["ten_trong_kho"] = best["ten"]
                         r["ton_kho"] = best["ton"]
                         r["ma_de_xuat"] = "-"
-                        r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Tương đương kỹ thuật')})"
+                        r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')})"
 
                     elif r.get("trang_thai") == "KHỚP":
                         r["ma_de_xuat"] = "-"
@@ -2100,7 +2278,7 @@ with tab_scan:
             with col_top_desc:
                 st.markdown("""
                 <div style="font-size:0.83rem; color:#94a3b8; margin-bottom:10px;">
-                    💡 <b>Dò tìm đa thuộc tính chuẩn kỹ thuật:</b> Hệ thống tự động lọc theo <b>chủng loại cốt lõi</b> (Lưới chỉ so với Lưới, Vòng bi chỉ so với Vòng bi) và <b>quy đổi tương đương quy cách thợ</b> (1,5ly = 1.5mm, 1m0 = 1m).
+                    💡 <b>Dò tìm & Gợi ý tương đương chuẩn kỹ thuật (3 tầng):</b> Hệ thống phân tích theo <b>Trùng khớp tên/chủng loại</b> → <b>Trùng khớp quy cách (phi, dày, mắt lưới, mã bi)</b> → <b>Đặc tính kỹ thuật sử dụng</b>. Sắp xếp theo % trùng khớp giảm dần (Tối đa 3 món gần nhất).
                 </div>
                 """, unsafe_allow_html=True)
             with col_top_refresh:
@@ -2108,12 +2286,12 @@ with tab_scan:
                     for it in res_list:
                         t_r = it.get("ten_trich_xuat", "")
                         q_s = it.get("quy_cach", "")
-                        cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=4)
+                        cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=3)
                         it["candidates"] = cands_new
                         best_new = cands_new[0] if cands_new else None
-                        sim_items = [f"{c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in cands_new]
-                        it["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
-                        if best_new and best_new["score"] >= 75:
+                        sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in cands_new]
+                        it["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
+                        if best_new and best_new["score"] >= 95:
                             it["trang_thai"] = "KHỚP"
                             it["ma_vat_tu_cu"] = best_new["ma"]
                             it["ten_trong_kho"] = best_new["ten"]
@@ -2136,11 +2314,11 @@ with tab_scan:
 
                 # Lấy danh sách ứng viên (Tự động nạp thuật toán mới nếu là kết quả phiên cũ)
                 item_cands = item.get("candidates") or []
-                if not item_cands or any("same_cat" not in c for c in item_cands):
-                    item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=4)
+                if not item_cands or any("pct_str" not in c for c in item_cands):
+                    item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=3)
                     item["candidates"] = item_cands
-                    sim_items = [f"{c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in item_cands]
-                    item["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
+                    sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in item_cands]
+                    item["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
                 options_map = {}
                 # Lựa chọn hiện tại
@@ -2150,7 +2328,7 @@ with tab_scan:
                 # Các ứng viên từ kho
                 for c in item_cands:
                     ly_do = f" — {c['ly_do']}" if c.get("ly_do") else ""
-                    opt_lbl = f"👉 Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
+                    opt_lbl = f"👉 [{c['score']}%] Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
                     options_map[opt_lbl] = {
                         "type": "candidate",
                         "code": c["ma"],
