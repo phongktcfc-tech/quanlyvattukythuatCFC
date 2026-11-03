@@ -50,7 +50,7 @@ PUBLIC_URL_FILE = BASE_DIR / "public_url.txt"
 for d in [MASTER_DIR, DAILY_DIR, REPORT_DIR, PASTE_BOX_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# ── Đọc link Public Internet (Cloudflare Tunnel) ──
+# ── Đọc link Public Internet (Cloudflare Tunnel hoặc Cloud) ──
 def get_public_url() -> str:
     if PUBLIC_URL_FILE.exists():
         try:
@@ -59,7 +59,7 @@ def get_public_url() -> str:
                 return u
         except Exception:
             pass
-    return "Đang khởi tạo Tunnel..."
+    return "https://quanlyvattucfc.streamlit.app"
 
 PUBLIC_URL = get_public_url()
 
@@ -905,7 +905,7 @@ st.markdown(f"""
         <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
         <span class="hud-badge">LAN: 192.168.1.189:8501</span>
         <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link cho toàn bộ internet truy cập">
-            🌐 PUBLIC: {current_public_url.replace("https://", "").replace(".trycloudflare.com", "")} ↗
+            🌐 CLOUD: quanlyvattucfc ↗
         </a>
     </div>
 </div>
