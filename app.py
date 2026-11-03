@@ -1,0 +1,1451 @@
+"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT — v6.0 INDUSTRIAL HUD  ║
+║  PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ           ║
+║  Trợ Lý Kỹ Thuật Chuyên Sâu (Dữ Liệu Kho + Mạng) | Bảng & Thẻ Đẹp Mắt         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+
+import os
+import io
+import json
+import re
+import time
+import datetime
+import base64
+import hashlib
+import unicodedata
+import html
+from pathlib import Path
+
+import streamlit as st
+import streamlit.components.v1 as components
+import pandas as pd
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from rapidfuzz import fuzz, process as rfprocess
+from PIL import Image
+
+# ── Google Generative AI ──
+import google.generativeai as genai
+
+# ── PDF Parser ──
+try:
+    import fitz  # PyMuPDF
+    HAS_FITZ = True
+except ImportError:
+    HAS_FITZ = False
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CẤU HÌNH ĐƯỜNG DẪN HỆ THỐNG
+# ═══════════════════════════════════════════════════════════════════════════
+BASE_DIR = Path(__file__).resolve().parent
+MASTER_DIR = BASE_DIR / "Master_Inventory"
+DAILY_DIR = BASE_DIR / "Daily_Input"
+REPORT_DIR = BASE_DIR / "Processed_Reports"
+MASTER_FILE = MASTER_DIR / "Master_Inventory.xlsx"
+PASTE_BOX_DIR = BASE_DIR / "paste_box"
+PUBLIC_URL_FILE = BASE_DIR / "public_url.txt"
+
+for d in [MASTER_DIR, DAILY_DIR, REPORT_DIR, PASTE_BOX_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
+# ── Đọc link Public Internet (Cloudflare Tunnel) ──
+def get_public_url() -> str:
+    if PUBLIC_URL_FILE.exists():
+        try:
+            u = PUBLIC_URL_FILE.read_text(encoding="utf-8").strip()
+            if u.startswith("http"):
+                return u
+        except Exception:
+            pass
+    return "Đang khởi tạo Tunnel..."
+
+PUBLIC_URL = get_public_url()
+
+# ── Khởi tạo Custom Component nhận Ctrl + V ──
+_paste_component = components.declare_component("ctrl_v_paste_box", path=str(PASTE_BOX_DIR))
+
+def render_ctrl_v_box(key="main_paste_box"):
+    return _paste_component(key=key, default=None)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SYSTEM PROMPT 1: DÀNH CHO TAB ĐỐI CHIẾU CHỨNG TỪ (BẮT BUỘC JSON)
+# ═══════════════════════════════════════════════════════════════════════════
+SYSTEM_PROMPT_RECONCILE = """
+Bạn là **Kỹ sư Trưởng phòng Cơ – Điện** kiêm Giám đốc Kỹ thuật nhà máy công nghiệp nặng.
+Nhiệm vụ: Phân tích, chuẩn hóa và đối chiếu vật tư kỹ thuật từ chứng từ vào kho gốc nhà máy.
+
+KIẾN THỨC BẮT BUỘC:
+• Cơ khí & Truyền động: Vòng bi (bi đạn, tang trống, gối đỡ UCP/UCF), Bánh răng (module m, số răng Z, SCM440/S45C), Hộp giảm tốc (R/K/F/S series), Băng tải (EP200-EP400, gân V, cao su chịu lực), Sàng rung (lưới thép, PU, SUP9), Dây curoa (A/B/C/3V/5V/8V/răng).
+• Thiết bị Điện: Động cơ 3 pha (kW ↔ HP), Aptomat MCCB/MCB, Contactor, Rơ le nhiệt, Biến tần (Inverter), Cáp, Đầu cos.
+• Tiêu hao & Phụ kiện: Bu lông Gr 8.8/10.9/Inox, Phớt dầu NBR/Viton/FKM, Que hàn E6013/E7016/Inox, Dầu mỡ công nghiệp (EP2, VG68, Gear oil 140).
+• Tiếng lóng thợ thuyền: "bạc đạn" = vòng bi, "curoa" = dây đai, "ru lô" = con lăn, "nhông" = bánh răng, "mô tơ" = động cơ, "hộp số" = hộp giảm tốc, "áp tô mát" = aptomat, "khởi động từ" = contactor, "mỡ bò" = mỡ bôi trơn, "que hàn xanh" = E7016, "10 ngựa" = 7.5kW.
+
+NGUYÊN TẮC ĐỐI CHIẾU VÀ MÃ ĐỀ XUẤT:
+1. Trích xuất chính xác từng dòng: tên vật tư, quy cách kỹ thuật, số lượng, đơn vị tính.
+2. Chuẩn hóa tên kỹ thuật, xóa bỏ cách gọi dân dã/tiếng lóng.
+3. So khớp với danh sách ứng viên trong kho gốc:
+   - KHỚP: Cùng chủng loại và thông số -> Trả mã hàng cũ chuẩn (ví dụ 02.0483, 03.1477, 03.9341), tên trong kho, tồn kho hiện tại.
+   - MỚI: Chưa có trong kho -> Quy cách mã BẮT BUỘC dạng số 0x.xxxx (ví dụ 03.9347, 03.9348, 02.2841). TUYỆT ĐỐI KHÔNG dùng mã chữ cái như VB.INOX hay TB.KN.
+   - CẦN_XÁC_NHẬN: Thiếu thông số quan trọng để phân biệt.
+
+ĐỊNH DẠNG ĐẦU RA BẮT BUỘC:
+Trả về khối JSON thuần túy trong block ```json ... ```:
+[
+  {
+    "stt": 1,
+    "ten_trich_xuat": "tên trên chứng từ",
+    "ten_chuan_hoa": "tên kỹ thuật chuẩn",
+    "quy_cach": "thông số quy cách",
+    "so_luong": 10,
+    "don_vi": "Cái",
+    "trang_thai": "KHỚP" | "MỚI" | "CẦN_XÁC_NHẬN",
+    "ma_vat_tu_cu": "02.0083 hoặc null",
+    "ten_trong_kho": "tên gốc trong kho hoặc null",
+    "ton_kho": 120,
+    "ma_de_xuat": "03.xxxx hoặc null",
+    "ghi_chu": "nhận định ngắn gọn"
+  }
+]
+"""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SYSTEM PROMPT 2: DÀNH CHO TRỢ LÝ CƠ - ĐIỆN (TRẢ LỜI BẢNG & THẺ ĐẸP MẮT)
+# ═══════════════════════════════════════════════════════════════════════════
+SYSTEM_PROMPT_ASSISTANT = """
+Bạn là **Kỹ sư Trưởng phòng Cơ - Điện kiêm Chuyên gia Quản trị Kỹ thuật Nhà máy** của Công ty CP Phân bón & Hóa chất Cần Thơ.
+Nhiệm vụ của bạn là giải đáp mọi câu hỏi của kỹ sư, ban giám đốc về:
+1. Thông tin tồn kho thực tế của nhà máy (từ dữ liệu 1.318 mã kho được cung cấp).
+2. Toàn bộ kiến thức kỹ thuật công nghiệp sâu rộng trên mạng & thực tế: quy cách chi tiết, kích thước danh nghĩa (DN/OD/ID), cấp độ dày (SCH10, SCH20, SCH40, SCH80...), tiêu chuẩn chế tạo (ASTM, JIS, DIN, BS, TCVN, ISO, IEC), barem trọng lượng, vật liệu, hãng sản xuất uy tín và kinh nghiệm lắp đặt bảo trì.
+
+QUY TẮC BẮT BUỘC VỀ ĐỊNH DẠNG:
+- TUYỆT ĐỐI KHÔNG xuất mã JSON thô. Không được trả về code block JSON.
+- Phải dùng ĐỊNH DẠNG MARKDOWN TRỰC QUAN: Bảng Markdown có kẻ viền rõ ràng, Thẻ thông tin in đậm (Blockquote / Callout), Icon sinh động, danh sách mạch lạc.
+
+BỐ CỤC CÂU TRẢ LỜI LUÔN THEO 3 PHẦN KHOA HỌC:
+
+### 1. 📦 TÌNH TRẠNG TỒN KHO THỰC TẾ TẠI NHÀ MÁY
+(Căn cứ vào dữ liệu 1.318 mã kho nội bộ bên dưới)
+Trình bày dạng Bảng Markdown:
+| Mã hàng | Tên vật tư trong kho | ĐVT | Tồn cuối kỳ | Đánh giá kho |
+- Đánh giá kho: "🟢 Còn hàng (Sẵn sàng xuất)", "🟡 Tồn ít (Cần lưu ý)", hoặc "🔴 Hết hàng (Tồn = 0)".
+- Nếu trong kho có sẵn các mã liên quan hoặc tương đương: Liệt kê đầy đủ để kỹ sư nắm rõ.
+- Nếu kho KHÔNG CÓ: Nêu rõ "Kho hiện chưa có mã đích danh này" và gợi ý các mã gần giống nhất đang có trong kho.
+
+### 2. 🛠️ THÔNG SỐ KỸ THUẬT & TIÊU CHUẨN CÔNG NGHIỆP (KIẾN THỨC MỞ RỘNG)
+Trình bày dạng Thẻ thông tin & Bảng barem:
+- Đường kính danh nghĩa DN, Đường kính ngoài thực tế (OD mm/inch), Độ dày thành ống (SCH), áp lực làm việc (PN/Bar/PSI).
+- Tiêu chuẩn sản xuất quốc tế & Việt Nam: ASTM (A53, A106, A312...), JIS, DIN, BS 1387, TCVN... (đối với ống/thép); SKF/NSK (đối với vòng bi); IEC/Schneider (đối với đồ điện).
+- Barem trọng lượng lý thuyết (kg/m hoặc kg/cái) để thuận tiện tính toán vận chuyển và lắp dựng.
+
+### 3. 💡 TƯ VẤN KỸ THUẬT & LƯU Ý BẢO TRÌ NHÀ MÁY
+- Phương án thay thế tương đương nếu cần xử lý sự cố gấp.
+- Phụ kiện đồng bộ cần xuất kèm (mặt bích, co hàn, tê hàn, gioăng chịu nhiệt/chịu hóa chất, bulon...).
+- Lưu ý môi trường phân bón & hóa chất: độ ăn mòn, khuyến nghị vật liệu (mạ kẽm nhúng nóng, Inox 304/316, nhựa composite/HDPE/PPR).
+"""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CẤU HÌNH GIAO DIỆN DARK INDUSTRIAL SCADA / DIGITAL TWIN HUD
+# ═══════════════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="QUẢN TRỊ VẬT TƯ CƠ - ĐIỆN | AI HUD",
+    page_icon="⚙️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    code, pre, .mono-font {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    /* Technical Blueprint Grid Background */
+    .stApp {
+        background-color: #060913;
+        background-image: 
+            linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+            radial-gradient(ellipse at 50% -20%, rgba(0, 150, 255, 0.22) 0%, transparent 65%);
+        background-size: 32px 32px, 32px 32px, 100% 100%;
+        color: #e2e8f0;
+    }
+    
+    /* Top Bar HUD */
+    .hud-header {
+        background: linear-gradient(135deg, rgba(13, 27, 56, 0.85) 0%, rgba(9, 17, 36, 0.95) 100%);
+        border: 1px solid rgba(0, 229, 255, 0.35);
+        box-shadow: 0 0 35px rgba(0, 229, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 1.1rem 1.8rem;
+        margin-bottom: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        backdrop-filter: blur(14px);
+    }
+    .hud-title {
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .hud-title span {
+        background: linear-gradient(90deg, #00f2fe, #4facfe, #00e5ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .hud-subtitle {
+        font-size: 0.82rem;
+        color: #94a3b8;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+    .hud-chips {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .hud-badge {
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(8px);
+        text-decoration: none;
+    }
+    .badge-cyan   { border-color: rgba(0, 229, 255, 0.45); color: #00e5ff; background: rgba(0, 229, 255, 0.08); }
+    .badge-green  { border-color: rgba(0, 230, 118, 0.45); color: #00e676; background: rgba(0, 230, 118, 0.08); }
+    .badge-public {
+        border-color: rgba(255, 171, 0, 0.6);
+        color: #ffc107;
+        background: rgba(255, 171, 0, 0.12);
+        box-shadow: 0 0 15px rgba(255, 171, 0, 0.2);
+    }
+    
+    /* CSS Pulse Animation for Status Dot */
+    @keyframes pulse-ring {
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.8); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(0, 230, 118, 0); }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+    }
+    .status-dot-pulse {
+        width: 8px;
+        height: 8px;
+        background-color: #00e676;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse-ring 1.8s infinite ease-in-out;
+    }
+    
+    /* 4 KPI Metric Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 1.4rem;
+    }
+    .kpi-card {
+        background: rgba(13, 22, 42, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        position: relative;
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+        transition: all 0.3s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
+    }
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+    }
+    .kpi-cyan::before   { background: linear-gradient(90deg, #00e5ff, #0091ea); }
+    .kpi-green::before  { background: linear-gradient(90deg, #00e676, #00c853); }
+    .kpi-purple::before { background: linear-gradient(90deg, #b388ff, #7c4dff); }
+    .kpi-amber::before  { background: linear-gradient(90deg, #ffab00, #ff6d00); }
+    
+    .kpi-header {
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+    .kpi-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.2;
+    }
+    .kpi-sub {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 4px;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCADA MATERIAL CARDS & RESPONSIVE TABLE (KHÔNG CUỘN, KHÔNG CẮT CHỮ)
+       ═══════════════════════════════════════════════════════════════ */
+    .mat-card {
+        background: linear-gradient(145deg, rgba(13, 25, 48, 0.88) 0%, rgba(8, 16, 33, 0.95) 100%);
+        border-radius: 12px;
+        padding: 1.1rem 1.4rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+    }
+    .mat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
+    }
+    .mat-card-khop {
+        border-left: 5px solid #00e676;
+        box-shadow: inset 1px 0 10px rgba(0, 230, 118, 0.05);
+    }
+    .mat-card-moi {
+        border-left: 5px solid #ffab00;
+        box-shadow: inset 1px 0 10px rgba(255, 171, 0, 0.05);
+    }
+    .mat-card-xn {
+        border-left: 5px solid #ff5252;
+        box-shadow: inset 1px 0 10px rgba(255, 82, 82, 0.05);
+    }
+    
+    .mat-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .mat-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .mat-badge-stt {
+        background: rgba(0, 229, 255, 0.15);
+        color: #00e5ff;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 0.9rem;
+        padding: 3px 9px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 229, 255, 0.3);
+    }
+    .mat-main-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+    }
+    .mat-badge-qty {
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .mat-badge-source {
+        color: #94a3b8;
+        font-size: 0.78rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .mat-status-pill {
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .mat-status-khop {
+        background: rgba(0, 230, 118, 0.15);
+        color: #00e676;
+        border: 1px solid #00e676;
+    }
+    .mat-status-moi {
+        background: rgba(255, 171, 0, 0.15);
+        color: #ffab00;
+        border: 1px solid #ffab00;
+    }
+    .mat-status-xn {
+        background: rgba(255, 82, 82, 0.15);
+        color: #ff5252;
+        border: 1px solid #ff5252;
+    }
+    
+    .mat-grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 10px;
+    }
+    @media (max-width: 900px) {
+        .mat-grid-2col { grid-template-columns: 1fr; }
+    }
+    .mat-field-box {
+        background: rgba(2, 6, 23, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 10px 14px;
+        line-height: 1.5;
+    }
+    .mat-field-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .mat-field-val {
+        font-size: 0.95rem;
+        color: #f1f5f9;
+        word-break: break-word;
+        white-space: normal;
+    }
+    .mat-field-val-code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #00e5ff;
+    }
+    .mat-field-val-sub {
+        font-size: 0.88rem;
+        color: #cbd5e1;
+    }
+    
+    .mat-note-box {
+        background: rgba(0, 229, 255, 0.04);
+        border: 1px solid rgba(0, 229, 255, 0.15);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+        line-height: 1.5;
+        margin-top: 8px;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       BẢNG SCADA GỌN GÀNG — VỪA KHÍT 1 MÀN HÌNH, TỰ ĐỘNG XUỐNG DÒNG
+       ═══════════════════════════════════════════════════════════════ */
+    .scada-compact-table-wrap {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        margin: 12px 0 16px 0;
+    }
+    .scada-compact-table {
+        width: 100% !important;
+        border-collapse: collapse;
+        font-family: 'Space Grotesk', -apple-system, sans-serif;
+        font-size: 0.83rem;
+        color: #e2e8f0;
+        table-layout: fixed;
+        background: #080f20;
+    }
+    .scada-compact-table th {
+        background: #0d1b38;
+        color: #00e5ff;
+        font-weight: 700;
+        padding: 9px 8px;
+        border-bottom: 2px solid #00e5ff;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .scada-compact-table td {
+        padding: 9px 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        vertical-align: top;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.4;
+    }
+    .scada-compact-table tr:hover {
+        background: rgba(0, 229, 255, 0.04);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# QUẢN LÝ DỮ LIỆU KHO MASTER (1.318 MÃ)
+# ═══════════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=300)
+def load_master_df() -> pd.DataFrame:
+    if not MASTER_FILE.exists():
+        return pd.DataFrame()
+    return pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
+
+
+def count_files_processed_today() -> int:
+    today = datetime.date.today()
+    cnt = 0
+    for p in [REPORT_DIR, DAILY_DIR]:
+        if p.exists():
+            for f in p.glob("*"):
+                if f.is_file():
+                    try:
+                        mtime = datetime.date.fromtimestamp(f.stat().st_mtime)
+                        if mtime == today:
+                            cnt += 1
+                    except Exception:
+                        pass
+    return max(cnt // 2, cnt)
+
+
+def build_search_corpus(df: pd.DataFrame):
+    """Xây dựng chỉ mục chuẩn hóa Unicode NFC cho tiếng Việt."""
+    corpus = []
+    for idx, row in df.iterrows():
+        m = str(row.get("Mã hàng", "")).strip() if pd.notna(row.get("Mã hàng")) else ""
+        t = unicodedata.normalize("NFC", str(row.get("Tên hàng", ""))).strip() if pd.notna(row.get("Tên hàng")) else ""
+        d = str(row.get("ĐVT", "")).strip() if pd.notna(row.get("ĐVT")) else ""
+        ton = row.get("Cuối kỳ SL", 0) if pd.notna(row.get("Cuối kỳ SL")) else 0
+        combined = f"{m} | {t} | {d}"
+        corpus.append((combined, idx, m, t, d, ton))
+    return corpus
+
+
+def get_candidate_matches(query: str, corpus: list, top_k: int = 3):
+    """Tìm ứng viên gần giống / tương đương với độ chính xác cao."""
+    if not corpus or not query:
+        return []
+    q_norm = unicodedata.normalize("NFC", query).lower().strip()
+    texts = [c[0].lower() for c in corpus]
+    matches = rfprocess.extract(q_norm, texts, scorer=fuzz.token_set_ratio, limit=top_k)
+    results = []
+    for text_val, score, match_idx in matches:
+        _, real_idx, ma, ten, dvt, ton = corpus[match_idx]
+        results.append({
+            "score": score,
+            "ma": ma,
+            "ten": ten,
+            "dvt": dvt,
+            "ton": ton,
+        })
+    return results
+
+
+def retrieve_inventory_data_for_chat(query: str, df: pd.DataFrame, max_rows=15) -> str:
+    """Tra cứu kho toàn diện phục vụ trả lời chatbot (kết hợp từ khóa + fuzzy)."""
+    if df.empty or not query:
+        return "Kho hiện chưa có dữ liệu."
+
+    q_norm = unicodedata.normalize("NFC", query).lower().strip()
+    stop_words = {"anh", "em", "muốn", "hỏi", "về", "có", "không", "mấy", "cái", "bao", "nhiêu", "trong", "kho", "cho", "xin", "thông", "tin", "xem", "tra", "cứu", "được", "gì"}
+    raw_words = [w for w in re.findall(r'\w+', q_norm) if w not in stop_words and len(w) > 1]
+
+    matched_set = set()
+
+    # 1. Tìm theo từ khóa (keywords)
+    for idx, row in df.iterrows():
+        line = unicodedata.normalize("NFC", f"{row.get('Mã hàng', '')} {row.get('Tên hàng', '')} {row.get('ĐVT', '')}").lower()
+        if raw_words and all(w in line for w in raw_words):
+            matched_set.add(idx)
+        elif len(raw_words) >= 2 and sum(1 for w in raw_words if w in line) >= 2:
+            matched_set.add(idx)
+
+    # 2. Bổ sung thêm bằng Fuzzy Matching
+    corpus = build_search_corpus(df)
+    cands = get_candidate_matches(query, corpus, top_k=10)
+    for c in cands:
+        if c["score"] >= 40:
+            for item in corpus:
+                if item[2] == c["ma"]:
+                    matched_set.add(item[1])
+                    break
+
+    if not matched_set:
+        return "THÔNG BÁO TỪ KHO: Không tìm thấy vật tư nào khớp với từ khóa trong 1.318 mã kho."
+
+    matched_df = df.loc[list(matched_set)[:max_rows]]
+    table_lines = ["DỮ LIỆU TỒN KHO THỰC TẾ NHÀ MÁY (1.318 MÃ GỐC):"]
+    table_lines.append("| Mã hàng | Tên vật tư trong kho | ĐVT | Tồn cuối kỳ | Nhập kỳ | Xuất kỳ | Giá trị tồn kho |")
+    table_lines.append("|---|---|---|---|---|---|---|")
+    for _, r in matched_df.iterrows():
+        ma = r.get("Mã hàng", "")
+        ten = r.get("Tên hàng", "")
+        dvt = r.get("ĐVT", "")
+        ton = r.get("Cuối kỳ SL", 0)
+        nhap = r.get("Nhập kho SL", 0)
+        xuat = r.get("Xuất kho SL", 0)
+        gt = r.get("Cuối kỳ GT", 0)
+        gt_str = f"{gt:,.0f} đ" if pd.notna(gt) else "0 đ"
+        table_lines.append(f"| {ma} | {ten} | {dvt} | {ton} | {nhap} | {xuat} | {gt_str} |")
+
+    return "\n".join(table_lines)
+
+
+def allocate_next_codes(df_master: pd.DataFrame, num_needed: int, group: str = "03") -> list[str]:
+    """Cấp phát danh sách mã số kế tiếp chuẩn hóa 0x.xxxx (DẠNG SỐ THUẦN TÚY)."""
+    group_prefix = f"{group}."
+    existing_nums = []
+    for code in df_master["Mã hàng"].dropna().astype(str):
+        if code.startswith(group_prefix):
+            try:
+                suffix = int(code.split(".", 1)[1])
+                existing_nums.append(suffix)
+            except ValueError:
+                pass
+    max_num = max(existing_nums) if existing_nums else 0
+    return [f"{group}.{max_num + i:04d}" for i in range(1, num_needed + 1)]
+
+
+def find_candidates(query: str, df: pd.DataFrame, corpus: list, top_k: int = 5) -> str:
+    matches = get_candidate_matches(query, corpus, top_k=top_k)
+    lines = []
+    for c in matches:
+        lines.append(f"  [{c['score']:.0f}% match] Mã: {c['ma']} | Tên: {c['ten']} | ĐVT: {c['dvt']} | Tồn: {c['ton']}")
+    return "\n".join(lines)
+
+
+def build_candidates_for_items(items_text: str, df: pd.DataFrame) -> str:
+    corpus = build_search_corpus(df)
+    lines = [l.strip() for l in items_text.split("\n") if l.strip()]
+    seen = set()
+    result = []
+    for line in lines[:40]:
+        clean = line[:70]
+        if clean not in seen:
+            seen.add(clean)
+            cands = find_candidates(clean, df, corpus, top_k=3)
+            if cands:
+                result.append(f"• Item '{clean}':\n{cands}")
+    return "\n\n".join(result)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HÀM GỌI GEMINI AN TOÀN — HỖ TRỢ CHỌN SYSTEM PROMPT THEO TỪNG TAB
+# ═══════════════════════════════════════════════════════════════════════════
+def generate_content_safe(prompt_or_parts, preferred_model="gemini-3.5-flash", system_instruction=None):
+    instruction = system_instruction if system_instruction is not None else SYSTEM_PROMPT_RECONCILE
+    candidate_models = [preferred_model, "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    models_to_try = []
+    for m in candidate_models:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    last_err = None
+    for m in models_to_try:
+        try:
+            mdl = genai.GenerativeModel(model_name=m, system_instruction=instruction)
+            return mdl.generate_content(prompt_or_parts)
+        except Exception as e:
+            last_err = e
+            err_msg = str(e).lower()
+            if "429" in str(e) or "404" in str(e) or "quota" in err_msg:
+                continue
+            raise e
+    raise last_err
+
+
+def parse_json_from_response(text: str) -> list | None:
+    m = re.search(r"```json\s*([\s\S]*?)```", text)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except Exception:
+            pass
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def save_batch_report_excel(results: list, batch_name: str = "TongHop") -> Path:
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in batch_name)
+    report_name = f"BaoCao_TongHop_{safe_name}_{timestamp}.xlsx"
+    report_path = REPORT_DIR / report_name
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Tong_Hop_Doi_Chieu"
+
+    headers = [
+        "STT", "Chứng từ gốc", "Tên trích xuất", "Tên chuẩn hóa", "Quy cách",
+        "Số lượng", "ĐVT", "Phân loại", "Mã kho",
+        "Tồn kho", "Gợi ý tương đương / Gần giống", "Mã đề xuất mới (0x.xxxx)", "Ghi chú"
+    ]
+    h_font = Font(name="Arial", bold=True, size=10, color="FFFFFF")
+    h_fill = PatternFill(start_color="1A2634", end_color="1A2634", fill_type="solid")
+    f_khop = PatternFill(start_color="D1E7DD", end_color="D1E7DD", fill_type="solid")
+    f_moi = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    f_xn = PatternFill(start_color="F8D7DA", end_color="F8D7DA", fill_type="solid")
+    border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col, value=h)
+        c.font = h_font
+        c.fill = h_fill
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = border
+
+    field_map = [
+        "stt", "chung_tu_goc", "ten_trich_xuat", "ten_chuan_hoa", "quy_cach",
+        "so_luong", "don_vi", "trang_thai", "ma_vat_tu_cu", "ton_kho",
+        "goi_y_tuong_duong", "ma_de_xuat", "ghi_chu"
+    ]
+    for r, item in enumerate(results, 2):
+        for c, key in enumerate(field_map, 1):
+            val = item.get(key, "")
+            cell = ws.cell(row=r, column=c, value="" if val is None else val)
+            cell.border = border
+            cell.alignment = Alignment(vertical="center")
+        stt = str(item.get("trang_thai", ""))
+        fill = f_khop if stt == "KHỚP" else (f_moi if stt == "MỚI" else f_xn)
+        for c in range(1, len(headers) + 1):
+            ws.cell(row=r, column=c).fill = fill
+
+    ws.freeze_panes = "A2"
+    wb.save(report_path)
+    return report_path
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BỘ HIỂN THỊ BẢNG GỌN GÀNG (100% TRONG 1 MÀN HÌNH, TỰ ĐỘNG XUỐNG DÒNG)
+# ═══════════════════════════════════════════════════════════════════════════
+def render_compact_table_html(items: list) -> str:
+    rows_html = []
+    for item in items:
+        stt = item.get("stt", 1)
+        chung_tu_goc = html.escape(str(item.get("chung_tu_goc", "") or "-"))
+        ten_trich_xuat = html.escape(str(item.get("ten_trich_xuat", "") or "-"))
+        ten_chuan_hoa = html.escape(str(item.get("ten_chuan_hoa", "") or item.get("ten_trich_xuat", "") or "-"))
+        quy_cach = html.escape(str(item.get("quy_cach", "") or "-"))
+        so_luong = item.get("so_luong", "-")
+        don_vi = html.escape(str(item.get("don_vi", "") or ""))
+        trang_thai = str(item.get("trang_thai", "MỚI")).upper()
+        ma_vat_tu_cu = html.escape(str(item.get("ma_vat_tu_cu", "") or "-"))
+        ton_kho = item.get("ton_kho", 0)
+        ma_de_xuat = html.escape(str(item.get("ma_de_xuat", "") or "-"))
+        ghi_chu = html.escape(str(item.get("ghi_chu", "") or "-"))
+
+        raw_goi_y = str(item.get("goi_y_tuong_duong", "") or "-")
+        if raw_goi_y and raw_goi_y != "-":
+            bullets = [b.strip() for b in raw_goi_y.split("|") if b.strip()]
+            goi_y_html = "".join(f"<div style='margin-bottom:3px; line-height:1.35; color:#cbd5e1;'>• {html.escape(b)}</div>" for b in bullets)
+        else:
+            goi_y_html = "<span style='color:#64748b;'>-</span>"
+
+        if trang_thai == "KHỚP":
+            status_col = (
+                f"<div style='text-align:center;'>"
+                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(0,230,118,0.15); color:#00e676; border:1px solid #00e676; margin-bottom:4px;'>🟢 KHỚP KHO</span>"
+                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#00e676; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
+                f"<div style='font-size:0.75rem; color:#94a3b8;'>Tồn: <strong style='color:#ffffff;'>{ton_kho} {don_vi}</strong></div>"
+                f"</div>"
+            )
+        elif trang_thai == "MỚI":
+            status_col = (
+                f"<div style='text-align:center;'>"
+                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(255,171,0,0.15); color:#ffab00; border:1px solid #ffab00; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
+                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#ffab00; font-size:0.95rem;'>{ma_de_xuat}</div>"
+                f"<div style='font-size:0.72rem; color:#ffc107;'>(Mã số mới 0x.xxxx)</div>"
+                f"</div>"
+            )
+        else:
+            status_col = (
+                f"<div style='text-align:center;'>"
+                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(255,82,82,0.15); color:#ff5252; border:1px solid #ff5252; margin-bottom:4px;'>🔴 CẦN XÁC NHẬN</span>"
+                f"<div style='font-size:0.75rem; color:#ff5252;'>Thiếu quy cách</div>"
+                f"</div>"
+            )
+
+        row = (
+            f"<tr>"
+            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#00e5ff; font-size:0.88rem;'>#{stt}</td>"
+            f"<td>"
+            f"<div style='font-weight:700; color:#ffffff; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
+            f"<div style='color:#94a3b8; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
+            f"<div style='color:#64748b; font-size:0.72rem; font-family:JetBrains Mono, monospace; margin-top:2px;'>📄 {chung_tu_goc}</div>"
+            f"</td>"
+            f"<td>"
+            f"<div style='color:#38bdf8; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
+            f"</td>"
+            f"<td style='text-align:center;'>"
+            f"<div style='font-size:1.05rem; font-weight:700; color:#00e5ff;'>{so_luong}</div>"
+            f"<div style='font-size:0.75rem; color:#cbd5e1; font-weight:600;'>{don_vi}</div>"
+            f"</td>"
+            f"<td>{status_col}</td>"
+            f"<td>{goi_y_html}</td>"
+            f"<td>"
+            f"<div style='font-size:0.8rem; color:#cbd5e1; line-height:1.4;'>💡 {ghi_chu}</div>"
+            f"</td>"
+            f"</tr>"
+        )
+        rows_html.append(row)
+
+    table_html = (
+        "<div class='scada-compact-table-wrap'>"
+        "<table class='scada-compact-table'>"
+        "<thead>"
+        "<tr>"
+        "<th style='width: 4%; text-align: center;'>STT</th>"
+        "<th style='width: 25%;'>VẬT TƯ (CHUẨN HÓA & GỐC)</th>"
+        "<th style='width: 20%;'>QUY CÁCH KỸ THUẬT</th>"
+        "<th style='width: 6%; text-align: center;'>SL</th>"
+        "<th style='width: 14%; text-align: center;'>PHÂN LOẠI & MÃ</th>"
+        "<th style='width: 16%;'>GỢI Ý TƯƠNG ĐƯƠNG</th>"
+        "<th style='width: 15%;'>NHẬN ĐỊNH KỸ THUẬT</th>"
+        "</tr>"
+        "</thead>"
+        "<tbody>"
+        + "".join(rows_html) +
+        "</tbody>"
+        "</table>"
+        "</div>"
+    )
+    return table_html
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SIDEBAR — CẤU HÌNH & THIẾT LẬP
+# ═══════════════════════════════════════════════════════════════════════════
+with st.sidebar:
+    st.markdown("### ⚙️ THIẾT LẬP HỆ THỐNG")
+    
+    default_key = os.environ.get("GOOGLE_API_KEY", "")
+    if not default_key:
+        try:
+            default_key = st.secrets.get("GOOGLE_API_KEY", "")
+        except Exception:
+            pass
+
+    api_key = st.text_input(
+        "🔑 GOOGLE AI KEY",
+        type="password",
+        value=default_key,
+    )
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+        genai.configure(api_key=api_key)
+
+    model_name = st.selectbox(
+        "⚡ ENGINE",
+        ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-argon"],
+        index=0,
+    )
+
+    df_master = load_master_df()
+    current_public_url = get_public_url()
+    st.markdown("---")
+    st.markdown(f"**📦 KHO GỐC**: `{len(df_master):,}` mã")
+    st.markdown(f"**🏠 MẠNG NỘI BỘ LAN**: `http://192.168.1.189:8501`")
+    st.markdown(f"**🌐 TOÀN CẦU (INTERNET)**:\n[{current_public_url}]({current_public_url})")
+    st.caption("✓ Bất kỳ ai đều truy cập được trên điện thoại / 4G / máy tính ngoài nhà máy, không giới hạn mạng.")
+    st.markdown(f"**📁 THƯ MỤC BÁO CÁO**: `Processed_Reports/`")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HEADER CONSOLE — CHÍNH QUY & ẤN TƯỢNG (KÈM LINK PUBLIC INTERNET)
+# ═══════════════════════════════════════════════════════════════════════════
+current_public_url = get_public_url()
+st.markdown(f"""
+<div class="hud-header">
+    <div>
+        <div class="hud-title">
+            ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
+        </div>
+        <div class="hud-subtitle">
+            🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
+        </div>
+    </div>
+    <div class="hud-chips">
+        <span class="hud-badge badge-green">
+            <span class="status-dot-pulse"></span> SYSTEM READY
+        </span>
+        <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
+        <span class="hud-badge">LAN: 192.168.1.189:8501</span>
+        <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link cho toàn bộ internet truy cập">
+            🌐 PUBLIC: {current_public_url.replace("https://", "").replace(".trycloudflare.com", "")} ↗
+        </a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TABS
+# ═══════════════════════════════════════════════════════════════════════════
+tab_scan, tab_chat, tab_master, tab_reports = st.tabs([
+    "⚡ ĐỐI CHIẾU CHỨNG TỪ",
+    "💬 TRỢ LÝ CƠ - ĐIỆN",
+    "📦 KHO VẬT TƯ (1.318)",
+    "📑 BÁO CÁO ĐÃ XỬ LÝ"
+])
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 1: ĐỐI CHIẾU HÀNG LOẠT (MULTI-INPUT BATCH)
+# ═══════════════════════════════════════════════════════════════════════════
+with tab_scan:
+    # ── DẢI 4 THẺ CHỈ SỐ KPI METRIC CARDS ──
+    processed_today = count_files_processed_today()
+    st.markdown(f"""
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-cyan">
+            <div class="kpi-header">📦 TỔNG DANH MỤC KHO</div>
+            <div class="kpi-value">1,318 Mã</div>
+            <div class="kpi-sub">77 mã Nhóm 02 | 1,241 mã Nhóm 03</div>
+        </div>
+        <div class="kpi-card kpi-green">
+            <div class="kpi-header">🏷️ MÃ GỢI Ý TIẾP THEO</div>
+            <div class="kpi-value">03.9347</div>
+            <div class="kpi-sub">Nhóm 02 tiếp theo: 02.2841</div>
+        </div>
+        <div class="kpi-card kpi-purple">
+            <div class="kpi-header">🧠 CHẾ ĐỘ AI ENGINE</div>
+            <div class="kpi-value" style="font-size: 1.45rem;">Chuyên gia Cơ-Điện</div>
+            <div class="kpi-sub">Tự động quy đổi tiếng lóng & quy cách</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+            <div class="kpi-header">📊 PHIẾU ĐÃ XỬ LÝ HÔM NAY</div>
+            <div class="kpi-value">{processed_today} Phiếu</div>
+            <div class="kpi-sub">Dữ liệu cập nhật real-time</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Khởi tạo danh sách ảnh dán clipboard trong Session State
+    if "pasted_gallery" not in st.session_state:
+        st.session_state["pasted_gallery"] = []
+    if "last_pasted_hash" not in st.session_state:
+        st.session_state["last_pasted_hash"] = None
+
+    # ── KHU VỰC NHẬP LIỆU: BỐ CỤC 2 CỘT NGANG CÂN ĐỐI ──
+    col_left, col_right = st.columns([1, 1], gap="medium")
+
+    # ── CỘT TRÁI: DÁN ẢNH NHANH (Ctrl + V) ──
+    with col_left:
+        st.markdown("""
+        <div style="font-weight: 700; color: #00e676; font-size: 0.95rem; margin-bottom: 8px;">
+            📋 DÁN ẢNH NHANH (Ctrl + V)
+        </div>
+        """, unsafe_allow_html=True)
+        raw_pasted_data = render_ctrl_v_box(key="ctrl_v_catcher")
+
+        if raw_pasted_data and isinstance(raw_pasted_data, str) and ";base64," in raw_pasted_data:
+            try:
+                _, b64_part = raw_pasted_data.split(";base64,")
+                pasted_bytes = base64.b64decode(b64_part)
+                img_hash = hashlib.md5(pasted_bytes).hexdigest()
+
+                if img_hash != st.session_state["last_pasted_hash"]:
+                    st.session_state["last_pasted_hash"] = img_hash
+                    st.session_state["pasted_gallery"].append({
+                        "id": img_hash,
+                        "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['pasted_gallery'])+1}.png",
+                        "bytes": pasted_bytes,
+                    })
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi đọc clipboard: {e}")
+
+    # ── CỘT PHẢI: TẢI NHIỀU FILE TỪ MÁY TÍNH (MỞ TRỰC TIẾP) ──
+    with col_right:
+        st.markdown("""
+        <div style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;">
+            📂 TẢI FILE TỪ MÁY TÍNH (Excel, PDF, Ảnh hóa đơn)
+        </div>
+        """, unsafe_allow_html=True)
+        uploaded_files = st.file_uploader(
+            "Upload files",
+            type=["xlsx", "xls", "pdf", "jpg", "jpeg", "png", "bmp", "webp"],
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+            key="batch_file_uploader"
+        )
+
+    # ── HIỂN THỊ HÀNG ĐỢI ẢNH CLIPBOARD (NẾU CÓ) ──
+    n_pasted = len(st.session_state["pasted_gallery"])
+    if n_pasted > 0:
+        st.markdown("---")
+        col_title, col_clear = st.columns([4, 1])
+        with col_title:
+            st.markdown(f"#### 📸 Hàng đợi ảnh Clipboard: **{n_pasted} ảnh** *(Tiếp tục nhấn Ctrl + V để dán thêm)*")
+        with col_clear:
+            if st.button("🗑️ XÓA HẾT ẢNH DÁN", use_container_width=True):
+                st.session_state["pasted_gallery"] = []
+                st.session_state["last_pasted_hash"] = None
+                st.rerun()
+
+        cols_per_row = 4
+        rows = [st.session_state["pasted_gallery"][i:i + cols_per_row] for i in range(0, n_pasted, cols_per_row)]
+        for r_idx, row_items in enumerate(rows):
+            thumb_cols = st.columns(cols_per_row)
+            for c_idx, item in enumerate(row_items):
+                with thumb_cols[c_idx]:
+                    st.image(item["bytes"], caption=item["name"], use_container_width=True)
+                    if st.button(f"Xóa ❌", key=f"del_paste_{item['id']}"):
+                        st.session_state["pasted_gallery"] = [
+                            x for x in st.session_state["pasted_gallery"] if x["id"] != item["id"]
+                        ]
+                        st.rerun()
+
+    # ── TỔNG HỢP TẤT CẢ CHỨNG TỪ TRONG HÀNG ĐỢI ──
+    all_queue = []
+
+    for p in st.session_state["pasted_gallery"]:
+        all_queue.append({
+            "name": p["name"],
+            "bytes": p["bytes"],
+            "ext": "png",
+            "type": "image"
+        })
+
+    if uploaded_files:
+        for uf in uploaded_files:
+            ext = uf.name.rsplit(".", 1)[-1].lower()
+            all_queue.append({
+                "name": uf.name,
+                "bytes": uf.read(),
+                "ext": ext,
+                "type": "excel" if ext in ("xlsx", "xls") else ("pdf" if ext == "pdf" else "image")
+            })
+
+    # ── KHI CHƯA CÓ FILE: HƯỚNG DẪN GỌN GÀNG (ĐÃ BỎ ĐOẠN CODE RỜM RÀ) ──
+    if not all_queue:
+        st.info("💡 **HƯỚNG DẪN NHANH**: Nhấn **Win + Shift + S** cắt ảnh phiếu giao hàng rồi click vào khung bên trái bấm **Ctrl + V**, hoặc chọn nhiều file từ máy tính ở khung bên phải để bắt đầu đối chiếu hàng loạt.")
+
+    # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
+    if all_queue:
+        st.markdown(f"""
+        <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid #00e5ff; border-radius: 10px; padding: 12px 18px; margin: 15px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 700; color: #00e5ff; font-size: 1.05rem;">
+                ⚡ ĐÃ SẴN SÀNG: <span style="color:#ffffff;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
+            </div>
+            <div style="color: #94a3b8; font-size: 0.85rem;">Sẽ tổng hợp thành 01 Báo cáo thống nhất</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ({len(all_queue)} CHỨNG TỪ)", type="primary", use_container_width=True):
+            if not api_key:
+                st.error("⛔ Vui lòng nhập Google AI Key tại sidebar bên trái!")
+                st.stop()
+
+            corpus = build_search_corpus(df_master)
+            progress_bar = st.progress(0.0)
+            status_box = st.empty()
+
+            raw_collected_results = []
+            total_items = len(all_queue)
+
+            for idx, item in enumerate(all_queue):
+                pct = (idx) / total_items
+                progress_bar.progress(pct)
+                status_box.markdown(f"🤖 **[{idx + 1}/{total_items}]** Đang phân tích chứng từ: `{item['name']}`...")
+
+                save_dest = DAILY_DIR / item["name"]
+                with open(save_dest, "wb") as f:
+                    f.write(item["bytes"])
+
+                try:
+                    # ── EXCEL ──
+                    if item["type"] == "excel":
+                        df_in = pd.read_excel(io.BytesIO(item["bytes"]))
+                        in_text = df_in.to_string(index=False)
+                        cands = build_candidates_for_items(in_text, df_master)
+                        prompt = (
+                            f"DANH SÁCH VẬT TƯ CHỨNG TỪ '{item['name']}':\n{in_text}\n\n"
+                            f"ỨNG VIÊN KHO:\n{cands}\n\n"
+                            f"Trả JSON đối chiếu theo quy định."
+                        )
+                        response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+
+                    # ── PDF ──
+                    elif item["type"] == "pdf":
+                        pdf_txt = ""
+                        if HAS_FITZ:
+                            doc = fitz.open(stream=item["bytes"], filetype="pdf")
+                            pdf_txt = "\n".join(page.get_text() for page in doc)
+                            doc.close()
+
+                        if pdf_txt.strip():
+                            cands = build_candidates_for_items(pdf_txt, df_master)
+                            prompt = (
+                                f"NỘI DUNG PDF '{item['name']}':\n{pdf_txt}\n\n"
+                                f"ỨNG VIÊN KHO:\n{cands}\n\n"
+                                f"Trả JSON đối chiếu."
+                            )
+                            response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                        else:
+                            doc = fitz.open(stream=item["bytes"], filetype="pdf")
+                            imgs = [{"mime_type": "image/png", "data": page.get_pixmap(dpi=180).tobytes("png")} for page in doc]
+                            doc.close()
+                            parts = [
+                                f"Đọc trích xuất tất cả vật tư kỹ thuật trong PDF '{item['name']}' và đối chiếu với kho 1.318 mã. Trả JSON theo quy định.",
+                                *imgs
+                            ]
+                            response = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+
+                    # ── HÌNH ẢNH ──
+                    elif item["type"] == "image":
+                        mime = "image/png" if item["ext"] == "png" else "image/jpeg"
+                        parts = [
+                            f"Đọc và bóc tách TOÀN BỘ danh sách vật tư từ phiếu giao hàng/hóa đơn '{item['name']}'. "
+                            f"Chuẩn hóa tên gọi và quy cách kỹ thuật. "
+                            f"Đối chiếu với kho 1.318 mã để xác định xem là KHỚP mã cũ hay đề xuất MỚI dạng số 0x.xxxx. "
+                            f"Trả kết quả trong khối JSON thuần túy.",
+                            {"mime_type": mime, "data": item["bytes"]}
+                        ]
+                        first_res = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                        ai_txt = first_res.text
+
+                        extracted_names = re.findall(r'"ten_trich_xuat"\s*:\s*"([^"]+)"', ai_txt)
+                        if extracted_names:
+                            extra_cands = "\n\n".join(
+                                f"• '{name}':\n{find_candidates(name, df_master, corpus, top_k=4)}"
+                                for name in extracted_names
+                            )
+                            followup_prompt = (
+                                f"DANH SÁCH ỨNG VIÊN CHÍNH XÁC TỪ KHO 1.318 MÃ:\n{extra_cands}\n\n"
+                                f"Dựa vào thông số trên, hãy hoàn thiện bảng JSON đối chiếu chính xác nhất."
+                            )
+                            response = generate_content_safe(f"{ai_txt}\n\n{followup_prompt}", preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                        else:
+                            response = first_res
+
+                    doc_results = parse_json_from_response(response.text)
+                    if doc_results:
+                        for row in doc_results:
+                            row["chung_tu_goc"] = item["name"]
+                            raw_collected_results.append(row)
+
+                except Exception as e:
+                    st.error(f"Lỗi khi xử lý `{item['name']}`: {e}")
+
+                time.sleep(1)
+
+            progress_bar.progress(1.0)
+            status_box.success(f"✓ Hoàn tất đối chiếu toàn bộ {total_items} chứng từ!")
+
+            # ═══════════════════════════════════════════════════════════════
+            # HẬU XỬ LÝ CHUYÊN SÂU: GỢI Ý MÃ TƯƠNG ĐƯƠNG & CẤP MÃ 0x.xxxx DẠNG SỐ
+            # ═══════════════════════════════════════════════════════════════
+            if raw_collected_results:
+                consolidated_results = []
+
+                needed_count = len(raw_collected_results) + 10
+                next_03_codes = allocate_next_codes(df_master, needed_count, group="03")
+                next_02_codes = allocate_next_codes(df_master, needed_count, group="02")
+                idx_03 = 0
+                idx_02 = 0
+
+                for i, r in enumerate(raw_collected_results, 1):
+                    r["stt"] = i
+                    t_goc = r.get("ten_trich_xuat", "") or ""
+                    t_chuan = r.get("ten_chuan_hoa", "") or ""
+                    q_cach = r.get("quy_cach", "") or ""
+                    search_str = f"{t_goc} {q_cach}"
+
+                    candidates = get_candidate_matches(search_str, corpus, top_k=3)
+                    best = candidates[0] if candidates else None
+
+                    # Khớp tuyệt đối nếu trùng khớp từ ngữ cao
+                    if best and best["score"] >= 95 and r.get("trang_thai") != "KHỚP":
+                        r["trang_thai"] = "KHỚP"
+                        r["ma_vat_tu_cu"] = best["ma"]
+                        r["ten_trong_kho"] = best["ten"]
+                        r["ton_kho"] = best["ton"]
+                        r["ma_de_xuat"] = "-"
+                        r["goi_y_tuong_duong"] = f"{best['ma']} ({best['ten']} - Tồn: {best['ton']})"
+                        r["ghi_chu"] = f"Khớp hoàn toàn với mã kho {best['ma']}"
+
+                    elif r.get("trang_thai") == "KHỚP":
+                        r["ma_de_xuat"] = "-"
+                        old_code = r.get("ma_vat_tu_cu", "") or ""
+                        r["goi_y_tuong_duong"] = f"{old_code} (Đang dùng)"
+                        if not r.get("ghi_chu"):
+                            r["ghi_chu"] = f"Khớp mã kho {old_code}"
+
+                    else:
+                        sim_items = []
+                        for c in candidates:
+                            sim_items.append(f"{c['ma']}: {c['ten']} (Tồn: {c['ton']})")
+                        r["goi_y_tuong_duong"] = " | ".join(sim_items) if sim_items else "Không có mã tương tự"
+
+                        full_kw = (t_goc + " " + t_chuan + " " + q_cach).lower()
+                        if any(w in full_kw for w in ["xi măng", "cát", "đá 1*", "đá 4*", "gạch", "vôi bột", "bê tông tươi"]):
+                            r["ma_de_xuat"] = next_02_codes[idx_02]
+                            idx_02 += 1
+                        else:
+                            r["ma_de_xuat"] = next_03_codes[idx_03]
+                            idx_03 += 1
+
+                        if not r.get("ghi_chu"):
+                            r["ghi_chu"] = f"Chưa có trong kho. Đề xuất cấp mã mới {r['ma_de_xuat']}"
+
+                    consolidated_results.append(r)
+
+                # Lưu vào session_state để hiển thị bền vững & không bị mất khi thao tác bộ lọc
+                st.session_state["reconciled_results"] = consolidated_results
+                st.session_state["reconciled_total_docs"] = total_items
+                batch_file = save_batch_report_excel(consolidated_results, f"{total_items}_ChungTu")
+                st.session_state["reconciled_file_path"] = str(batch_file)
+                st.session_state["reconciled_file_name"] = batch_file.name
+                st.rerun()
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # KHU VỰC HIỂN THỊ KẾT QUẢ ĐỐI CHIẾU TRỰC QUAN (KHÔNG CUỘN, KHÔNG CẮT CHỮ)
+    # ═══════════════════════════════════════════════════════════════════════════
+    if st.session_state.get("reconciled_results"):
+        res_list = st.session_state["reconciled_results"]
+        total_docs = st.session_state.get("reconciled_total_docs", 1)
+        file_path = st.session_state.get("reconciled_file_path")
+        file_name = st.session_state.get("reconciled_file_name", "BaoCao_DoiChieu.xlsx")
+
+        n_khop = sum(1 for r in res_list if r.get("trang_thai") == "KHỚP")
+        n_moi = sum(1 for r in res_list if r.get("trang_thai") == "MỚI")
+        n_xn = sum(1 for r in res_list if r.get("trang_thai") == "CẦN_XÁC_NHẬN")
+
+        st.markdown("<hr style='border: 1px solid rgba(0, 229, 255, 0.2); margin: 25px 0 15px 0;'>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div style="font-size: 1.25rem; font-weight: 700; color: #00e5ff; display:flex; align-items:center; gap:8px;">
+                <span>📊 KẾT QUẢ ĐỐI CHIẾU & CHUẨN HÓA CHI TIẾT</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8;">
+                ✓ Hiển thị đầy đủ 100% nội dung • Không cần cuộn ngang • Dễ dàng kiểm tra & duyệt mã
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="metric-grid">
+            <div class="metric-box box-total">
+                <div class="metric-num" style="color: #00e5ff;">{len(res_list)}</div>
+                <div class="metric-lbl">TỔNG MÃ ({total_docs} CHỨNG TỪ)</div>
+            </div>
+            <div class="metric-box box-match">
+                <div class="metric-num" style="color: #00e676;">{n_khop}</div>
+                <div class="metric-lbl">KHỚP MÃ CŨ TRONG KHO</div>
+            </div>
+            <div class="metric-box box-new">
+                <div class="metric-num" style="color: #ffab00;">{n_moi}</div>
+                <div class="metric-lbl">ĐỀ XUẤT MÃ MỚI (0x.xxxx)</div>
+            </div>
+            <div class="metric-box box-check">
+                <div class="metric-num" style="color: #ff5252;">{n_xn}</div>
+                <div class="metric-lbl">CẦN BỔ SUNG QUY CÁCH</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Thanh công cụ: Bộ lọc trạng thái & Tìm kiếm nhanh
+        col_f, col_s = st.columns([3, 1])
+        with col_f:
+            status_filter = st.radio(
+                "Lọc phân loại:",
+                [
+                    f"Tất cả ({len(res_list)})",
+                    f"🟢 Khớp kho ({n_khop})",
+                    f"🟡 Cấp mã mới ({n_moi})",
+                    f"🔴 Cần xác nhận ({n_xn})"
+                ],
+                horizontal=True,
+                key="filter_radio_status"
+            )
+        with col_s:
+            search_kw = st.text_input("🔍 Tìm nhanh:", placeholder="Tên, model, mã...", key="filter_search_kw")
+
+        # Lọc danh sách
+        filtered_items = res_list
+        if "🟢 Khớp" in status_filter:
+            filtered_items = [r for r in filtered_items if r.get("trang_thai") == "KHỚP"]
+        elif "🟡 Cấp mã" in status_filter:
+            filtered_items = [r for r in filtered_items if r.get("trang_thai") == "MỚI"]
+        elif "🔴 Cần" in status_filter:
+            filtered_items = [r for r in filtered_items if r.get("trang_thai") == "CẦN_XÁC_NHẬN"]
+
+        if search_kw:
+            kw = search_kw.strip().lower()
+            filtered_items = [
+                r for r in filtered_items
+                if kw in str(r.get("ten_trich_xuat", "")).lower()
+                or kw in str(r.get("ten_chuan_hoa", "")).lower()
+                or kw in str(r.get("quy_cach", "")).lower()
+                or kw in str(r.get("ma_vat_tu_cu", "")).lower()
+                or kw in str(r.get("ma_de_xuat", "")).lower()
+                or kw in str(r.get("ghi_chu", "")).lower()
+            ]
+
+        # Hiển thị Bảng đối chiếu gọn gàng (100% trong 1 màn hình, tự động xuống dòng)
+        if not filtered_items:
+            st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
+        else:
+            st.markdown(render_compact_table_html(filtered_items), unsafe_allow_html=True)
+
+        # Nút xuất Excel & Nút Xóa kết quả
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        col_down, col_clear_res = st.columns([3, 1])
+        with col_down:
+            if file_path and Path(file_path).exists():
+                with open(file_path, "rb") as rf:
+                    st.download_button(
+                        label=f"💾 TẢI BÁO CÁO TỔNG HỢP EXCEL ({file_name})",
+                        data=rf.read(),
+                        file_name=file_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+        with col_clear_res:
+            if st.button("🗑️ XÓA KẾT QUẢ ĐỐI CHIẾU NÀY", use_container_width=True):
+                st.session_state["reconciled_results"] = None
+                st.session_state["reconciled_file_path"] = None
+                st.rerun()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 2: TRỢ LÝ CƠ - ĐIỆN (CHUYÊN GIA KỸ THUẬT: KHO + THÔNG TIN MẠNG / BẢNG THẺ ĐẸP MẮT)
+# ═══════════════════════════════════════════════════════════════════════════
+with tab_chat:
+    st.markdown("""
+    <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;">
+        <span style="font-weight: 700; color: #00e5ff;">👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN:</span>
+        <span style="color: #94a3b8; font-size: 0.88rem;">Tra cứu dữ liệu tồn kho 1.318 mã kết hợp kiến thức tiêu chuẩn công nghiệp (ASTM/JIS/DIN), barem quy cách và tư vấn kỹ thuật.</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── GỢI Ý CÂU HỎI NHANH ──
+    st.markdown("<div style='font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 600;'>💡 CÂU HỎI GỢI Ý NHANH:</div>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    quick_q = None
+    if c1.button("🔩 Thép ống phi 60 trong kho?", use_container_width=True):
+        quick_q = "Kiểm tra thép ống phi 60 trong kho còn bao nhiêu, quy cách tiêu chuẩn thế nào?"
+    if c2.button("⚙️ Vòng bi 6205 còn mấy cái?", use_container_width=True):
+        quick_q = "Vòng bi 6205 trong kho còn mấy cái, thông số kỹ thuật và hãng tương đương?"
+    if c3.button("⚡ Động cơ điện 15kW 4 cực", use_container_width=True):
+        quick_q = "Thông tin động cơ điện 15kW 4P trong kho và thông số dòng định mức, tốc độ?"
+    if c4.button("⚠️ Vật tư sắp hết (Tồn = 0)", use_container_width=True):
+        quick_q = "Liệt kê các mã vật tư đang hết hàng (tồn bằng 0) cần chú ý bổ sung gấp?"
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"], avatar="👨‍🔧" if msg["role"] == "user" else "🤖"):
+            st.markdown(msg["content"])
+
+    input_text = st.chat_input("Hỏi bất kỳ điều gì: quy cách, tồn kho, tiêu chuẩn, tương đương... (VD: 'thép ống 60', 'vòng bi 6205')")
+    q = quick_q or input_text
+
+    if q:
+        if not api_key:
+            st.error("Chưa nhập Google AI Key tại sidebar bên trái!")
+        else:
+            st.session_state.chat_history.append({"role": "user", "content": q})
+            with st.chat_message("user", avatar="👨‍🔧"):
+                st.markdown(q)
+
+            with st.chat_message("assistant", avatar="🤖"):
+                with st.spinner("Kỹ sư Trưởng AI đang tra cứu kho 1.318 mã & phân tích tiêu chuẩn kỹ thuật..."):
+                    inv_info = retrieve_inventory_data_for_chat(q, df_master)
+
+                    prompt = f"""
+{inv_info}
+
+CÂU HỎI CỦA KỸ SƯ / NGƯỜI DÙNG:
+"{q}"
+
+Hãy trả lời thật chi tiết, trực quan, chuyên nghiệp theo đúng 3 phần:
+1. 📦 TÌNH TRẠNG TỒN KHO THỰC TẾ TẠI NHÀ MÁY (lập Bảng Markdown rõ ràng gồm Mã hàng, Tên hàng, ĐVT, Tồn cuối kỳ, Đánh giá)
+2. 🛠️ THÔNG SỐ KỸ THUẬT & TIÊU CHUẨN CÔNG NGHIỆP (kiến thức mở rộng: quy cách DN, OD, ID, cấp độ dày SCH, barem trọng lượng, tiêu chuẩn ASTM/JIS/DIN/TCVN/IEC...)
+3. 💡 TƯ VẤN KỸ THUẬT & LƯU Ý BẢO TRÌ NHÀ MÁY (phụ kiện đi kèm khi lắp đặt, vật tư thay thế tương đương, lưu ý ăn mòn phân bón/hóa chất)
+
+TRÌNH BÀY DẠNG BẢNG VÀ THẺ THÔNG TIN MARKDOWN ĐẸP MẮT. TUYỆT ĐỐI KHÔNG XUẤT JSON.
+"""
+                    try:
+                        ans = generate_content_safe(
+                            prompt,
+                            preferred_model=model_name,
+                            system_instruction=SYSTEM_PROMPT_ASSISTANT
+                        ).text
+                    except Exception as err:
+                        ans = f"Lỗi: {err}"
+                    st.markdown(ans)
+                    st.session_state.chat_history.append({"role": "assistant", "content": ans})
+                    if quick_q:
+                        st.rerun()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 3: DANH MỤC KHO MASTER (1.318 MÃ)
+# ═══════════════════════════════════════════════════════════════════════════
+with tab_master:
+    col_s1, col_s2 = st.columns([3, 1])
+    with col_s1:
+        kw = st.text_input("🔍 Tra cứu nhanh kho gốc:", placeholder="Nhập tên, mã hàng (02.xxx, 03.xxx), quy cách...")
+    with col_s2:
+        zero_filter = st.checkbox("Chỉ hiện hàng tồn = 0", value=False)
+
+    df_display = df_master.copy()
+    if kw:
+        mask = df_display.apply(lambda r: r.astype(str).str.contains(kw, case=False, na=False).any(), axis=1)
+        df_display = df_display[mask]
+    if zero_filter and "Cuối kỳ SL" in df_display.columns:
+        df_display = df_display[df_display["Cuối kỳ SL"] == 0]
+
+    st.dataframe(df_display, use_container_width=True, height=520)
+    st.caption(f"Hiển thị {len(df_display):,} / {len(df_master):,} mã hàng")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 4: LỊCH SỬ BÁO CÁO
+# ═══════════════════════════════════════════════════════════════════════════
+with tab_reports:
+    reports = sorted(REPORT_DIR.glob("*.xlsx"), key=os.path.getmtime, reverse=True)
+    if reports:
+        for rf in reports[:20]:
+            c1, c2, c3 = st.columns([5, 2, 1])
+            with c1:
+                st.markdown(f"📄 **{rf.name}**")
+            with c2:
+                st.caption(datetime.datetime.fromtimestamp(rf.stat().st_mtime).strftime("%d/%m/%Y %H:%M"))
+            with c3:
+                with open(rf, "rb") as f:
+                    st.download_button("⬇️", f.read(), rf.name, key=f"dl_{rf.name}")
+    else:
+        st.info("Chưa có báo cáo nào.")

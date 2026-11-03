@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+Daily_Input/*
+!Daily_Input/.gitkeep
+Processed_Reports/*
+!Processed_Reports/.gitkeep
+cloudflared.exe
+*.lnk
+public_url.txt
+*.bat
+.env

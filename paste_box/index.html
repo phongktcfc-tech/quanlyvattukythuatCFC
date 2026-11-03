@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: transparent;
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+        }
+        #paste-container {
+            width: 100%;
+            height: 185px;
+            border: 2px dashed #00e676;
+            background: rgba(0, 230, 118, 0.04);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            outline: none;
+            user-select: none;
+            box-shadow: inset 0 0 15px rgba(0, 230, 118, 0.05);
+        }
+        #paste-container:focus, #paste-container:hover {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.09);
+            box-shadow: 0 0 25px rgba(0, 230, 118, 0.3), inset 0 0 20px rgba(0, 230, 118, 0.1);
+            transform: translateY(-1px);
+        }
+        .icon {
+            font-size: 36px;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 0 12px rgba(0, 230, 118, 0.6));
+        }
+        .main-text {
+            color: #00e676;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+        .kbd {
+            background: rgba(0, 230, 118, 0.2);
+            border: 1px solid #00e676;
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            margin: 0 4px;
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+        }
+        .sub-text {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 6px;
+        }
+        .status-text {
+            margin-top: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #00ff88;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+    <div id="paste-container" tabindex="0">
+        <div class="icon">📋</div>
+        <div class="main-text">BẤM VÀO ĐÂY RỒI NHẤN <span class="kbd">Ctrl + V</span> ĐỂ DÁN ẢNH</div>
+        <div class="sub-text">Cắt hình phiếu giao hàng (Win + Shift + S) rồi dán trực tiếp vào đây</div>
+        <div class="status-text" id="status">✓ ĐÃ NHẬN ẢNH! ĐANG NẠP VÀO HỆ THỐNG...</div>
+    </div>
+
+    <script src="streamlit-component-lib.js"></script>
+    <script>
+        const container = document.getElementById('paste-container');
+        const status = document.getElementById('status');
+
+        function handleImageFile(file) {
+            status.style.display = 'block';
+            status.innerText = '⚡ ĐÃ NHẬN ẢNH TỪ CLIPBOARD! ĐANG NẠP...';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                Streamlit.setComponentValue(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function extractImageFromClipboard(e) {
+            const clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) return false;
+            const items = clipboardData.items;
+            if (!items) return false;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    handleImageFile(file);
+                    e.preventDefault();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        container.addEventListener('paste', function(e) {
+            extractImageFromClipboard(e);
+        });
+
+        window.addEventListener('paste', function(e) {
+            extractImageFromClipboard(e);
+        });
+
+        try {
+            if (window.parent && window.parent.document) {
+                window.parent.document.addEventListener('paste', function(e) {
+                    extractImageFromClipboard(e);
+                });
+            }
+        } catch (err) {}
+
+        container.addEventListener('mouseenter', () => {
+            container.focus();
+        });
+
+        Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, function() {
+            Streamlit.setFrameHeight(190);
+        });
+        Streamlit.setComponentReady();
+        Streamlit.setFrameHeight(190);
+    </script>
+</body>
+</html>
