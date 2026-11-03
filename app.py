@@ -972,25 +972,44 @@ st.markdown("""
         background: #080f20;
     }
     .scada-compact-table th {
-        background: #0d1b38;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #0d1b38 !important;
         color: #00e5ff;
         font-weight: 700;
-        padding: 9px 8px;
+        padding: 8px 6px;
         border-bottom: 2px solid #00e5ff;
-        font-size: 0.76rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
     }
     .scada-compact-table td {
-        padding: 9px 8px;
+        padding: 8px 6px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         vertical-align: top;
         white-space: normal !important;
         word-break: break-word !important;
-        line-height: 1.4;
+        line-height: 1.35;
     }
     .scada-compact-table tr:hover {
         background: rgba(0, 229, 255, 0.04);
+    }
+
+    /* Custom 4px Slim Scrollbar (Zero-Scroll Standard) */
+    ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(11, 17, 32, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 229, 255, 0.35);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #00e5ff;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1941,79 +1960,93 @@ with tab_scan:
     if "last_pasted_hash" not in st.session_state:
         st.session_state["last_pasted_hash"] = None
 
-    # ── KHU VỰC NHẬP LIỆU: BỐ CỤC 2 CỘT NGANG CÂN ĐỐI ──
-    col_left, col_right = st.columns([1, 1], gap="medium")
+    # ── KHU VỰC NHẬP LIỆU: GOM DÁN ẢNH & TẢI FILE CÙNG 1 CHỖ (GỌN GÀNG, CHUYÊN NGHIỆP) ──
+    has_results = bool(st.session_state.get("reconciled_results"))
 
-    # ── CỘT TRÁI: DÁN ẢNH NHANH (Ctrl + V) ──
-    with col_left:
-        st.markdown("""
-        <div style="font-weight: 700; color: #00e676; font-size: 0.95rem; margin-bottom: 8px;">
-            📋 DÁN ẢNH NHANH (Ctrl + V)
-        </div>
-        """, unsafe_allow_html=True)
-        raw_pasted_data = render_ctrl_v_box(key="ctrl_v_catcher")
+    def _render_intake_hub():
+        uploaded_files = None
+        col_ih_title, col_ih_mode = st.columns([1.5, 3.5])
+        with col_ih_title:
+            st.markdown("""
+            <div style="font-weight: 700; color: #00e5ff; font-size: 0.92rem; padding-top: 4px;">
+                📥 NẠP CHỨNG TỪ ĐỐI CHIẾU
+            </div>
+            <div style="font-size: 0.74rem; color: #94a3b8;">
+                Dán ảnh clipboard hoặc chọn file từ máy
+            </div>
+            """, unsafe_allow_html=True)
+        with col_ih_mode:
+            intake_mode = st.segmented_control(
+                "Phương thức:",
+                options=["📋 Dán ảnh nhanh (Ctrl + V)", "📁 Tải file từ máy tính (Excel, PDF, Ảnh)"],
+                default="📋 Dán ảnh nhanh (Ctrl + V)",
+                key="intake_mode_sel",
+                label_visibility="collapsed"
+            )
 
-        if raw_pasted_data and isinstance(raw_pasted_data, str) and ";base64," in raw_pasted_data:
-            try:
-                _, b64_part = raw_pasted_data.split(";base64,")
-                pasted_bytes = base64.b64decode(b64_part)
-                img_hash = hashlib.md5(pasted_bytes).hexdigest()
+        if intake_mode == "📋 Dán ảnh nhanh (Ctrl + V)":
+            raw_pasted_data = render_ctrl_v_box(key="ctrl_v_catcher")
+            if raw_pasted_data and isinstance(raw_pasted_data, str) and ";base64," in raw_pasted_data:
+                try:
+                    _, b64_part = raw_pasted_data.split(";base64,")
+                    pasted_bytes = base64.b64decode(b64_part)
+                    img_hash = hashlib.md5(pasted_bytes).hexdigest()
 
-                if img_hash != st.session_state["last_pasted_hash"]:
-                    st.session_state["last_pasted_hash"] = img_hash
-                    st.session_state["pasted_gallery"].append({
-                        "id": img_hash,
-                        "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['pasted_gallery'])+1}.png",
-                        "bytes": pasted_bytes,
-                    })
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Lỗi đọc clipboard: {e}")
-
-    # ── CỘT PHẢI: TẢI NHIỀU FILE TỪ MÁY TÍNH (MỞ TRỰC TIẾP) ──
-    with col_right:
-        st.markdown("""
-        <div style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;">
-            📂 TẢI FILE TỪ MÁY TÍNH (Excel, PDF, Ảnh hóa đơn)
-        </div>
-        """, unsafe_allow_html=True)
-        uploaded_files = st.file_uploader(
-            "Upload files",
-            type=["xlsx", "xls", "pdf", "jpg", "jpeg", "png", "bmp", "webp"],
-            accept_multiple_files=True,
-            label_visibility="collapsed",
-            key="batch_file_uploader"
-        )
-
-    # ── HIỂN THỊ HÀNG ĐỢI ẢNH CLIPBOARD (NẾU CÓ) ──
-    n_pasted = len(st.session_state["pasted_gallery"])
-    if n_pasted > 0:
-        st.markdown("---")
-        col_title, col_clear = st.columns([4, 1])
-        with col_title:
-            st.markdown(f"#### 📸 Hàng đợi ảnh Clipboard: **{n_pasted} ảnh** *(Tiếp tục nhấn Ctrl + V để dán thêm)*")
-        with col_clear:
-            if st.button("🗑️ XÓA HẾT ẢNH DÁN", use_container_width=True):
-                st.session_state["pasted_gallery"] = []
-                st.session_state["last_pasted_hash"] = None
-                st.rerun()
-
-        cols_per_row = 4
-        rows = [st.session_state["pasted_gallery"][i:i + cols_per_row] for i in range(0, n_pasted, cols_per_row)]
-        for r_idx, row_items in enumerate(rows):
-            thumb_cols = st.columns(cols_per_row)
-            for c_idx, item in enumerate(row_items):
-                with thumb_cols[c_idx]:
-                    st.image(item["bytes"], caption=item["name"], use_container_width=True)
-                    if st.button(f"Xóa ❌", key=f"del_paste_{item['id']}"):
-                        st.session_state["pasted_gallery"] = [
-                            x for x in st.session_state["pasted_gallery"] if x["id"] != item["id"]
-                        ]
+                    if img_hash != st.session_state["last_pasted_hash"]:
+                        st.session_state["last_pasted_hash"] = img_hash
+                        st.session_state["pasted_gallery"].append({
+                            "id": img_hash,
+                            "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['pasted_gallery'])+1}.png",
+                            "bytes": pasted_bytes,
+                        })
                         st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi đọc clipboard: {e}")
+        else:
+            uploaded_files = st.file_uploader(
+                "Upload files",
+                type=["xlsx", "xls", "pdf", "jpg", "jpeg", "png", "bmp", "webp"],
+                accept_multiple_files=True,
+                label_visibility="collapsed",
+                key="batch_file_uploader"
+            )
+
+        # ── HIỂN THỊ HÀNG ĐỢI ẢNH CLIPBOARD (NẾU CÓ) ──
+        n_pasted = len(st.session_state["pasted_gallery"])
+        if n_pasted > 0:
+            col_title, col_clear = st.columns([4, 1])
+            with col_title:
+                st.caption(f"📸 Hàng đợi ảnh Clipboard: **{n_pasted} ảnh** *(Nhấn Ctrl + V để dán thêm)*")
+            with col_clear:
+                if st.button("🗑️ Xóa ảnh dán", use_container_width=True, key="btn_clear_pastes_dock"):
+                    st.session_state["pasted_gallery"] = []
+                    st.session_state["last_pasted_hash"] = None
+                    st.rerun()
+
+            cols_per_row = 6
+            rows = [st.session_state["pasted_gallery"][i:i + cols_per_row] for i in range(0, n_pasted, cols_per_row)]
+            for r_idx, row_items in enumerate(rows):
+                thumb_cols = st.columns(cols_per_row)
+                for c_idx, item in enumerate(row_items):
+                    with thumb_cols[c_idx]:
+                        st.image(item["bytes"], caption=item["name"], use_container_width=True)
+                        if st.button("❌", key=f"del_paste_{item['id']}"):
+                            st.session_state["pasted_gallery"] = [
+                                x for x in st.session_state["pasted_gallery"] if x["id"] != item["id"]
+                            ]
+                            st.rerun()
+
+        return uploaded_files
+
+    if has_results:
+        with st.expander("📥 NẠP THÊM CHỨNG TỪ / ĐỐI CHIẾU TIẾP (Dán ảnh hoặc Chọn file)", expanded=False):
+            uploaded_files = _render_intake_hub()
+    else:
+        with st.container(border=True):
+            uploaded_files = _render_intake_hub()
 
     # ── TỔNG HỢP TẤT CẢ CHỨNG TỪ TRONG HÀNG ĐỢI ──
     all_queue = []
-
     for p in st.session_state["pasted_gallery"]:
         all_queue.append({
             "name": p["name"],
@@ -2022,19 +2055,18 @@ with tab_scan:
             "type": "image"
         })
 
-    if uploaded_files:
-        for uf in uploaded_files:
+    active_uploads = uploaded_files if uploaded_files is not None else st.session_state.get("batch_file_uploader")
+    if active_uploads:
+        for uf in active_uploads:
             ext = uf.name.rsplit(".", 1)[-1].lower()
             all_queue.append({
                 "name": uf.name,
-                "bytes": uf.read(),
+                "bytes": uf.read() if hasattr(uf, "read") else uf.getvalue(),
                 "ext": ext,
                 "type": "excel" if ext in ("xlsx", "xls") else ("pdf" if ext == "pdf" else "image")
             })
 
-    # ── KHI CHƯA CÓ FILE: HƯỚNG DẪN GỌN GÀNG (ĐÃ BỎ ĐOẠN CODE RỜM RÀ) ──
-    if not all_queue:
-        st.info("💡 **HƯỚNG DẪN NHANH**: Nhấn **Win + Shift + S** cắt ảnh phiếu giao hàng rồi click vào khung bên trái bấm **Ctrl + V**, hoặc chọn nhiều file từ máy tính ở khung bên phải để bắt đầu đối chiếu hàng loạt.")
+    n_pasted = len(st.session_state["pasted_gallery"])
 
     # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
     if all_queue:
@@ -2270,53 +2302,46 @@ with tab_scan:
         n_moi = sum(1 for r in res_list if r.get("trang_thai") == "MỚI")
         n_xn = sum(1 for r in res_list if r.get("trang_thai") == "CẦN_XÁC_NHẬN")
 
-        st.markdown("<hr style='border: 1px solid rgba(0, 229, 255, 0.2); margin: 25px 0 15px 0;'>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-            <div style="font-size: 1.25rem; font-weight: 700; color: #00e5ff; display:flex; align-items:center; gap:8px;">
-                <span>📊 KẾT QUẢ ĐỐI CHIẾU & CHUẨN HÓA CHI TIẾT</span>
-            </div>
-            <div style="font-size: 0.85rem; color: #94a3b8;">
-                ✓ Hiển thị đầy đủ 100% nội dung • Không cần cuộn ngang • Dễ dàng kiểm tra & duyệt mã
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ── KHU VỰC PHÊ DUYỆT MÃ MỚI (LƯU VĨNH VIỄN VÀO SQLITE & MASTER EXCEL) ──
-        if n_moi > 0:
-            st.markdown(f"""
-            <div style="background: rgba(255, 171, 0, 0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 10px 14px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <span style="font-weight: 700; color: #ffab00; font-size: 0.95rem;">⚡ PHÁT HIỆN {n_moi} VẬT TƯ MỚI CHỜ PHÊ DUYỆT:</span>
-                    <span style="color: #cbd5e1; font-size: 0.82rem; margin-left: 6px;">Bấm nút dưới để nạp vĩnh viễn vào Kho & Từ điển Ánh xạ đã học (SQLite).</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            col_btn_appr, col_btn_opt = st.columns([3, 1])
-            with col_btn_appr:
-                if st.button(f"✅ PHÊ DUYỆT & LƯU TẤT CẢ {n_moi} MÃ MỚI VÀO KHO VĨNH VIỄN", type="primary", use_container_width=True):
+        # ── THANH CÔNG CỤ ĐIỀU KHIỂN DUY NHẤT (SINGLE-ROW HUD TOOLBAR - ZERO-SCROLL) ──
+        c_tb1, c_tb2, c_tb3, c_tb4 = st.columns([3.4, 2.2, 2.4, 2.0], gap="small")
+        with c_tb1:
+            status_filter = st.segmented_control(
+                "Lọc trạng thái:",
+                options=[
+                    f"Tất cả ({len(res_list)})",
+                    f"🟢 Khớp ({n_khop})",
+                    f"🟡 Mới ({n_moi})",
+                    f"🔴 Cần xem ({n_xn})"
+                ],
+                default=f"Tất cả ({len(res_list)})",
+                key="res_filter_segmented",
+                label_visibility="collapsed"
+            )
+        with c_tb2:
+            search_kw = st.text_input(
+                "Tìm nhanh:",
+                placeholder="🔍 Tìm tên, mã, quy cách...",
+                key="filter_search_kw",
+                label_visibility="collapsed"
+            )
+        with c_tb3:
+            if n_moi > 0:
+                if st.button(f"✅ DUYỆT {n_moi} MÃ MỚI", type="primary", use_container_width=True, key="btn_appr_all_top"):
                     approved_count = 0
                     for r in res_list:
                         if r.get("trang_thai") == "MỚI":
                             code = r.get("ma_de_xuat")
                             if code and code != "-":
                                 name_norm = r.get("ten_chuan_hoa") or r.get("ten_trich_xuat")
-                                spec = r.get("quy_cach", "")
-                                unit = r.get("don_vi", "Cái")
-                                raw_name = r.get("ten_trich_xuat", "")
-                                grp = "02" if str(code).startswith("02.") else "03"
-                                src = r.get("chung_tu_goc", "")
-                                note = r.get("ghi_chu", "")
                                 save_approved_material(
                                     code=code,
                                     name_normalized=name_norm,
-                                    spec=spec,
-                                    unit=unit,
-                                    group_code=grp,
-                                    raw_name=raw_name,
-                                    source_doc=src,
-                                    notes=note
+                                    spec=r.get("quy_cach", ""),
+                                    unit=r.get("don_vi", "Cái"),
+                                    group_code="02" if str(code).startswith("02.") else "03",
+                                    raw_name=r.get("ten_trich_xuat", ""),
+                                    source_doc=r.get("chung_tu_goc", ""),
+                                    notes=r.get("ghi_chu", "")
                                 )
                                 r["trang_thai"] = "KHỚP"
                                 r["ma_vat_tu_cu"] = code
@@ -2330,67 +2355,37 @@ with tab_scan:
                         st.session_state["reconciled_results"] = res_list
                         batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
                         st.session_state["reconciled_file_path"] = str(batch_file)
-                        st.toast(f"✓ Đã phê duyệt và lưu {approved_count} mã mới vào kho & bộ nhớ vĩnh viễn!", icon="✅")
-                        time.sleep(0.4)
+                        st.toast(f"✓ Đã phê duyệt và lưu {approved_count} mã mới vào kho vĩnh viễn!", icon="✅")
+                        time.sleep(0.3)
                         st.rerun()
-
-            with col_btn_opt:
-                with st.expander(f"⚙️ Duyệt từng mã lẻ ({n_moi})", expanded=False):
-                    moi_items = [r for r in res_list if r.get("trang_thai") == "MỚI"]
-                    for item in moi_items:
-                        st.markdown(f"**{item.get('ma_de_xuat')}** — {item.get('ten_chuan_hoa')}")
-                        st.caption(f"Gốc: `{item.get('ten_trich_xuat')}` | Quy cách: {item.get('quy_cach')}")
-                        if st.button("Duyệt mã này ✅", key=f"appr_single_{item.get('ma_de_xuat')}_{item.get('stt')}", use_container_width=True):
-                            code = item.get("ma_de_xuat")
-                            name_norm = item.get("ten_chuan_hoa") or item.get("ten_trich_xuat")
-                            save_approved_material(
-                                code=code,
-                                name_normalized=name_norm,
-                                spec=item.get("quy_cach", ""),
-                                unit=item.get("don_vi", "Cái"),
-                                group_code="02" if str(code).startswith("02.") else "03",
-                                raw_name=item.get("ten_trich_xuat", ""),
-                                source_doc=item.get("chung_tu_goc", ""),
-                                notes=item.get("ghi_chu", "")
-                            )
-                            item["trang_thai"] = "KHỚP"
-                            item["ma_vat_tu_cu"] = code
-                            item["ten_trong_kho"] = name_norm
-                            item["ton_kho"] = 0
-                            item["ma_de_xuat"] = "-"
-                            item["goi_y_tuong_duong"] = f"{code} (Vừa duyệt vào kho)"
-                            item["ghi_chu"] = f"✓ Đã duyệt & học vào bộ nhớ kho (Mã: {code})"
-                            st.session_state["reconciled_results"] = res_list
-                            batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                            st.session_state["reconciled_file_path"] = str(batch_file)
-                            st.toast(f"✓ Đã duyệt mã {code}!", icon="✅")
-                            time.sleep(0.4)
-                            st.rerun()
-
-        # Thanh công cụ: Bộ lọc trạng thái & Tìm kiếm nhanh
-        col_f, col_s = st.columns([3, 1])
-        with col_f:
-            status_filter = st.radio(
-                "Lọc phân loại:",
-                [
-                    f"Tất cả ({len(res_list)})",
-                    f"🟢 Khớp kho ({n_khop})",
-                    f"🟡 Cấp mã mới ({n_moi})",
-                    f"🔴 Cần xác nhận ({n_xn})"
-                ],
-                horizontal=True,
-                key="filter_radio_status"
-            )
-        with col_s:
-            search_kw = st.text_input("🔍 Tìm nhanh:", placeholder="Tên, model, mã...", key="filter_search_kw")
+            else:
+                st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#00e676; font-size:0.82rem; border:1px solid rgba(0,230,118,0.3); border-radius:6px; background:rgba(0,230,118,0.06);'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
+        with c_tb4:
+            c_dl_btn, c_del_btn = st.columns([1.2, 1], gap="small")
+            with c_dl_btn:
+                if file_path and Path(file_path).exists():
+                    with open(file_path, "rb") as rf:
+                        st.download_button(
+                            label="💾 Excel",
+                            data=rf.read(),
+                            file_name=file_name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            key="btn_dl_top"
+                        )
+            with c_del_btn:
+                if st.button("🗑️ Xóa", use_container_width=True, key="btn_clear_top", help="Xóa kết quả này"):
+                    st.session_state["reconciled_results"] = None
+                    st.session_state["reconciled_file_path"] = None
+                    st.rerun()
 
         # Lọc danh sách
         filtered_items = res_list
-        if "🟢 Khớp" in status_filter:
+        if status_filter and "🟢 Khớp" in status_filter:
             filtered_items = [r for r in filtered_items if r.get("trang_thai") == "KHỚP"]
-        elif "🟡 Cấp mã" in status_filter:
+        elif status_filter and "🟡 Mới" in status_filter:
             filtered_items = [r for r in filtered_items if r.get("trang_thai") == "MỚI"]
-        elif "🔴 Cần" in status_filter:
+        elif status_filter and "🔴 Cần" in status_filter:
             filtered_items = [r for r in filtered_items if r.get("trang_thai") == "CẦN_XÁC_NHẬN"]
 
         if search_kw:
@@ -2405,146 +2400,129 @@ with tab_scan:
                 or kw in str(r.get("ghi_chu", "")).lower()
             ]
 
-        # Hiển thị Bảng đối chiếu gọn gàng (Single-Viewport Lock, cuộn nội bộ 350px)
-        if not filtered_items:
-            st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
-        else:
-            st.markdown(
-                f"<div style='max-height: 350px; overflow-y: auto; border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; margin: 8px 0;'>"
-                f"{render_compact_table_html(filtered_items)}"
-                f"</div>",
-                unsafe_allow_html=True
-            )
+        # ── 2 TABS NỘI BỘ VỪA VẶN TRONG KHUNG HÌNH (ZERO-SCROLL) ──
+        tab_res_table, tab_res_override = st.tabs([
+            f"📊 BẢNG KẾT QUẢ ĐỐI CHIẾU ({len(filtered_items)} DÒNG VẬT TƯ)",
+            f"🛠️ ĐỔI MÃ & CHỌN TỪ GỢI Ý KHO ({len(filtered_items)})"
+        ])
 
-        # ── KHU VỰC TÙY CHỌN & ĐỔI MÃ VẬT TƯ THEO GỢI Ý KHO (SMART CANDIDATE OVERRIDE) ──
-        with st.expander("🛠️ LỰA CHỌN & ĐỔI MÃ VẬT TƯ (TÙY CHỌN MÃ PHÙ HỢP TỪ KHO)", expanded=True):
-            col_top_desc, col_top_refresh = st.columns([3.5, 1.5])
-            with col_top_desc:
-                st.markdown("""
-                <div style="font-size:0.83rem; color:#94a3b8; margin-bottom:10px;">
-                    💡 <b>Dò tìm & Gợi ý tương đương chuẩn kỹ thuật (3 tầng):</b> Hệ thống phân tích theo <b>Trùng khớp tên/chủng loại</b> → <b>Trùng khớp quy cách (phi, dày, mắt lưới, mã bi)</b> → <b>Đặc tính kỹ thuật sử dụng</b>. Sắp xếp theo % trùng khớp giảm dần (Tối đa 3 món gần nhất).
-                </div>
-                """, unsafe_allow_html=True)
-            with col_top_refresh:
-                if st.button("🔄 Quét lại kho với thuật toán mới", key="btn_rescan_smart", use_container_width=True):
-                    for it in res_list:
-                        t_r = it.get("ten_trich_xuat", "")
-                        q_s = it.get("quy_cach", "")
-                        cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=3)
-                        it["candidates"] = cands_new
-                        best_new = cands_new[0] if cands_new else None
-                        sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in cands_new]
-                        it["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
-                        if best_new and best_new["score"] >= 95:
-                            it["trang_thai"] = "KHỚP"
-                            it["ma_vat_tu_cu"] = best_new["ma"]
-                            it["ten_trong_kho"] = best_new["ten"]
-                            it["ton_kho"] = best_new["ton"]
-                            it["ma_de_xuat"] = "-"
-                            it["ghi_chu"] = f"✓ Khớp mã kho {best_new['ma']} ({best_new['ly_do']})"
-                    st.session_state["reconciled_results"] = res_list
-                    batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                    st.session_state["reconciled_file_path"] = str(batch_file)
-                    st.toast("✓ Đã quét lại toàn bộ danh sách bằng thuật toán đối chiếu thông minh mới!", icon="✅")
-                    time.sleep(0.3)
-                    st.rerun()
+        with tab_res_table:
+            if not filtered_items:
+                st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
+            else:
+                st.markdown(
+                    f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; margin-top: 4px;'>"
+                    f"{render_compact_table_html(filtered_items)}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
-            for item in filtered_items:
-                stt_num = item.get("stt", 1)
-                t_raw = item.get("ten_trich_xuat", "")
-                q_spec = item.get("quy_cach", "")
-                curr_code = item.get("ma_vat_tu_cu") if item.get("trang_thai") == "KHỚP" else item.get("ma_de_xuat")
-                status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else "🟡 Cấp mã mới"
+        with tab_res_override:
+            with st.container(height=390):
+                c_top_d, c_top_r = st.columns([3.5, 1.5])
+                with c_top_d:
+                    st.markdown("""
+                    <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:8px;">
+                        💡 <b>Dò tìm & Gợi ý tương đương chuẩn kỹ thuật (3 tầng):</b> Hệ thống xếp theo % trùng khớp giảm dần (Tối đa 3 món gần nhất). Chọn mã và nhấn <b>Áp dụng</b> để gán và ghi nhớ vĩnh viễn.
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c_top_r:
+                    if st.button("🔄 Quét lại kho với thuật toán mới", key="btn_rescan_smart_top", use_container_width=True):
+                        for it in res_list:
+                            t_r = it.get("ten_trich_xuat", "")
+                            q_s = it.get("quy_cach", "")
+                            cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=3)
+                            it["candidates"] = cands_new
+                            best_new = cands_new[0] if cands_new else None
+                            sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in cands_new]
+                            it["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
+                            if best_new and best_new["score"] >= 95:
+                                it["trang_thai"] = "KHỚP"
+                                it["ma_vat_tu_cu"] = best_new["ma"]
+                                it["ten_trong_kho"] = best_new["ten"]
+                                it["ton_kho"] = best_new["ton"]
+                                it["ma_de_xuat"] = "-"
+                                it["ghi_chu"] = f"✓ Khớp mã kho {best_new['ma']} ({best_new['ly_do']})"
+                        st.session_state["reconciled_results"] = res_list
+                        batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
+                        st.session_state["reconciled_file_path"] = str(batch_file)
+                        st.toast("✓ Đã quét lại toàn bộ danh sách bằng thuật toán mới!", icon="✅")
+                        time.sleep(0.3)
+                        st.rerun()
 
-                # Lấy danh sách ứng viên (Tự động nạp thuật toán mới nếu là kết quả phiên cũ)
-                item_cands = item.get("candidates") or []
-                if not item_cands or any("pct_str" not in c for c in item_cands):
-                    item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=3)
-                    item["candidates"] = item_cands
-                    sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in item_cands]
-                    item["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
+                for item in filtered_items:
+                    stt_num = item.get("stt", 1)
+                    t_raw = item.get("ten_trich_xuat", "")
+                    q_spec = item.get("quy_cach", "")
+                    curr_code = item.get("ma_vat_tu_cu") if item.get("trang_thai") == "KHỚP" else item.get("ma_de_xuat")
+                    status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else "🟡 Cấp mã mới"
 
-                options_map = {}
-                # Lựa chọn hiện tại
-                curr_label = f"Đang gán: {curr_code} ({item.get('ten_chuan_hoa', '')}) [{status_txt}]"
-                options_map[curr_label] = {"type": "current"}
+                    item_cands = item.get("candidates") or []
+                    if not item_cands or any("pct_str" not in c for c in item_cands):
+                        item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=3)
+                        item["candidates"] = item_cands
+                        sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in item_cands]
+                        item["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
-                # Các ứng viên từ kho
-                for c in item_cands:
-                    ly_do = f" — {c['ly_do']}" if c.get("ly_do") else ""
-                    opt_lbl = f"👉 [{c['score']}%] Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
-                    options_map[opt_lbl] = {
-                        "type": "candidate",
-                        "code": c["ma"],
-                        "name": c["ten"],
-                        "ton": c["ton"],
-                        "ly_do": c.get("ly_do", "")
-                    }
+                    options_map = {}
+                    curr_label = f"Đang gán: {curr_code} ({item.get('ten_chuan_hoa', '')}) [{status_txt}]"
+                    options_map[curr_label] = {"type": "current"}
 
-                c_info, c_sel, c_act = st.columns([3, 4.5, 1.3])
-                with c_info:
-                    st.markdown(f"**#{stt_num}. {t_raw}**")
-                    st.caption(f"Quy cách: `{q_spec}` | SL: {item.get('so_luong')} {item.get('don_vi')}")
-                with c_sel:
-                    chosen_lbl = st.selectbox(
-                        f"Gợi ý cho #{stt_num}",
-                        options=list(options_map.keys()),
-                        key=f"sel_cand_{stt_num}_{item.get('chung_tu_goc')}",
-                        label_visibility="collapsed"
-                    )
-                with c_act:
-                    chosen_val = options_map.get(chosen_lbl, {})
-                    if chosen_val.get("type") == "candidate":
-                        if st.button("Áp dụng 🔁", key=f"btn_apply_{stt_num}_{item.get('chung_tu_goc')}", type="secondary", use_container_width=True):
-                            new_code = chosen_val["code"]
-                            new_name = chosen_val["name"]
-                            new_ton = chosen_val["ton"]
-                            new_ly_do = chosen_val.get("ly_do", "")
+                    for c in item_cands:
+                        ly_do = f" — {c['ly_do']}" if c.get("ly_do") else ""
+                        opt_lbl = f"👉 [{c['score']}%] Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
+                        options_map[opt_lbl] = {
+                            "type": "candidate",
+                            "code": c["ma"],
+                            "name": c["ten"],
+                            "ton": c["ton"],
+                            "ly_do": c.get("ly_do", "")
+                        }
 
-                            item["trang_thai"] = "KHỚP"
-                            item["ma_vat_tu_cu"] = new_code
-                            item["ten_trong_kho"] = new_name
-                            item["ton_kho"] = new_ton
-                            item["ma_de_xuat"] = "-"
-                            item["ghi_chu"] = f"✓ Kỹ sư chọn mã kho {new_code} ({new_ly_do})"
+                    c_info, c_sel, c_act = st.columns([3, 4.5, 1.3])
+                    with c_info:
+                        st.markdown(f"**#{stt_num}. {t_raw}**")
+                        st.caption(f"Quy cách: `{q_spec}` | SL: {item.get('so_luong')} {item.get('don_vi')}")
+                    with c_sel:
+                        chosen_lbl = st.selectbox(
+                            f"Gợi ý cho #{stt_num}",
+                            options=list(options_map.keys()),
+                            key=f"sel_cand_{stt_num}_{item.get('chung_tu_goc')}",
+                            label_visibility="collapsed"
+                        )
+                    with c_act:
+                        chosen_val = options_map.get(chosen_lbl, {})
+                        if chosen_val.get("type") == "candidate":
+                            if st.button("Áp dụng 🔁", key=f"btn_apply_{stt_num}_{item.get('chung_tu_goc')}", type="secondary", use_container_width=True):
+                                new_code = chosen_val["code"]
+                                new_name = chosen_val["name"]
+                                new_ton = chosen_val["ton"]
+                                new_ly_do = chosen_val.get("ly_do", "")
 
-                            # Lưu vào SQLite để ghi nhớ vĩnh viễn
-                            save_approved_material(
-                                code=new_code,
-                                name_normalized=new_name,
-                                spec=q_spec,
-                                unit=item.get("don_vi", "Cái"),
-                                group_code="02" if str(new_code).startswith("02.") else "03",
-                                raw_name=t_raw,
-                                source_doc=item.get("chung_tu_goc", ""),
-                                notes=f"Kỹ sư chọn từ gợi ý tương đương: {new_ly_do}"
-                            )
+                                item["trang_thai"] = "KHỚP"
+                                item["ma_vat_tu_cu"] = new_code
+                                item["ten_trong_kho"] = new_name
+                                item["ton_kho"] = new_ton
+                                item["ma_de_xuat"] = "-"
+                                item["ghi_chu"] = f"✓ Kỹ sư chọn mã kho {new_code} ({new_ly_do})"
 
-                            st.session_state["reconciled_results"] = res_list
-                            batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                            st.session_state["reconciled_file_path"] = str(batch_file)
-                            st.toast(f"✓ Đã gán mã {new_code} ({new_name}) và ghi nhớ vĩnh viễn!", icon="✅")
-                            time.sleep(0.3)
-                            st.rerun()
+                                save_approved_material(
+                                    code=new_code,
+                                    name_normalized=new_name,
+                                    spec=q_spec,
+                                    unit=item.get("don_vi", "Cái"),
+                                    group_code="02" if str(new_code).startswith("02.") else "03",
+                                    raw_name=t_raw,
+                                    source_doc=item.get("chung_tu_goc", ""),
+                                    notes=f"Kỹ sư chọn từ gợi ý tương đương: {new_ly_do}"
+                                )
 
-        # Nút xuất Excel & Nút Xóa kết quả
-        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        col_down, col_clear_res = st.columns([3, 1])
-        with col_down:
-            if file_path and Path(file_path).exists():
-                with open(file_path, "rb") as rf:
-                    st.download_button(
-                        label=f"💾 TẢI BÁO CÁO TỔNG HỢP EXCEL ({file_name})",
-                        data=rf.read(),
-                        file_name=file_name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                    )
-        with col_clear_res:
-            if st.button("🗑️ XÓA KẾT QUẢ ĐỐI CHIẾU NÀY", use_container_width=True):
-                st.session_state["reconciled_results"] = None
-                st.session_state["reconciled_file_path"] = None
-                st.rerun()
+                                st.session_state["reconciled_results"] = res_list
+                                batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
+                                st.session_state["reconciled_file_path"] = str(batch_file)
+                                st.toast(f"✓ Đã gán mã {new_code} ({new_name}) và ghi nhớ vĩnh viễn!", icon="✅")
+                                time.sleep(0.3)
+                                st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC
