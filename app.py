@@ -382,9 +382,13 @@ st.markdown("""
     /* ═══════════════════════════════════════════════════════════════
        QUY CHUẨN SINGLE-VIEWPORT (ZERO-SCROLL): GỌN TRONG 1 MÀN HÌNH
        ═══════════════════════════════════════════════════════════════ */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: 1.5rem !important;
+    }
     .block-container {
-        padding-top: 0.7rem !important;
-        padding-bottom: 0.3rem !important;
+        padding-top: 1.8rem !important;
+        padding-bottom: 0.35rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         max-width: 100% !important;
@@ -392,12 +396,13 @@ st.markdown("""
     
     /* Top Bar HUD */
     .hud-header {
+        width: 100% !important;
         background: linear-gradient(135deg, rgba(13, 27, 56, 0.85) 0%, rgba(9, 17, 36, 0.95) 100%);
         border: 1px solid rgba(0, 229, 255, 0.35);
         box-shadow: 0 0 25px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
         border-radius: 10px;
         padding: 0.65rem 1.2rem;
-        margin-bottom: 0.65rem;
+        margin-bottom: 0.55rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1247,46 +1252,61 @@ with st.sidebar:
     st.markdown(f"**📁 THƯ MỤC BÁO CÁO**: `Processed_Reports/`")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HEADER CONSOLE — CHÍNH QUY & ẤN TƯỢNG (KÈM LINK PUBLIC INTERNET & MINI CHAT)
+# HEADER CONSOLE — CHÍNH QUY & TOÀN KHUNG HÌNH (FULL-WIDTH HUD)
 # ═══════════════════════════════════════════════════════════════════════════
 current_public_url = get_public_url()
-col_hud_main, col_hud_chat = st.columns([5.2, 1.4], vertical_alignment="center")
+st.markdown(f"""
+<div class="hud-header">
+    <div>
+        <div class="hud-title">
+            ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
+        </div>
+        <div class="hud-subtitle">
+            🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
+        </div>
+    </div>
+    <div class="hud-chips">
+        <span class="hud-badge badge-green">
+            <span class="status-dot-pulse"></span> READY
+        </span>
+        <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
+        <span class="hud-badge">LAN: 192.168.1.189:8501</span>
+        <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link toàn cầu cho internet truy cập">
+            🌐 CLOUD ↗
+        </a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with col_hud_main:
-    st.markdown(f"""
-    <div class="hud-header" style="margin-bottom: 0;">
-        <div>
-            <div class="hud-title">
-                ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
-            </div>
-            <div class="hud-subtitle">
-                🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
-            </div>
+# ═══════════════════════════════════════════════════════════════════════════
+# THANH ĐIỀU HÀNH: AGENT 1 & NÚT MINI CHAT (POPOVER)
+# ═══════════════════════════════════════════════════════════════════════════
+col_agent_bar, col_mini_chat = st.columns([5.2, 1.4], vertical_alignment="center")
+
+with col_agent_bar:
+    st.markdown("""
+    <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 8px; padding: 6px 14px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.15rem;">🤖</span>
+            <span style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; letter-spacing: 0.5px;">PHÂN HỆ CỐT LÕI: AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ</span>
         </div>
-        <div class="hud-chips">
-            <span class="hud-badge badge-green">
-                <span class="status-dot-pulse"></span> READY
-            </span>
-            <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
-            <span class="hud-badge">LAN: 192.168.1.189:8501</span>
-            <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link toàn cầu cho internet truy cập">
-                🌐 CLOUD ↗
-            </a>
-        </div>
+        <span style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #00e676; background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; padding: 2px 8px; border-radius: 10px;">
+            ● ĐANG HOẠT ĐỘNG
+        </span>
     </div>
     """, unsafe_allow_html=True)
 
-with col_hud_chat:
+with col_mini_chat:
     with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
         render_mini_chat_assistant(df_master, api_key, model_name)
 
-st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PHÂN HỆ: AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ (3 SUB-TABS)
+# PHÂN HỆ: AGENT 1 — 3 SUB-TABS ĐIỀU HƯỚNG CHỨC NĂNG CON
 # ═══════════════════════════════════════════════════════════════════════════
 tab_scan, tab_master, tab_reports = st.tabs([
-    "⚡ ĐỐI CHIẾU CHỨNG TỪ",
+    "📑 ĐỐI CHIẾU CHỨNG TỪ",
     "📦 KHO VẬT TƯ & CẬP NHẬT DANH MỤC",
     "📋 BÁO CÁO / PHIẾU ĐÃ XỬ LÝ"
 ])
