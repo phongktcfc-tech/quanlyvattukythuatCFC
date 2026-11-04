@@ -37,6 +37,37 @@ TARGET_EMAIL = DEFAULT_RECIPIENT
 # Nạp thông tin cấu hình Gmail từ file .env dùng chung hoặc st.secrets / env var
 ENV_FILE = Path("D:/Agent EmailAssistant/.env")
 
+# ── MÚI GIỜ VIỆT NAM (UTC+7) & ĐỊNH DẠNG THỜI GIAN ──
+VN_TZ = datetime.timezone(datetime.timedelta(hours=7))
+
+
+def get_vn_now() -> datetime.datetime:
+    """Trả về thời gian hiện tại chuẩn Việt Nam (UTC+7)."""
+    return datetime.datetime.now(VN_TZ)
+
+
+def format_vn_time(dt: datetime.datetime | None = None) -> str:
+    """Định dạng thời gian chuẩn DD/MM/YYYY HH:mm:ss theo giờ Việt Nam."""
+    if dt is None:
+        dt = get_vn_now()
+    elif dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc).astimezone(VN_TZ)
+    else:
+        dt = dt.astimezone(VN_TZ)
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
+
+
+def format_status_badge(val: str) -> str:
+    """Định dạng nhãn trạng thái trực quan."""
+    if not val:
+        return "🟢 AN TOÀN"
+    s = str(val).lower()
+    if "hết" in s or "cạn" in s:
+        return "🔴 HẾT HÀNG"
+    if "sắp" in s or "thiếu" in s or "cảnh báo" in s:
+        return "🟡 SẮP HẾT"
+    return "🟢 AN TOÀN"
+
 
 def get_smtp_credentials():
     """Lấy thông tin tài khoản SMTP an toàn từ st.secrets, .env hoặc cấu hình chuẩn."""
@@ -92,9 +123,44 @@ def sync_live_google_sheet(sheet_id: str = GOOGLE_SHEET_ID, target_path: Path = 
         )
         with urllib.request.urlopen(req, timeout=30) as response, open(target_path, "wb") as out_file:
             out_file.write(response.read())
-        return True, f"Đồng bộ thành công lúc {datetime.datetime.now().strftime('%H:%M:%S %d/%m/%Y')}"
+        now_str = format_vn_time(get_vn_now())
+        return True, f"Đồng bộ thành công lúc {now_str}"
     except Exception as e:
         return False, f"Lỗi đồng bộ Google Sheet: {e}"
+
+
+def load_data_from_sheets(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
+    """
+    Nạp dữ liệu từ Google Sheet có tự động cache 60 phút (@st.cache_data(ttl=3600)).
+    Trả về: (df_tonghop, df_nhap, df_xuat, sync_time_str)
+    """
+    try:
+        import streamlit as st
+
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _cached_sheet_fetcher():
+            sync_live_google_sheet()
+            df_th, df_nh, df_xt = load_agent2_data(force_sync=False)
+            ts = format_vn_time(get_vn_now())
+            return df_th, df_nh, df_xt, ts
+
+        if force_sync:
+            try:
+                st.cache_data.clear()
+            except Exception:
+                pass
+            sync_live_google_sheet()
+            df_th, df_nh, df_xt = load_agent2_data(force_sync=True)
+            ts = format_vn_time(get_vn_now())
+            return df_th, df_nh, df_xt, ts
+
+        return _cached_sheet_fetcher()
+    except Exception:
+        if force_sync:
+            sync_live_google_sheet()
+        df_th, df_nh, df_xt = load_agent2_data(force_sync=False)
+        ts = format_vn_time(get_vn_now())
+        return df_th, df_nh, df_xt, ts
 
 
 # ── ĐỌC VÀ CHUẨN HÓA DỮ LIỆU AGENT 2 ──
@@ -651,26 +717,35 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         .agent2-scroll::-webkit-scrollbar-thumb:hover {
             background: #94A3B8;
         }
-        /* Sticky table header */
-        .agent2-table thead th {
-            position: sticky;
-            top: 0;
-            background: #F8FAFC;
-            z-index: 2;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        /* Modern KPI Metric Cards */
+        .kpi-metric-card {
+            background: #FFFFFF;
+            border-radius: 10px;
+            padding: 10px 14px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+            border: 1px solid #E2E8F0;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .kpi-metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # 1. Header Bar (48px)
-    last_sync_str = "Hôm nay"
-    if LOCAL_SHEET_FILE.exists():
-        try:
-            mtime = datetime.datetime.fromtimestamp(LOCAL_SHEET_FILE.stat().st_mtime)
-            last_sync_str = mtime.strftime("%d/%m/%Y %H:%M")
-        except Exception:
-            last_sync_str = "Live"
+    # 1. Nạp dữ liệu có auto-refresh 1 giờ (@st.cache_data(ttl=3600))
+    force_sync = st.session_state.pop("force_sync_agent2", False)
+    with st.spinner("Đang kết nối kho dữ liệu trực tiếp Google Sheet..."):
+        df_th, df_nh, df_xt, last_sync_str = load_data_from_sheets(force_sync=force_sync)
 
+    if df_th.empty:
+        st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")
+        if st.button("🔄 Đồng bộ ngay Google Sheet"):
+            st.session_state["force_sync_agent2"] = True
+            st.rerun()
+        return
+
+    # 2. Header Bar (48px)
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
         st.markdown(f"""
@@ -698,57 +773,25 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         </div>
         """, unsafe_allow_html=True)
 
-    # 2. Tải dữ liệu Agent 2
-    if "agent2_data" not in st.session_state or st.session_state.get("force_reload_agent2"):
-        with st.spinner("Đang tải dữ liệu kho thực tế từ Google Sheet..."):
-            df_th, df_nh, df_xt = load_agent2_data(force_sync=False)
-            st.session_state["agent2_df_th"] = df_th
-            st.session_state["agent2_df_nh"] = df_nh
-            st.session_state["agent2_df_xt"] = df_xt
-            st.session_state["agent2_data"] = True
-            st.session_state["force_reload_agent2"] = False
-    else:
-        df_th = st.session_state.get("agent2_df_th", pd.DataFrame())
-        df_nh = st.session_state.get("agent2_df_nh", pd.DataFrame())
-        df_xt = st.session_state.get("agent2_df_xt", pd.DataFrame())
-
-    if df_th.empty:
-        st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")
-        if st.button("🔄 Đồng bộ ngay Google Sheet"):
-            ok, msg = sync_live_google_sheet()
-            st.session_state["force_reload_agent2"] = True
-            st.rerun()
-        return
-
     kpis = get_inventory_kpis(df_th, df_xt)
 
     # 3. Main Workspace: Cột Trái (290px) + Cột Phải (Flex-1)
     col_left, col_right = st.columns([1.1, 3.4], gap="small")
 
-    # ── CỘT TRÁI: ĐIỀU KHIỂN & BỘ LỌC & AI SEARCH ──
+    # ── CỘT TRÁI: ĐÃ DỌN DẸP HOÀN TOÀN RADIO GROUP THEO YÊU CẦU ──
     with col_left:
         st.markdown("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-            <div style="font-size:0.82rem; font-weight:700; color:#1E293B; margin-bottom:6px;">🔍 BỘ LỌC & TÌM KIẾM AI</div>
+            <div style="font-size:0.82rem; font-weight:700; color:#1E293B; margin-bottom:4px;">🔍 TRA CỨU AI THÔNG MINH</div>
+            <div style="font-size:0.72rem; color:#64748B;">Tìm kiếm theo tên vật tư, thiết bị máy móc, vị trí hoặc người nhận</div>
         </div>
         """, unsafe_allow_html=True)
-
-        status_filter = st.radio(
-            "Trạng thái tồn kho:",
-            [
-                f"Tất cả ({kpis['total_items']})",
-                f"🔴 Hết hàng ({kpis['out_of_stock']})",
-                f"🟡 Sắp hết ({kpis['warning']})",
-                f"🟢 An toàn ({kpis['safe']})"
-            ],
-            index=0,
-            key="agent2_status_filter"
-        )
 
         search_query = st.text_input(
             "Tra cứu AI đa thuộc tính:",
             placeholder="Ví dụ: Contactor, Bơm DD F4, Hiệp...",
-            key="agent2_search_input"
+            key="agent2_search_input",
+            label_visibility="collapsed"
         )
 
         st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
@@ -756,16 +799,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
 
         c_sync, c_mail = st.columns(2)
         with c_sync:
-            if st.button("🔄 Đồng bộ", use_container_width=True, help="Tải lại bản mới nhất từ Google Sheet"):
-                with st.spinner("Đang kéo Google Sheet..."):
-                    ok, msg = sync_live_google_sheet()
-                    if ok:
-                        st.toast("✓ Đã đồng bộ Google Sheet mới nhất!", icon="✅")
-                        st.session_state["force_reload_agent2"] = True
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error(msg)
+            if st.button("🔄 Đồng bộ", use_container_width=True, help="Xóa cache và kéo bản mới nhất từ Google Sheet"):
+                st.session_state["force_sync_agent2"] = True
+                st.toast("✓ Đang xóa cache và đồng bộ dữ liệu mới nhất từ Google Sheet!", icon="✅")
+                time.sleep(0.3)
+                st.rerun()
         with c_mail:
             if st.button("✉ Gửi Daily", use_container_width=True, type="primary", help="Gửi báo cáo cảnh báo tức thì về email"):
                 with st.spinner("Đang gửi email..."):
@@ -785,7 +823,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                 if st.button("Báo cáo Tháng", use_container_width=True):
                     ok, msg = send_email_report("monthly")
                     if ok: st.toast("✓ Đã gửi báo cáo tháng!", icon="📧")
-            if st.button("Báo cáo Năm (Thanh lý tồn chết)", use_container_width=True):
+            if st.button("Báo cáo Năm (Thanh lý)", use_container_width=True):
                 ok, msg = send_email_report("yearly")
                 if ok: st.toast("✓ Đã gửi báo cáo thanh lý!", icon="📧")
 
@@ -793,35 +831,45 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         <div style="background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; padding:8px; margin-top:8px; font-size:0.73rem; color:#64748B;">
             <div>📌 <strong>Cấu hình tự động:</strong></div>
             <div>• Điểm đích: <code>{target_email}</code></div>
+            <div>• Tự động quét: <strong>Mỗi 60 phút</strong></div>
             <div>• Giờ gửi Daily: <strong>16:00 mỗi ngày</strong></div>
-            <div>• Nhiệm vụ: Giám sát cạn kho & vật tư tiêu hao</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ── CỘT PHẢI: KPI CARDS + TABS (TỒN KHO, XUẤT DÙNG, PHÂN TÍCH) ──
+    # ── CỘT PHẢI: 5 HIGHLIGHTED HORIZONTAL KPI CARDS + TABS ──
     with col_right:
-        # Hàng 1: 5 KPI Cards chuẩn kỹ thuật
+        # Hàng 1: 5 KPI Cards hiện đại, nổi bật
         st.markdown(f"""
         <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-bottom:8px;">
-            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; border-left:3px solid #2563EB; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase;">Tổng vật tư</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:800; color:#0F172A; font-variant-numeric:tabular-nums;">{kpis['total_items']:,} <span style="font-size:0.7rem; font-weight:500; color:#64748B;">mã</span></div>
+            <div class="kpi-metric-card" style="border-top:3px solid #334155;">
+                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.3px;">📦 Tổng vật tư</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#0F172A; margin-top:2px; font-variant-numeric:tabular-nums;">
+                    {kpis['total_items']:,} <span style="font-size:0.72rem; font-weight:600; color:#64748B;">mã</span>
+                </div>
             </div>
-            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; border-left:3px solid #10B981; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase;">An toàn</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:800; color:#059669; font-variant-numeric:tabular-nums;">{kpis['safe']:,} <span style="font-size:0.7rem; font-weight:500; color:#64748B;">mã</span></div>
+            <div class="kpi-metric-card" style="border-top:3px solid #10B981; background:linear-gradient(180deg,#FFFFFF 0%,#F0FDF4 100%);">
+                <div style="font-size:0.68rem; font-weight:700; color:#059669; text-transform:uppercase; letter-spacing:0.3px;">🟢 An toàn</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#059669; margin-top:2px; font-variant-numeric:tabular-nums;">
+                    {kpis['safe']:,} <span style="font-size:0.72rem; font-weight:600; color:#059669;">mã</span>
+                </div>
             </div>
-            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; border-left:3px solid #F59E0B; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase;">Sắp hết định mức</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:800; color:#D97706; font-variant-numeric:tabular-nums;">{kpis['warning']:,} <span style="font-size:0.7rem; font-weight:500; color:#64748B;">mã</span></div>
+            <div class="kpi-metric-card" style="border-top:3px solid #F59E0B; background:linear-gradient(180deg,#FFFFFF 0%,#FFFBEB 100%); box-shadow:0 4px 8px -1px rgba(245,158,11,0.18);">
+                <div style="font-size:0.68rem; font-weight:700; color:#D97706; text-transform:uppercase; letter-spacing:0.3px;">🟡 Sắp hết định mức</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#D97706; margin-top:2px; font-variant-numeric:tabular-nums;">
+                    {kpis['warning']:,} <span style="font-size:0.72rem; font-weight:600; color:#D97706;">mã</span>
+                </div>
             </div>
-            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; border-left:3px solid #EF4444; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase;">Đã cạn (Hết hàng)</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:800; color:#DC2626; font-variant-numeric:tabular-nums;">{kpis['out_of_stock']:,} <span style="font-size:0.7rem; font-weight:500; color:#64748B;">mã</span></div>
+            <div class="kpi-metric-card" style="border-top:3px solid #EF4444; background:linear-gradient(180deg,#FFFFFF 0%,#FEF2F2 100%); box-shadow:0 4px 8px -1px rgba(239,68,68,0.18);">
+                <div style="font-size:0.68rem; font-weight:700; color:#DC2626; text-transform:uppercase; letter-spacing:0.3px;">🔴 Đã cạn (Hết hàng)</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#DC2626; margin-top:2px; font-variant-numeric:tabular-nums;">
+                    {kpis['out_of_stock']:,} <span style="font-size:0.72rem; font-weight:600; color:#DC2626;">mã</span>
+                </div>
             </div>
-            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; border-left:3px solid #8B5CF6; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase;">Lượt xuất xưởng</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:800; color:#7C3AED; font-variant-numeric:tabular-nums;">{kpis['total_issues']:,} <span style="font-size:0.7rem; font-weight:500; color:#64748B;">lần</span></div>
+            <div class="kpi-metric-card" style="border-top:3px solid #2563EB; background:linear-gradient(180deg,#FFFFFF 0%,#EFF6FF 100%);">
+                <div style="font-size:0.68rem; font-weight:700; color:#2563EB; text-transform:uppercase; letter-spacing:0.3px;">⚡ Lượt xuất xưởng</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#1D4ED8; margin-top:2px; font-variant-numeric:tabular-nums;">
+                    {kpis['total_issues']:,} <span style="font-size:0.72rem; font-weight:600; color:#2563EB;">lần</span>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -834,17 +882,32 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             "⚙️ BÁO CÁO & TỰ ĐỘNG HÓA"
         ])
 
-        # TAB 1: TỒN KHO THỰC TẾ
+        # TAB 1: TỒN KHO THỰC TẾ (ST.DATAFRAME NATIVE RESPONSIVE & INLINE FILTER PILLS)
         with tab_inv:
-            filtered_df = df_th.copy()
+            col_filter_pills, col_tbl_info = st.columns([3.2, 1.8], vertical_alignment="center")
+            with col_filter_pills:
+                filter_choice = st.pills(
+                    "Lọc trạng thái kho:",
+                    options=[
+                        f"Tất cả ({kpis['total_items']})",
+                        f"🟢 An toàn ({kpis['safe']})",
+                        f"🟡 Sắp hết ({kpis['warning']})",
+                        f"🔴 Hết hàng ({kpis['out_of_stock']})"
+                    ],
+                    default=f"Tất cả ({kpis['total_items']})",
+                    key="agent2_tbl_filter_pills",
+                    label_visibility="collapsed"
+                )
 
-            # Lọc theo Trạng thái
-            if "Hết hàng" in status_filter:
-                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("Hết hàng|Cạn", case=False, na=False)]
-            elif "Sắp hết" in status_filter:
-                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("Sắp hết", case=False, na=False)]
-            elif "An toàn" in status_filter:
-                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("An toàn", case=False, na=False)]
+            # Lọc theo Trạng thái Pills
+            if "Hết hàng" in str(filter_choice):
+                filtered_df = df_th[df_th["trang_thai"].str.contains("Hết hàng|Cạn", case=False, na=False)].copy()
+            elif "Sắp hết" in str(filter_choice):
+                filtered_df = df_th[df_th["trang_thai"].str.contains("Sắp hết", case=False, na=False)].copy()
+            elif "An toàn" in str(filter_choice):
+                filtered_df = df_th[df_th["trang_thai"].str.contains("An toàn", case=False, na=False)].copy()
+            else:
+                filtered_df = df_th.copy()
 
             # Lọc theo Search AI
             if search_query.strip():
@@ -855,64 +918,45 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                     filtered_df["ghi_chu"].astype(str).str.lower().str.contains(sq, na=False)
                 ]
 
-            st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Hiển thị <strong>{len(filtered_df):,}</strong> vật tư phù hợp (Cuộn nội bộ bên trong khung bảng):</div>", unsafe_allow_html=True)
+            with col_tbl_info:
+                st.markdown(
+                    f"<div style='text-align:right; font-size:0.78rem; color:#64748B;'>"
+                    f"Hiển thị: <strong>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
-            # Bảng HTML Cuộn Nội Bộ 4px (Sticky Header)
-            rows_html = []
-            for _, r in filtered_df.iterrows():
-                stt = r.get("stt", "")
-                ten = py_html.escape(str(r.get("ten_vat_tu", "") or ""))
-                qc = py_html.escape(str(r.get("quy_cach", "") or "-"))
-                dvt = py_html.escape(str(r.get("dvt", "") or ""))
-                ton = r.get("ton_thuc_te", 0)
-                dinh_muc = r.get("dinh_muc_min", 0)
-                status = str(r.get("trang_thai", "An toàn"))
-                note = py_html.escape(str(r.get("ghi_chu", "") or "-"))
+            # Gán nhãn Huy hiệu trạng thái đẹp mắt
+            df_display = filtered_df.copy()
+            df_display["trang_thai_badge"] = df_display["trang_thai"].apply(format_status_badge)
 
-                if "Hết hàng" in status:
-                    badge = '<span style="background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; padding:2px 8px; border-radius:9999px; font-weight:700; font-size:0.72rem;">🔴 HẾT HÀNG</span>'
-                elif "Sắp hết" in status:
-                    badge = '<span style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A; padding:2px 8px; border-radius:9999px; font-weight:700; font-size:0.72rem;">🟡 SẮP HẾT</span>'
-                else:
-                    badge = '<span style="background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; padding:2px 8px; border-radius:9999px; font-weight:600; font-size:0.72rem;">🟢 AN TOÀN</span>'
+            df_table = df_display[[
+                "stt", "ten_vat_tu", "quy_cach", "dvt",
+                "ton_thuc_te", "dinh_muc_min", "trang_thai_badge", "ghi_chu"
+            ]].copy()
 
-                ton_color = "#DC2626" if "Hết hàng" in status else ("#D97706" if "Sắp hết" in status else "#0F172A")
+            df_table.columns = [
+                "STT", "Tên Vật Tư", "Quy Cách Kỹ Thuật", "ĐVT",
+                "Tồn Thực Tế", "Định Mức Min", "Trạng Thái Kho", "Ghi Chú"
+            ]
 
-                rows_html.append(f"""
-                <tr style="border-bottom:1px solid #F1F5F9; font-size:0.82rem;">
-                    <td style="text-align:center; padding:6px 4px; font-family:'JetBrains Mono',monospace; color:#64748B;">{stt}</td>
-                    <td style="padding:6px 8px; font-weight:700; color:#0F172A;">{ten}</td>
-                    <td style="padding:6px 8px; color:#475569;">{qc}</td>
-                    <td style="text-align:center; padding:6px 4px; color:#64748B; font-weight:600;">{dvt}</td>
-                    <td style="text-align:right; padding:6px 8px; font-family:'JetBrains Mono',monospace; font-weight:800; color:{ton_color}; font-size:0.92rem;">{ton:,.1f}</td>
-                    <td style="text-align:right; padding:6px 8px; font-family:'JetBrains Mono',monospace; color:#64748B; font-weight:600;">{dinh_muc:,.1f}</td>
-                    <td style="text-align:center; padding:6px 6px;">{badge}</td>
-                    <td style="padding:6px 8px; color:#64748B; font-size:0.76rem;">{note}</td>
-                </tr>
-                """)
-
-            table_html = f"""
-            <div class="agent2-scroll" style="height:calc(100dvh - 235px); overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px; background:#FFFFFF;">
-                <table class="agent2-table" style="width:100%; border-collapse:collapse; text-align:left;">
-                    <thead>
-                        <tr style="font-size:0.76rem; color:#475569; text-transform:uppercase; letter-spacing:0.3px; border-bottom:2px solid #E2E8F0;">
-                            <th style="width:45px; text-align:center; padding:8px 4px;">STT</th>
-                            <th style="padding:8px 8px;">Tên Vật Tư</th>
-                            <th style="padding:8px 8px;">Quy Cách</th>
-                            <th style="width:60px; text-align:center; padding:8px 4px;">ĐVT</th>
-                            <th style="width:90px; text-align:right; padding:8px 8px;">Tồn Thực Tế</th>
-                            <th style="width:90px; text-align:right; padding:8px 8px;">Định Mức</th>
-                            <th style="width:115px; text-align:center; padding:8px 6px;">Trạng Thái</th>
-                            <th style="padding:8px 8px;">Ghi Chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {''.join(rows_html)}
-                    </tbody>
-                </table>
-            </div>
-            """
-            st.markdown(table_html, unsafe_allow_html=True)
+            # Hiển thị trực tiếp qua st.dataframe (Cam kết 100% không bị lộ thẻ HTML thô)
+            st.dataframe(
+                df_table,
+                use_container_width=True,
+                hide_index=True,
+                height=480,
+                column_config={
+                    "STT": st.column_config.NumberColumn("STT", width="small"),
+                    "Tên Vật Tư": st.column_config.TextColumn("Tên Vật Tư", width="large"),
+                    "Quy Cách Kỹ Thuật": st.column_config.TextColumn("Quy Cách Kỹ Thuật", width="medium"),
+                    "ĐVT": st.column_config.TextColumn("ĐVT", width="small"),
+                    "Tồn Thực Tế": st.column_config.NumberColumn("Tồn Kho Thực Tế", format="%.1f", width="small"),
+                    "Định Mức Min": st.column_config.NumberColumn("Định Mức Min", format="%.1f", width="small"),
+                    "Trạng Thái Kho": st.column_config.TextColumn("Trạng Thái Kho", width="medium"),
+                    "Ghi Chú": st.column_config.TextColumn("Ghi Chú", width="medium")
+                }
+            )
 
         # TAB 2: NHẬT KÝ XUẤT THIẾT BỊ
         with tab_history:
