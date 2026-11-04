@@ -24,28 +24,39 @@ from email.mime.multipart import MIMEMultipart
 import pandas as pd
 import openpyxl
 
-# ── THIẾT LẬP THƯ MỤC & ĐƯỜNG DẪN ──
-BASE_DIR = Path("D:/Agent QuanLyVatTuKyThuat")
+# ── THIẾT LẬP THƯ MỤC & ĐƯỜNG DẪN (TỰ ĐỘNG THÍCH ỨNG LOCAL & CLOUD) ──
+BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "Agent2_Data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 LOCAL_SHEET_FILE = DATA_DIR / "Kho_CoDien_Live.xlsx"
 GOOGLE_SHEET_ID = "13cATeOG2G62QXP9F6luZ0V5OHij-b0kPj_r0-Wb97JE"
 DEFAULT_RECIPIENT = "linhb1702638@gmail.com"
+TARGET_EMAIL = DEFAULT_RECIPIENT
 
-# Nạp thông tin cấu hình Gmail từ file .env dùng chung
+# Nạp thông tin cấu hình Gmail từ file .env dùng chung hoặc st.secrets / env var
 ENV_FILE = Path("D:/Agent EmailAssistant/.env")
 
 
 def get_smtp_credentials():
-    """Lấy thông tin tài khoản SMTP từ .env an toàn."""
+    """Lấy thông tin tài khoản SMTP an toàn từ st.secrets, .env hoặc cấu hình chuẩn."""
     creds = {
         "user": "linhb1702638@gmail.com",
-        "password": "",
+        "password": "tgnr ejny ffuy bwmx",
         "server": "smtp.gmail.com",
         "port": 587,
-        "recipient": DEFAULT_RECIPIENT
+        "recipient": TARGET_EMAIL
     }
+    # Thử nạp từ st.secrets nếu đang chạy trên Streamlit Cloud
+    try:
+        import streamlit as st
+        if "EMAIL_APP_PASSWORD" in st.secrets:
+            creds["password"] = st.secrets["EMAIL_APP_PASSWORD"]
+        if "EMAIL_ADDRESS" in st.secrets:
+            creds["user"] = st.secrets["EMAIL_ADDRESS"]
+    except Exception:
+        pass
+
     if ENV_FILE.exists():
         try:
             with open(ENV_FILE, "r", encoding="utf-8") as f:
@@ -234,13 +245,18 @@ def get_inventory_kpis(df_tonghop: pd.DataFrame, df_xuat: pd.DataFrame):
     out_of_stock = len(df_tonghop[df_tonghop["trang_thai"] == "Hết hàng"])
     warning = len(df_tonghop[df_tonghop["trang_thai"] == "Sắp hết hàng"])
     safe = total_items - out_of_stock - warning
+    total_issues = len(df_xuat) if not df_xuat.empty else 0
     total_issued = df_xuat["so_luong"].sum() if not df_xuat.empty else 0
 
     return {
         "total_items": total_items,
+        "safe": safe,
         "safe_items": safe,
+        "warning": warning,
         "warning_items": warning,
+        "out_of_stock": out_of_stock,
         "out_of_stock_items": out_of_stock,
+        "total_issues": total_issues,
         "total_issued_qty": total_issued
     }
 
@@ -818,19 +834,19 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
 
             # Lọc theo Trạng thái
             if "Hết hàng" in status_filter:
-                filtered_df = filtered_df[filtered_df["Trang_Thai_Canh_Bao"].str.contains("Hết hàng|Cạn", case=False, na=False)]
+                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("Hết hàng|Cạn", case=False, na=False)]
             elif "Sắp hết" in status_filter:
-                filtered_df = filtered_df[filtered_df["Trang_Thai_Canh_Bao"].str.contains("Sắp hết", case=False, na=False)]
+                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("Sắp hết", case=False, na=False)]
             elif "An toàn" in status_filter:
-                filtered_df = filtered_df[filtered_df["Trang_Thai_Canh_Bao"].str.contains("An toàn", case=False, na=False)]
+                filtered_df = filtered_df[filtered_df["trang_thai"].str.contains("An toàn", case=False, na=False)]
 
             # Lọc theo Search AI
             if search_query.strip():
                 sq = search_query.strip().lower()
                 filtered_df = filtered_df[
-                    filtered_df["Ten_Vat_Tu"].astype(str).str.lower().str.contains(sq, na=False) |
-                    filtered_df["Quy_Cach"].astype(str).str.lower().str.contains(sq, na=False) |
-                    filtered_df["Ghi_Chu"].astype(str).str.lower().str.contains(sq, na=False)
+                    filtered_df["ten_vat_tu"].astype(str).str.lower().str.contains(sq, na=False) |
+                    filtered_df["quy_cach"].astype(str).str.lower().str.contains(sq, na=False) |
+                    filtered_df["ghi_chu"].astype(str).str.lower().str.contains(sq, na=False)
                 ]
 
             st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Hiển thị <strong>{len(filtered_df):,}</strong> vật tư phù hợp (Cuộn nội bộ bên trong khung bảng):</div>", unsafe_allow_html=True)
@@ -838,14 +854,14 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             # Bảng HTML Cuộn Nội Bộ 4px (Sticky Header)
             rows_html = []
             for _, r in filtered_df.iterrows():
-                stt = r.get("STT", "")
-                ten = py_html.escape(str(r.get("Ten_Vat_Tu", "") or ""))
-                qc = py_html.escape(str(r.get("Quy_Cach", "") or "-"))
-                dvt = py_html.escape(str(r.get("DVT", "") or ""))
-                ton = r.get("Ton_Thuc_Te", 0)
-                dinh_muc = r.get("Dinh_Muc_Toi_Thieu", 0)
-                status = str(r.get("Trang_Thai_Canh_Bao", "An toàn"))
-                note = py_html.escape(str(r.get("Ghi_Chu", "") or "-"))
+                stt = r.get("stt", "")
+                ten = py_html.escape(str(r.get("ten_vat_tu", "") or ""))
+                qc = py_html.escape(str(r.get("quy_cach", "") or "-"))
+                dvt = py_html.escape(str(r.get("dvt", "") or ""))
+                ton = r.get("ton_thuc_te", 0)
+                dinh_muc = r.get("dinh_muc_min", 0)
+                status = str(r.get("trang_thai", "An toàn"))
+                note = py_html.escape(str(r.get("ghi_chu", "") or "-"))
 
                 if "Hết hàng" in status:
                     badge = '<span style="background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; padding:2px 8px; border-radius:9999px; font-weight:700; font-size:0.72rem;">🔴 HẾT HÀNG</span>'
@@ -896,8 +912,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         with tab_history:
             st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Nhật ký chi tiết các lần xuất vật tư phục vụ bảo trì thiết bị ({len(df_xt):,} lượt xuất):</div>", unsafe_allow_html=True)
             if not df_xt.empty:
-                display_xt = df_xt[["Ngay", "Ten_Vat_Tu", "Quy_Cach", "So_Luong", "DVT", "Nguoi_Nhan", "Muc_Dich_Thiet_Bi", "Sheet_Nguon"]].copy()
-                display_xt.columns = ["Ngày", "Vật Tư", "Quy Cách", "Số Lượng", "ĐVT", "Người Nhận", "Thiết Bị / Vị Trí", "Tháng"]
+                display_xt = df_xt[["ngay", "ten_vat_tu", "so_luong", "dvt", "nguoi_nhan", "thiet_bi_khu_vuc", "thang"]].copy()
+                display_xt.columns = ["Ngày", "Vật Tư", "Số Lượng", "ĐVT", "Người Nhận", "Thiết Bị / Vị Trí", "Tháng"]
                 st.dataframe(display_xt, use_container_width=True, height=480)
             else:
                 st.info("Chưa có dữ liệu xuất trong các sheet tháng.")
@@ -909,7 +925,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                 st.markdown("<div style='font-weight:700; color:#0F172A; font-size:0.88rem; margin-bottom:6px;'>🔥 TOP 10 VẬT TƯ TIÊU HAO NHIỀU NHẤT (LẬP KẾ HOẠCH MUA)</div>", unsafe_allow_html=True)
                 top_mat = get_top_consumed_items(df_xt, top_n=10)
                 if not top_mat.empty:
-                    top_mat.columns = ["Vật Tư", "Quy Cách", "ĐVT", "Tổng Tiêu Hao"]
+                    top_mat.columns = ["Vật Tư", "ĐVT", "Tổng Tiêu Hoa"]
                     st.dataframe(top_mat, use_container_width=True, height=220)
                 else:
                     st.caption("Chưa đủ dữ liệu tiêu hao.")
@@ -918,7 +934,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                 st.markdown("<div style='font-weight:700; color:#0F172A; font-size:0.88rem; margin-bottom:6px;'>⚙️ TOP 10 THIẾT BỊ SỬ DỤNG NHIỀU VẬT TƯ NHẤT</div>", unsafe_allow_html=True)
                 top_eq = get_top_equipment_consumers(df_xt, top_n=10)
                 if not top_eq.empty:
-                    top_eq.columns = ["Thiết Bị / Vị Trí Máy", "Số Lần Bảo Trì", "Tổng Lượng Vật Tư"]
+                    top_eq.columns = ["Thiết Bị / Vị Trí Máy", "Tổng Lượng Vật Tư"]
                     st.dataframe(top_eq, use_container_width=True, height=220)
                 else:
                     st.caption("Chưa đủ dữ liệu thiết bị.")
@@ -927,7 +943,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             dead_stock = get_dead_stock_items(df_th, df_xt)
             st.caption(f"Có **{len(dead_stock):,}** mã vật tư còn tồn kho nhưng trong toàn bộ các tháng qua không phát sinh bất kỳ đợt xuất dùng nào.")
             if not dead_stock.empty:
-                st.dataframe(dead_stock[["STT", "Ten_Vat_Tu", "Quy_Cach", "DVT", "Ton_Thuc_Te"]].rename(columns={"Ton_Thuc_Te": "Tồn Thực Tế"}), use_container_width=True, height=180)
+                st.dataframe(dead_stock[["stt", "ten_vat_tu", "quy_cach", "dvt", "ton_thuc_te"]].rename(columns={"stt": "STT", "ten_vat_tu": "Tên Vật Tư", "quy_cach": "Quy Cách", "dvt": "ĐVT", "ton_thuc_te": "Tồn Thực Tế"}), use_container_width=True, height=180)
 
         # TAB 4: BÁO CÁO & TỰ ĐỘNG HÓA
         with tab_config:

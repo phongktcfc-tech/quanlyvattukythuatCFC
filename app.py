@@ -1923,17 +1923,18 @@ TRÌNH BÀY DẠNG BẢNG VÀ THẺ THÔNG TIN MARKDOWN ĐẸP MẮT. TUYỆT Đ
 # SIDEBAR — CẤU HÌNH & THIẾT LẬP
 # ═══════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("### 🤖 PHÂN HỆ AGENT THÔNG MINH")
-    current_agent = st.selectbox(
-        "MODULE ĐIỀU HÀNH",
-        [
-            "🤖 Agent 1: Đối chiếu thông tin vật tư",
-            "⚡ Agent 2: Theo dõi kho xưởng Cơ - Điện (Live)",
-            "📊 Agent 3: Dự báo tồn kho & Đặt hàng (Sắp ra mắt)"
-        ],
-        index=0,
-        label_visibility="collapsed"
-    )
+    st.markdown("### 🤖 PHÂN HỆ ĐANG CHỌN")
+    active_name = st.session_state.get("current_main_agent", "🤖 AGENT 1: ĐỐI CHIẾU THÔNG TIN VẬT TƯ (KHO GỐC)")
+    is_ag2 = "AGENT 2" in str(active_name)
+    st.markdown(f"""
+    <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; margin-bottom:8px;">
+        <div style="font-size:0.75rem; color:#64748B; font-weight:600;">ĐANG ĐIỀU HÀNH:</div>
+        <div style="font-size:0.86rem; font-weight:700; color:{'#2563EB' if not is_ag2 else '#D97706'}; margin-top:2px;">
+            {'🤖 Agent 1: Đối chiếu & Cấp mã' if not is_ag2 else '⚡ Agent 2: Theo dõi kho xưởng Live'}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption("💡 Chuyển đổi qua lại giữa Agent 1 & Agent 2 bằng thanh công tắc nổi bật ngay trên đỉnh màn hình chính.")
     st.markdown("---")
     st.markdown("### ⚙️ THIẾT LẬP HỆ THỐNG")
     
@@ -1996,36 +1997,43 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ĐIỀU PHỐI PHÂN HỆ AGENT THEO LỰA CHỌN
-# ═══════════════════════════════════════════════════════════════════════════
-if current_agent.startswith("⚡ Agent 2"):
-    from agent2_manager import render_agent2_ui
-    render_agent2_ui(api_key=api_key, model_name=model_name)
-    st.stop()
-
-# ═══════════════════════════════════════════════════════════════════════════
-# THANH ĐIỀU HÀNH: AGENT 1 & NÚT MINI CHAT (POPOVER)
+# THANH ĐIỀU HÀNH TRUNG TÂM: CHUYỂN ĐỔI AGENT 1 & AGENT 2 NGAY MÀN HÌNH CHÍNH
 # ═══════════════════════════════════════════════════════════════════════════
 col_agent_bar, col_mini_chat = st.columns([5.2, 1.4], vertical_alignment="center")
 
+AGENT_OPTIONS = [
+    "🤖 AGENT 1: ĐỐI CHIẾU THÔNG TIN VẬT TƯ (KHO GỐC)",
+    "⚡ AGENT 2: THEO DÕI KHO XƯỞNG CƠ - ĐIỆN (LIVE SHEET)"
+]
+
+if "current_main_agent" not in st.session_state:
+    st.session_state["current_main_agent"] = AGENT_OPTIONS[0]
+
 with col_agent_bar:
-    st.markdown("""
-    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.15rem;">🤖</span>
-            <span style="font-weight: 700; color: #0F172A; font-size: 0.92rem; letter-spacing: 0.2px;">PHÂN HỆ CỐT LÕI: <span style="color: #2563EB;">AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ</span></span>
-        </div>
-        <span style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 9999px;">
-            ● ĐANG HOẠT ĐỘNG
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+    selected_agent = st.segmented_control(
+        "LỰA CHỌN PHÂN HỆ ĐIỀU HÀNH:",
+        options=AGENT_OPTIONS,
+        default=st.session_state["current_main_agent"],
+        key="main_agent_segmented_ui",
+        label_visibility="collapsed"
+    )
+    if selected_agent:
+        st.session_state["current_main_agent"] = selected_agent
 
 with col_mini_chat:
     with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
         render_mini_chat_assistant(df_master, api_key, model_name)
 
 st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ĐIỀU PHỐI PHÂN HỆ AGENT THEO LỰA CHỌN TRỰC TIẾP
+# ═══════════════════════════════════════════════════════════════════════════
+active_agent_now = st.session_state.get("current_main_agent", AGENT_OPTIONS[0])
+if "AGENT 2" in active_agent_now:
+    from agent2_manager import render_agent2_ui
+    render_agent2_ui(api_key=api_key, model_name=model_name)
+    st.stop()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHÂN HỆ: AGENT 1 — 3 SUB-TABS ĐIỀU HƯỚNG CHỨC NĂNG CON
