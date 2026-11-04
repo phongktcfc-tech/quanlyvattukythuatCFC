@@ -12,58 +12,58 @@
         #paste-container {
             width: 100%;
             height: 110px;
-            border: 2px dashed #00e676;
-            background: rgba(0, 230, 118, 0.04);
-            border-radius: 10px;
+            border: 2px dashed #93C5FD;
+            background: #FFFFFF;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
             outline: none;
             user-select: none;
-            box-shadow: inset 0 0 15px rgba(0, 230, 118, 0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
         #paste-container:focus, #paste-container:hover {
-            border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.09);
-            box-shadow: 0 0 20px rgba(0, 230, 118, 0.25), inset 0 0 15px rgba(0, 230, 118, 0.08);
+            border-color: #2563EB;
+            background: #EFF6FF;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
             transform: translateY(-1px);
         }
         .icon {
             font-size: 24px;
             margin-bottom: 4px;
-            filter: drop-shadow(0 0 10px rgba(0, 230, 118, 0.6));
         }
         .main-text {
-            color: #00e676;
-            font-size: 0.98rem;
+            color: #1E293B;
+            font-size: 0.96rem;
             font-weight: 700;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.3px;
             text-align: center;
         }
         .kbd {
-            background: rgba(0, 230, 118, 0.2);
-            border: 1px solid #00e676;
-            color: #ffffff;
-            padding: 2px 6px;
-            border-radius: 5px;
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            color: #1D4ED8;
+            padding: 2px 7px;
+            border-radius: 6px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.86rem;
+            font-size: 0.88rem;
             margin: 0 4px;
-            box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         .sub-text {
-            color: #94a3b8;
+            color: #64748B;
             font-size: 0.78rem;
-            margin-top: 3px;
+            margin-top: 4px;
         }
         .status-text {
             margin-top: 8px;
             font-size: 0.88rem;
             font-weight: 700;
-            color: #00ff88;
+            color: #059669;
             display: none;
             animation: pulse 1s infinite;
         }
@@ -78,7 +78,7 @@
     <div id="paste-container" tabindex="0">
         <div class="icon">📋</div>
         <div class="main-text">BẤM VÀO ĐÂY RỒI NHẤN <span class="kbd">Ctrl + V</span> ĐỂ DÁN ẢNH</div>
-        <div class="sub-text">Cắt hình phiếu giao hàng (Win + Shift + S) rồi dán trực tiếp vào đây</div>
+        <div class="sub-text">Cắt hình phiếu giao hàng (Win + Shift + S) rồi click dán trực tiếp</div>
         <div class="status-text" id="status">✓ ĐÃ NHẬN ẢNH! ĐANG NẠP VÀO HỆ THỐNG...</div>
     </div>
 

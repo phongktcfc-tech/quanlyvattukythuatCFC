@@ -577,25 +577,21 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
     code, pre, .mono-font {
         font-family: 'JetBrains Mono', monospace !important;
     }
     
-    /* Technical Blueprint Grid Background */
+    /* Light Modern Background */
     .stApp {
-        background-color: #060913;
-        background-image: 
-            linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
-            radial-gradient(ellipse at 50% -20%, rgba(0, 150, 255, 0.22) 0%, transparent 65%);
-        background-size: 32px 32px, 32px 32px, 100% 100%;
-        color: #e2e8f0;
+        background-color: #F8FAFC !important;
+        background-image: none !important;
+        color: #0F172A !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════
@@ -606,45 +602,44 @@ st.markdown("""
         height: 1.5rem !important;
     }
     .block-container {
-        padding-top: 1.8rem !important;
+        padding-top: 1.4rem !important;
         padding-bottom: 0.35rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+        padding-left: 1.2rem !important;
+        padding-right: 1.2rem !important;
         max-width: 100% !important;
     }
     
-    /* Top Bar HUD */
+    /* Top Bar HUD / Clean White Navbar */
     .hud-header {
         width: 100% !important;
-        background: linear-gradient(135deg, rgba(13, 27, 56, 0.85) 0%, rgba(9, 17, 36, 0.95) 100%);
-        border: 1px solid rgba(0, 229, 255, 0.35);
-        box-shadow: 0 0 25px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        border-radius: 10px;
-        padding: 0.65rem 1.2rem;
-        margin-bottom: 0.55rem;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+        border-radius: 14px !important;
+        padding: 0.75rem 1.4rem;
+        margin-bottom: 0.65rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        backdrop-filter: blur(14px);
     }
     .hud-title {
-        font-size: 1.22rem;
+        font-size: 1.18rem;
         font-weight: 700;
-        letter-spacing: 0.4px;
-        color: #ffffff;
+        letter-spacing: -0.2px;
+        color: #0F172A;
         display: flex;
         align-items: center;
         gap: 10px;
     }
     .hud-title span {
-        background: linear-gradient(90deg, #00f2fe, #4facfe, #00e5ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #2563EB !important;
+        background: none !important;
+        -webkit-text-fill-color: initial !important;
     }
     .hud-subtitle {
-        font-size: 0.74rem;
-        color: #94a3b8;
-        letter-spacing: 1px;
+        font-size: 0.76rem;
+        color: #64748B;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
         font-weight: 600;
         margin-top: 2px;
@@ -655,345 +650,185 @@ st.markdown("""
         align-items: center;
     }
     .hud-badge {
-        padding: 4px 10px;
-        border-radius: 18px;
+        padding: 5px 12px;
+        border-radius: 9999px;
         font-size: 0.75rem;
         font-family: 'JetBrains Mono', monospace;
         font-weight: 600;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(8px);
+        border: 1px solid #E2E8F0;
+        background: #F1F5F9;
+        color: #334155;
         text-decoration: none;
+        transition: all 0.2s ease;
     }
-    .badge-cyan   { border-color: rgba(0, 229, 255, 0.45); color: #00e5ff; background: rgba(0, 229, 255, 0.08); }
-    .badge-green  { border-color: rgba(0, 230, 118, 0.45); color: #00e676; background: rgba(0, 230, 118, 0.08); }
+    .badge-cyan   { border-color: #BFDBFE !important; color: #2563EB !important; background: #EFF6FF !important; }
+    .badge-green  { border-color: #A7F3D0 !important; color: #059669 !important; background: #ECFDF5 !important; }
     .badge-public {
-        border-color: rgba(255, 171, 0, 0.6);
-        color: #ffc107;
-        background: rgba(255, 171, 0, 0.12);
-        box-shadow: 0 0 15px rgba(255, 171, 0, 0.2);
+        border-color: #FDE68A !important;
+        color: #D97706 !important;
+        background: #FEF3C7 !important;
+        box-shadow: none !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
     @keyframes pulse-ring {
-        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.8); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(0, 230, 118, 0); }
-        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .status-dot-pulse {
         width: 7px;
         height: 7px;
-        background-color: #00e676;
+        background-color: #10B981;
         border-radius: 50%;
         display: inline-block;
         animation: pulse-ring 1.8s infinite ease-in-out;
     }
     
-    /* 4 KPI Metric Cards */
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin-bottom: 0.75rem;
-    }
-    .kpi-card {
-        background: rgba(13, 22, 42, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 0.65rem 0.95rem;
-        position: relative;
-        overflow: hidden;
-        backdrop-filter: blur(12px);
-        transition: all 0.25s ease;
-    }
-    .kpi-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 18px rgba(0, 229, 255, 0.12);
-    }
-    .kpi-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
-    }
-    .kpi-cyan::before   { background: linear-gradient(90deg, #00e5ff, #0091ea); }
-    .kpi-green::before  { background: linear-gradient(90deg, #00e676, #00c853); }
-    .kpi-purple::before { background: linear-gradient(90deg, #b388ff, #7c4dff); }
-    .kpi-amber::before  { background: linear-gradient(90deg, #ffab00, #ff6d00); }
-    
-    .kpi-header {
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.6px;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-bottom: 2px;
-    }
-    .kpi-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.55rem;
-        font-weight: 700;
-        color: #ffffff;
-        line-height: 1.15;
-    }
-    .kpi-sub {
-        font-size: 0.7rem;
-        color: #64748b;
-        margin-top: 2px;
-        font-family: 'Space Grotesk', sans-serif;
-    }
-    
-    /* Sub-tabs compact styling */
+    /* Sub-tabs modern styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        margin-bottom: 0.55rem;
+        background: #FFFFFF !important;
+        padding: 4px 8px !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
+        margin-bottom: 0.65rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
     }
     .stTabs [data-baseweb="tab"] {
-        padding-top: 5px !important;
-        padding-bottom: 5px !important;
+        padding: 6px 16px !important;
         font-weight: 600 !important;
-        font-size: 0.86rem !important;
+        font-size: 0.88rem !important;
+        color: #64748B !important;
+        border-radius: 8px !important;
+        border: none !important;
+        transition: all 0.2s ease !important;
     }
-    .kpi-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background: #EFF6FF !important;
+        color: #2563EB !important;
+        font-weight: 700 !important;
     }
-    .kpi-cyan::before   { background: linear-gradient(90deg, #00e5ff, #0091ea); }
-    .kpi-green::before  { background: linear-gradient(90deg, #00e676, #00c853); }
-    .kpi-purple::before { background: linear-gradient(90deg, #b388ff, #7c4dff); }
-    .kpi-amber::before  { background: linear-gradient(90deg, #ffab00, #ff6d00); }
-    
-    .kpi-header {
-        font-size: 0.76rem;
-        font-weight: 700;
-        letter-spacing: 0.8px;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: #2563EB !important;
     }
-    .kpi-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.85rem;
-        font-weight: 700;
-        color: #ffffff;
-        line-height: 1.2;
+
+    /* Container Card styling */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        padding: 14px !important;
     }
-    .kpi-sub {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin-top: 4px;
-        font-family: 'Space Grotesk', sans-serif;
+    div[data-testid="stExpander"] {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+        margin-bottom: 8px !important;
+    }
+
+    /* Modern Buttons */
+    button[kind="primary"] {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 9999px !important;
+        font-weight: 600 !important;
+        padding: 0.45rem 1.2rem !important;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important;
+        transition: all 0.2s ease !important;
+    }
+    button[kind="primary"]:hover {
+        background: #1D4ED8 !important;
+        box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3) !important;
+        transform: translateY(-1px);
+    }
+    button[kind="secondary"] {
+        background: #FFFFFF !important;
+        color: #1E293B !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 9999px !important;
+        font-weight: 500 !important;
+        padding: 0.45rem 1.2rem !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.2s ease !important;
+    }
+    button[kind="secondary"]:hover {
+        background: #F8FAFC !important;
+        border-color: #CBD5E1 !important;
+        color: #0F172A !important;
+    }
+
+    /* Segmented Control Pill styling */
+    [data-testid="stSegmentedControl"] {
+        background: #F1F5F9 !important;
+        border-radius: 9999px !important;
+        padding: 3px !important;
+        border: 1px solid #E2E8F0 !important;
+    }
+    [data-testid="stSegmentedControl"] button {
+        border-radius: 9999px !important;
+        border: none !important;
+        color: #64748B !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stSegmentedControl"] button[aria-selected="true"] {
+        background: #FFFFFF !important;
+        color: #2563EB !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       SCADA MATERIAL CARDS & RESPONSIVE TABLE (KHÔNG CUỘN, KHÔNG CẮT CHỮ)
-       ═══════════════════════════════════════════════════════════════ */
-    .mat-card {
-        background: linear-gradient(145deg, rgba(13, 25, 48, 0.88) 0%, rgba(8, 16, 33, 0.95) 100%);
-        border-radius: 12px;
-        padding: 1.1rem 1.4rem;
-        margin-bottom: 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        position: relative;
-    }
-    .mat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
-    }
-    .mat-card-khop {
-        border-left: 5px solid #00e676;
-        box-shadow: inset 1px 0 10px rgba(0, 230, 118, 0.05);
-    }
-    .mat-card-moi {
-        border-left: 5px solid #ffab00;
-        box-shadow: inset 1px 0 10px rgba(255, 171, 0, 0.05);
-    }
-    .mat-card-xn {
-        border-left: 5px solid #ff5252;
-        box-shadow: inset 1px 0 10px rgba(255, 82, 82, 0.05);
-    }
-    
-    .mat-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding-bottom: 10px;
-        margin-bottom: 12px;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    .mat-card-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .mat-badge-stt {
-        background: rgba(0, 229, 255, 0.15);
-        color: #00e5ff;
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 700;
-        font-size: 0.9rem;
-        padding: 3px 9px;
-        border-radius: 6px;
-        border: 1px solid rgba(0, 229, 255, 0.3);
-    }
-    .mat-main-name {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #ffffff;
-        letter-spacing: 0.3px;
-    }
-    .mat-badge-qty {
-        background: rgba(255, 255, 255, 0.06);
-        color: #e2e8f0;
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-    .mat-badge-source {
-        color: #94a3b8;
-        font-size: 0.78rem;
-        font-family: 'JetBrains Mono', monospace;
-    }
-    
-    .mat-status-pill {
-        padding: 5px 14px;
-        border-radius: 20px;
-        font-size: 0.82rem;
-        font-weight: 700;
-        font-family: 'JetBrains Mono', monospace;
-        letter-spacing: 0.5px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-    }
-    .mat-status-khop {
-        background: rgba(0, 230, 118, 0.15);
-        color: #00e676;
-        border: 1px solid #00e676;
-    }
-    .mat-status-moi {
-        background: rgba(255, 171, 0, 0.15);
-        color: #ffab00;
-        border: 1px solid #ffab00;
-    }
-    .mat-status-xn {
-        background: rgba(255, 82, 82, 0.15);
-        color: #ff5252;
-        border: 1px solid #ff5252;
-    }
-    
-    .mat-grid-2col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 10px;
-    }
-    @media (max-width: 900px) {
-        .mat-grid-2col { grid-template-columns: 1fr; }
-    }
-    .mat-field-box {
-        background: rgba(2, 6, 23, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        padding: 10px 14px;
-        line-height: 1.5;
-    }
-    .mat-field-label {
-        font-size: 0.74rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: #94a3b8;
-        margin-bottom: 4px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .mat-field-val {
-        font-size: 0.95rem;
-        color: #f1f5f9;
-        word-break: break-word;
-        white-space: normal;
-    }
-    .mat-field-val-code {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #00e5ff;
-    }
-    .mat-field-val-sub {
-        font-size: 0.88rem;
-        color: #cbd5e1;
-    }
-    
-    .mat-note-box {
-        background: rgba(0, 229, 255, 0.04);
-        border: 1px solid rgba(0, 229, 255, 0.15);
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 0.9rem;
-        color: #cbd5e1;
-        line-height: 1.5;
-        margin-top: 8px;
-    }
-    
-    /* ═══════════════════════════════════════════════════════════════
-       BẢNG SCADA GỌN GÀNG — VỪA KHÍT 1 MÀN HÌNH, TỰ ĐỘNG XUỐNG DÒNG
+       BẢNG KỸ THUẬT GỌN GÀNG — SÁNG SỦA, TINH TẾ, CHUẨN THIẾT KẾ
        ═══════════════════════════════════════════════════════════════ */
     .scada-compact-table-wrap {
         width: 100% !important;
         max-width: 100% !important;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 229, 255, 0.3);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         overflow: hidden;
-        margin: 12px 0 16px 0;
+        margin: 8px 0 12px 0;
+        background: #FFFFFF;
     }
     .scada-compact-table {
         width: 100% !important;
         border-collapse: collapse;
-        font-family: 'Space Grotesk', -apple-system, sans-serif;
-        font-size: 0.83rem;
-        color: #e2e8f0;
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-size: 0.84rem;
+        color: #1E293B;
         table-layout: fixed;
-        background: #080f20;
+        background: #FFFFFF;
     }
     .scada-compact-table th {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #0d1b38 !important;
-        color: #00e5ff;
+        background: #F8FAFC !important;
+        color: #475569 !important;
         font-weight: 700;
-        padding: 8px 6px;
-        border-bottom: 2px solid #00e5ff;
-        font-size: 0.75rem;
+        padding: 10px 8px;
+        border-bottom: 2px solid #E2E8F0 !important;
+        font-size: 0.76rem;
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.5px;
     }
     .scada-compact-table td {
-        padding: 8px 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 10px 8px;
+        border-bottom: 1px solid #F1F5F9;
         vertical-align: top;
         white-space: normal !important;
         word-break: break-word !important;
-        line-height: 1.35;
+        line-height: 1.4;
+        color: #1E293B;
     }
     .scada-compact-table tr:hover {
-        background: rgba(0, 229, 255, 0.04);
+        background: #F8FAFC !important;
     }
 
     /* Custom 4px Slim Scrollbar (Zero-Scroll Standard) */
@@ -1002,14 +837,14 @@ st.markdown("""
         height: 5px;
     }
     ::-webkit-scrollbar-track {
-        background: rgba(11, 17, 32, 0.6);
+        background: #F1F5F9;
     }
     ::-webkit-scrollbar-thumb {
-        background: rgba(0, 229, 255, 0.35);
+        background: #CBD5E1;
         border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: #00e5ff;
+        background: #94A3B8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1601,45 +1436,45 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
         if "KHỚP" in cat or old_code_str:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:2px 7px; border-radius:8px; font-size:0.7rem; font-weight:700; background:rgba(0,230,118,0.15); color:#00e676; border:1px solid #00e676; margin-bottom:3px;">🟢 KHỚP KHO</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#00e676; font-size:0.88rem;">{old_code_str}</div>'
-                f'<div style="font-size:0.72rem; color:#94a3b8;">Tồn: <strong style="color:#ffffff;">{ton} {unit}</strong></div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; margin-bottom:3px;">🟢 KHỚP KHO</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#059669; font-size:0.88rem;">{old_code_str}</div>'
+                f'<div style="font-size:0.72rem; color:#64748B;">Tồn: <strong style="color:#0F172A;">{ton} {unit}</strong></div>'
                 f'</div>'
             )
         else:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:2px 7px; border-radius:8px; font-size:0.7rem; font-weight:700; background:rgba(255,171,0,0.15); color:#ffab00; border:1px solid #ffab00; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#ffab00; font-size:0.88rem;">{new_code_str}</div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF3C7; color:#D97706; border:1px solid #FDE68A; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#D97706; font-size:0.88rem;">{new_code_str}</div>'
                 f'</div>'
             )
 
-        doc_tag = f'<div style="color:#64748b; font-size:0.7rem; font-family:JetBrains Mono, monospace; margin-top:2px;">📄 {doc}</div>' if doc and doc != '-' else ''
+        doc_tag = f'<div style="color:#94a3b8; font-size:0.7rem; font-family:JetBrains Mono, monospace; margin-top:2px;">📄 {doc}</div>' if doc and doc != '-' else ''
 
         row_html = (
-            f'<tr style="border-bottom: 1px solid #1e293b;">'
-            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#00e5ff; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
+            f'<tr style="border-bottom: 1px solid #F1F5F9;">'
+            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#2563EB; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
             f'<td style="padding:8px 8px; word-break:break-word;">'
-            f'<div style="font-weight:700; color:#ffffff; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
-            f'<div style="color:#94a3b8; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
+            f'<div style="font-weight:700; color:#0F172A; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
+            f'<div style="color:#64748B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
             f'{doc_tag}'
             f'</td>'
-            f'<td style="padding:8px 8px; color:#38bdf8; font-size:0.8rem; line-height:1.35; word-break:break-word;">{spec}</td>'
+            f'<td style="padding:8px 8px; color:#2563EB; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
             f'<td style="text-align:center; padding:8px 4px; white-space:nowrap;">'
-            f'<div style="font-size:0.95rem; font-weight:700; color:#00e5ff;">{qty}</div>'
-            f'<div style="font-size:0.72rem; color:#cbd5e1; font-weight:600;">{unit}</div>'
+            f'<div style="font-size:0.95rem; font-weight:700; color:#0F172A;">{qty}</div>'
+            f'<div style="font-size:0.72rem; color:#64748B; font-weight:600;">{unit}</div>'
             f'</td>'
             f'<td style="padding:8px 4px;">{badge_html}</td>'
-            f'<td style="padding:8px 8px; color:#cbd5e1; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
+            f'<td style="padding:8px 8px; color:#475569; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
             f'</tr>'
         )
         rows.append(row_html)
 
     table_html = (
-        f'<div style="width:100%; border:1px solid #1e293b; border-radius:8px; overflow:hidden; background:#0b1120; margin-top:6px;">'
+        f'<div style="width:100%; border:1px solid #E2E8F0; border-radius:12px; overflow:hidden; background:#FFFFFF; margin-top:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">'
         f'<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:0.82rem; text-align:left;">'
         f'<thead>'
-        f'<tr style="background:#0f172a; border-bottom:1px solid #334155; color:#94a3b8; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
+        f'<tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0; color:#475569; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
         f'<th style="width:5%; text-align:center; padding:8px 4px;">STT</th>'
         f'<th style="width:28%; padding:8px 8px;">Vật tư (Chuẩn & Gốc)</th>'
         f'<th style="width:25%; padding:8px 8px;">Quy cách kỹ thuật</th>'
@@ -1682,54 +1517,54 @@ def render_compact_table_html(items: list) -> str:
             formatted_bullets = []
             for b in raw_bullets[:3]:
                 b_clean = b.lstrip("•").strip()
-                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#cbd5e1; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
-            goi_y_html = "".join(formatted_bullets) if formatted_bullets else "<span style='color:#64748b;'>-</span>"
+                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#334155; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
+            goi_y_html = "".join(formatted_bullets) if formatted_bullets else "<span style='color:#94a3b8;'>-</span>"
         else:
-            goi_y_html = "<span style='color:#64748b;'>-</span>"
+            goi_y_html = "<span style='color:#94a3b8;'>-</span>"
 
         if trang_thai == "KHỚP":
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(0,230,118,0.15); color:#00e676; border:1px solid #00e676; margin-bottom:4px;'>🟢 KHỚP KHO</span>"
-                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#00e676; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
-                f"<div style='font-size:0.75rem; color:#94a3b8;'>Tồn: <strong style='color:#ffffff;'>{ton_kho} {don_vi}</strong></div>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; margin-bottom:4px;'>🟢 KHỚP KHO</span>"
+                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#059669; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
+                f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#0F172A;'>{ton_kho} {don_vi}</strong></div>"
                 f"</div>"
             )
         elif trang_thai == "MỚI":
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(255,171,0,0.15); color:#ffab00; border:1px solid #ffab00; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
-                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#ffab00; font-size:0.95rem;'>{ma_de_xuat}</div>"
-                f"<div style='font-size:0.72rem; color:#ffc107;'>(Mã số mới 0x.xxxx)</div>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF3C7; color:#D97706; border:1px solid #FDE68A; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
+                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#D97706; font-size:0.95rem;'>{ma_de_xuat}</div>"
+                f"<div style='font-size:0.72rem; color:#B45309;'>(Mã số mới 0x.xxxx)</div>"
                 f"</div>"
             )
         else:
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:rgba(255,82,82,0.15); color:#ff5252; border:1px solid #ff5252; margin-bottom:4px;'>🔴 CẦN XÁC NHẬN</span>"
-                f"<div style='font-size:0.75rem; color:#ff5252;'>Thiếu quy cách</div>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; margin-bottom:4px;'>🔴 CẦN XÁC NHẬN</span>"
+                f"<div style='font-size:0.75rem; color:#DC2626;'>Thiếu quy cách</div>"
                 f"</div>"
             )
 
         row = (
             f"<tr>"
-            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#00e5ff; font-size:0.88rem;'>#{stt}</td>"
+            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#2563EB; font-size:0.88rem;'>#{stt}</td>"
             f"<td>"
-            f"<div style='font-weight:700; color:#ffffff; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
-            f"<div style='color:#94a3b8; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
-            f"<div style='color:#64748b; font-size:0.72rem; font-family:JetBrains Mono, monospace; margin-top:2px;'>📄 {chung_tu_goc}</div>"
+            f"<div style='font-weight:700; color:#0F172A; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
+            f"<div style='color:#64748B; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
+            f"<div style='color:#94a3b8; font-size:0.72rem; font-family:JetBrains Mono, monospace; margin-top:2px;'>📄 {chung_tu_goc}</div>"
             f"</td>"
             f"<td>"
-            f"<div style='color:#38bdf8; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
+            f"<div style='color:#2563EB; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
             f"</td>"
             f"<td style='text-align:center;'>"
-            f"<div style='font-size:1.05rem; font-weight:700; color:#00e5ff;'>{so_luong}</div>"
-            f"<div style='font-size:0.75rem; color:#cbd5e1; font-weight:600;'>{don_vi}</div>"
+            f"<div style='font-size:1.05rem; font-weight:700; color:#0F172A;'>{so_luong}</div>"
+            f"<div style='font-size:0.75rem; color:#64748B; font-weight:600;'>{don_vi}</div>"
             f"</td>"
             f"<td>{status_col}</td>"
             f"<td>{goi_y_html}</td>"
             f"<td>"
-            f"<div style='font-size:0.8rem; color:#cbd5e1; line-height:1.4;'>💡 {ghi_chu}</div>"
+            f"<div style='font-size:0.8rem; color:#475569; line-height:1.4;'>💡 {ghi_chu}</div>"
             f"</td>"
             f"</tr>"
         )
@@ -1763,10 +1598,10 @@ def render_compact_table_html(items: list) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name: str):
     st.markdown("""
-    <div style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 2px;">
+    <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem; margin-bottom: 2px;">
         👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN
     </div>
-    <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 8px;">
+    <div style="font-size: 0.76rem; color: #64748B; margin-bottom: 8px;">
         Tra cứu kho 1.318 mã + tra barem, tiêu chuẩn công nghiệp (ASTM/JIS/DIN/IEC) và tương đương realtime.
     </div>
     """, unsafe_allow_html=True)
@@ -1922,12 +1757,12 @@ col_agent_bar, col_mini_chat = st.columns([5.2, 1.4], vertical_alignment="center
 
 with col_agent_bar:
     st.markdown("""
-    <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 8px; padding: 6px 14px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);">
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 1.15rem;">🤖</span>
-            <span style="font-weight: 700; color: #00e5ff; font-size: 0.95rem; letter-spacing: 0.5px;">PHÂN HỆ CỐT LÕI: AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ</span>
+            <span style="font-weight: 700; color: #0F172A; font-size: 0.92rem; letter-spacing: 0.2px;">PHÂN HỆ CỐT LÕI: <span style="color: #2563EB;">AGENT 1 — ĐỐI CHIẾU THÔNG TIN VẬT TƯ</span></span>
         </div>
-        <span style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #00e676; background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; padding: 2px 8px; border-radius: 10px;">
+        <span style="font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 9999px;">
             ● ĐANG HOẠT ĐỘNG
         </span>
     </div>
@@ -1968,10 +1803,10 @@ with tab_scan:
         col_ih_title, col_ih_mode = st.columns([1.5, 3.5])
         with col_ih_title:
             st.markdown("""
-            <div style="font-weight: 700; color: #00e5ff; font-size: 0.92rem; padding-top: 4px;">
+            <div style="font-weight: 700; color: #0F172A; font-size: 0.92rem; padding-top: 4px;">
                 📥 NẠP CHỨNG TỪ ĐỐI CHIẾU
             </div>
-            <div style="font-size: 0.74rem; color: #94a3b8;">
+            <div style="font-size: 0.74rem; color: #64748B;">
                 Dán ảnh clipboard hoặc chọn file từ máy
             </div>
             """, unsafe_allow_html=True)
@@ -2071,11 +1906,11 @@ with tab_scan:
     # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
     if all_queue:
         st.markdown(f"""
-        <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid #00e5ff; border-radius: 10px; padding: 12px 18px; margin: 15px 0; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-weight: 700; color: #00e5ff; font-size: 1.05rem;">
-                ⚡ ĐÃ SẴN SÀNG: <span style="color:#ffffff;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 12px 18px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.05);">
+            <div style="font-weight: 700; color: #1E40AF; font-size: 0.98rem;">
+                ⚡ ĐÃ SẴN SÀNG: <span style="color: #2563EB;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
             </div>
-            <div style="color: #94a3b8; font-size: 0.85rem;">Sẽ tổng hợp thành 01 Báo cáo thống nhất</div>
+            <div style="color: #64748B; font-size: 0.82rem;">Sẽ tổng hợp thành 01 Báo cáo thống nhất</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2359,7 +2194,7 @@ with tab_scan:
                         time.sleep(0.3)
                         st.rerun()
             else:
-                st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#00e676; font-size:0.82rem; border:1px solid rgba(0,230,118,0.3); border-radius:6px; background:rgba(0,230,118,0.06);'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#059669; font-size:0.82rem; border:1px solid #A7F3D0; border-radius:9999px; background:#ECFDF5;'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
         with c_tb4:
             c_dl_btn, c_del_btn = st.columns([1.2, 1], gap="small")
             with c_dl_btn:
@@ -2411,7 +2246,7 @@ with tab_scan:
                 st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
             else:
                 st.markdown(
-                    f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; margin-top: 4px;'>"
+                    f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #E2E8F0; border-radius: 12px; margin-top: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);'>"
                     f"{render_compact_table_html(filtered_items)}"
                     f"</div>",
                     unsafe_allow_html=True
@@ -2422,7 +2257,7 @@ with tab_scan:
                 c_top_d, c_top_r = st.columns([3.5, 1.5])
                 with c_top_d:
                     st.markdown("""
-                    <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:8px;">
+                    <div style="font-size:0.8rem; color:#64748B; margin-bottom:8px;">
                         💡 <b>Dò tìm & Gợi ý tương đương chuẩn kỹ thuật (3 tầng):</b> Hệ thống xếp theo % trùng khớp giảm dần (Tối đa 3 món gần nhất). Chọn mã và nhấn <b>Áp dụng</b> để gán và ghi nhớ vĩnh viễn.
                     </div>
                     """, unsafe_allow_html=True)
@@ -2585,7 +2420,7 @@ with tab_master:
                 key="uploader_master_inventory"
             )
             st.markdown("""
-            <div style="background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; color: #cbd5e1;">
+            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; color: #065F46;">
                 🔄 <b>Chế độ cập nhật cố định: Hợp nhất (Merge / Upsert)</b><br>
                 Tự động nhận diện định dạng ERP/Kế toán, cập nhật số lượng tồn mới và bổ sung các mã hàng mới mà <b>không làm mất</b> danh mục và các mã đã học.
             </div>
@@ -2630,7 +2465,7 @@ with tab_reports:
     if all_reports:
         col_rep_head, col_rep_del_all = st.columns([4, 1.5])
         with col_rep_head:
-            st.markdown(f"<div style='font-weight: 700; color: #00e5ff; font-size: 0.95rem; margin-bottom: 8px;'>📋 KHO LƯU TRỮ BÁO CÁO DẠNG CÂY ({len(all_reports)} PHIẾU ĐÃ ĐÓNG GÓI THEO NĂM / THÁNG / NGÀY):</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-weight: 700; color: #0F172A; font-size: 0.95rem; margin-bottom: 8px;'>📋 KHO LƯU TRỮ BÁO CÁO DẠNG CÂY ({len(all_reports)} PHIẾU ĐÃ ĐÓNG GÓI THEO NĂM / THÁNG / NGÀY):</div>", unsafe_allow_html=True)
         with col_rep_del_all:
             with st.popover("🗑️ Xóa toàn bộ lịch sử", use_container_width=True):
                 st.markdown("**Xác nhận xóa tất cả báo cáo?**")
@@ -2670,7 +2505,7 @@ with tab_reports:
                     with st.expander(f"📂 **Tháng {m:02d}/{y}** — {total_m} phiếu", expanded=(y == current_year and m == current_month)):
                         for d in sorted(tree_reports[y][m].keys(), reverse=True):
                             day_files = tree_reports[y][m][d]
-                            st.markdown(f"<div style='color:#38bdf8; font-weight:700; font-size:0.86rem; margin:10px 0 6px 0; border-left:3px solid #00e5ff; padding-left:8px;'>📅 Ngày {d:02d}/{m:02d}/{y} ({len(day_files)} phiếu):</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='color:#1E40AF; font-weight:700; font-size:0.86rem; margin:10px 0 6px 0; border-left:3px solid #2563EB; padding-left:8px;'>📅 Ngày {d:02d}/{m:02d}/{y} ({len(day_files)} phiếu):</div>", unsafe_allow_html=True)
 
                             for idx, rf in enumerate(day_files):
                                 file_key = f"{rf.stem}_{idx}_{y}_{m}_{d}"
