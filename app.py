@@ -1928,7 +1928,7 @@ with st.sidebar:
         "MODULE ĐIỀU HÀNH",
         [
             "🤖 Agent 1: Đối chiếu thông tin vật tư",
-            "⚡ Agent 2: Giám sát thiết bị & Bảo trì (Sắp ra mắt)",
+            "⚡ Agent 2: Theo dõi kho xưởng Cơ - Điện (Live)",
             "📊 Agent 3: Dự báo tồn kho & Đặt hàng (Sắp ra mắt)"
         ],
         index=0,
@@ -1994,6 +1994,14 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ĐIỀU PHỐI PHÂN HỆ AGENT THEO LỰA CHỌN
+# ═══════════════════════════════════════════════════════════════════════════
+if current_agent.startswith("⚡ Agent 2"):
+    from agent2_manager import render_agent2_ui
+    render_agent2_ui(api_key=api_key, model_name=model_name)
+    st.stop()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # THANH ĐIỀU HÀNH: AGENT 1 & NÚT MINI CHAT (POPOVER)

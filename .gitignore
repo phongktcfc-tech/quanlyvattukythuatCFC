@@ -14,3 +14,5 @@ cloudflared.exe
 public_url.txt
 *.bat
 .env
+
+agent2_cron.log
