@@ -121,7 +121,12 @@ def organize_reports_into_tree():
 # ═══════════════════════════════════════════════════════════════════════════
 DB_PATH = BASE_DIR / "materials_memory.db"
 
+_DB_INITIALIZED = False
+
 def init_db():
+    global _DB_INITIALIZED
+    if _DB_INITIALIZED:
+        return
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
@@ -150,9 +155,11 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    _DB_INITIALIZED = True
 
 init_db()
 
+@st.cache_data(ttl=60)
 def get_all_approved_materials() -> list[dict]:
     init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -163,6 +170,7 @@ def get_all_approved_materials() -> list[dict]:
     conn.close()
     return rows
 
+@st.cache_data(ttl=60)
 def get_all_aliases() -> list[dict]:
     init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -275,6 +283,8 @@ def save_approved_material(
     append_material_to_master_excel(code, name_normalized, unit, spec)
     try:
         load_master_df.clear()
+        get_all_approved_materials.clear()
+        get_all_aliases.clear()
     except Exception:
         pass
 
