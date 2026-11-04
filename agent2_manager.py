@@ -89,6 +89,59 @@ def compute_item_status(row):
         return 'SAFE', '🟢 AN TOÀN'
 
 
+def process_inventory_dataframe(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Chuẩn hóa và tính toán mã trạng thái nội bộ _status_code từ số thực tuyệt đối.
+    Ngăn chặn hoàn toàn lỗi lọc chuỗi (e.g. 'Bình thường' vs 'An toàn') gây rỗng bảng.
+    """
+    if df_raw is None or df_raw.empty:
+        return pd.DataFrame()
+
+    df = df_raw.copy()
+
+    def to_float(val):
+        try:
+            s = str(val).replace(',', '').strip()
+            return float(s) if s and s.lower() not in ['none', 'nan', ''] else 0.0
+        except (ValueError, TypeError):
+            return 0.0
+
+    def to_float_or_none(val):
+        try:
+            s = str(val).replace(',', '').strip()
+            return float(s) if s and s.lower() not in ['none', 'nan', ''] else None
+        except (ValueError, TypeError):
+            return None
+
+    ton_col = 'Tồn Kho Thực Tế' if 'Tồn Kho Thực Tế' in df.columns else 'ton_thuc_te'
+    min_col = 'Định Mức Tồn Tối Thiểu' if 'Định Mức Tồn Tối Thiểu' in df.columns else 'dinh_muc_min'
+
+    df['ton_num'] = df[ton_col].apply(to_float)
+    df['min_num'] = df[min_col].apply(to_float_or_none) if min_col in df.columns else None
+
+    # Strict Business Logic Classification
+    def assign_status(row):
+        ton = row['ton_num']
+        min_ton = row.get('min_num')
+        if ton <= 0:
+            return 'OUT_OF_STOCK', '🔴 HẾT HÀNG'
+        elif min_ton is not None and min_ton > 0 and ton <= min_ton:
+            return 'WARNING', '🟡 SẮP HẾT'
+        else:
+            return 'SAFE', '🟢 AN TOÀN'
+
+    status_data = df.apply(assign_status, axis=1)
+    df['_status_code'] = [s[0] for s in status_data]
+    df['status_code'] = df['_status_code']
+    df['trang_thai'] = [s[1] for s in status_data]
+    df['Trạng Thái Kho'] = df['trang_thai']
+
+    # Đồng bộ các trường số chuẩn cho bảng hiển thị
+    df['ton_thuc_te'] = df['ton_num']
+    df['dinh_muc_min'] = df['min_num']
+    return df
+
+
 def format_status_badge(val: str) -> str:
     """Định dạng nhãn trạng thái trực quan chuẩn xác (Ưu tiên kiểm tra SẮP HẾT trước HẾT HÀNG)."""
     if not val:
@@ -277,7 +330,7 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
                     "ghi_chu": str(ws.cell(r, 11).value or "").strip()
                 })
 
-    df_tonghop = pd.DataFrame(tonghop_data)
+    df_tonghop = process_inventory_dataframe(pd.DataFrame(tonghop_data))
 
     # 2. Đọc các sheet tháng phát sinh
     nhap_data = []
@@ -340,15 +393,13 @@ def get_inventory_kpis(df_tonghop: pd.DataFrame, df_xuat: pd.DataFrame):
             "total_issued_qty": 0
         }
 
+    if "_status_code" not in df_tonghop.columns:
+        df_tonghop = process_inventory_dataframe(df_tonghop)
+
     total_items = len(df_tonghop)
-    if "status_code" in df_tonghop.columns:
-        out_of_stock = len(df_tonghop[df_tonghop["status_code"] == "OUT_OF_STOCK"])
-        warning = len(df_tonghop[df_tonghop["status_code"] == "WARNING"])
-        safe = len(df_tonghop[df_tonghop["status_code"] == "SAFE"])
-    else:
-        out_of_stock = len(df_tonghop[df_tonghop["trang_thai"].astype(str).str.contains("Hết|Cạn", case=False)])
-        warning = len(df_tonghop[df_tonghop["trang_thai"].astype(str).str.contains("Sắp", case=False)])
-        safe = total_items - out_of_stock - warning
+    out_of_stock = len(df_tonghop[df_tonghop["_status_code"] == "OUT_OF_STOCK"])
+    warning = len(df_tonghop[df_tonghop["_status_code"] == "WARNING"])
+    safe = len(df_tonghop[df_tonghop["_status_code"] == "SAFE"])
     total_issues = len(df_xuat) if not df_xuat.empty else 0
     total_issued = df_xuat["so_luong"].sum() if not df_xuat.empty else 0
 
@@ -734,9 +785,10 @@ Phong cách phản hồi: Chuyên nghiệp, trực diện, mạch lạc, dùng b
 """
 
 
-def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon") -> str:
-    """Gọi mô hình AI Gemini Argon 4 tư vấn kỹ thuật và bóc tách vật tư tận dụng kho."""
+def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon", uploaded_file=None) -> str:
+    """Gọi mô hình AI Gemini Argon 4 tư vấn kỹ thuật và bóc tách vật tư tận dụng kho (hỗ trợ phân tích đa phương thức: hình ảnh/bản vẽ kỹ thuật)."""
     import google.generativeai as genai
+    from PIL import Image
 
     effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
     if not effective_key:
@@ -762,11 +814,19 @@ DANH MỤC 475 VẬT TƯ THỰC TẾ HIỆN CÓ TẠI KHO XƯỞNG CƠ - ĐIỆN
 {inventory_context}
 
 ---
-YÊU CẦU KỸ THUẬT / CÔNG TRÌNH / GIA CÔNG CỦA KỸ SƯ:
+YÊU CẦU KỸ THUẬT / CÔNG TRÌNH / BẢN VẼ GIA CÔNG CỦA KỸ SƯ:
 {user_prompt}
 
-Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư, đặc biệt ưu tiên TẬN DỤNG TỐI ĐA các vật tư có sẵn trong danh mục kho trên trước khi kiến nghị mua mới!
+Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư (đọc kỹ thông số bản vẽ/hình ảnh đính kèm nếu có), đặc biệt ưu tiên TẬN DỤNG TỐI ĐA các vật tư có sẵn trong danh mục kho trên trước khi kiến nghị mua mới!
 """
+
+    content_parts = [full_prompt]
+    if uploaded_file is not None:
+        try:
+            pil_img = Image.open(uploaded_file)
+            content_parts.append(pil_img)
+        except Exception:
+            pass
 
     candidate_models = [model_name, "gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
     models_to_try = []
@@ -781,7 +841,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
                 model_name=m,
                 system_instruction=SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER
             )
-            resp = model.generate_content(full_prompt)
+            resp = model.generate_content(content_parts)
             if resp and resp.text:
                 return resp.text
         except Exception as e:
@@ -893,6 +953,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     with st.spinner("Đang kết nối kho dữ liệu trực tiếp Google Sheet..."):
         df_th, df_nh, df_xt, last_sync_str = load_data_from_sheets(force_sync=force_sync)
 
+    df_th = process_inventory_dataframe(df_th)
+
     if df_th.empty:
         st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")
         if st.button("🔄 Đồng bộ ngay Google Sheet"):
@@ -950,27 +1012,37 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         user_ai_inquiry = st.text_area(
             "Yêu cầu kỹ thuật / Gia công công trình:",
             placeholder="VD: Gia công bệ đỡ động cơ 22kW, Tuyến ống DN50, hỏi thông số bulong/contactor...",
-            height=85,
+            height=75,
             key="agent2_ai_inquiry_input",
+            label_visibility="collapsed"
+        )
+
+        uploaded_doc = st.file_uploader(
+            "📷 Tải ảnh bản vẽ / tem nhãn kỹ thuật:",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="agent2_ai_image_upload",
+            help="Tải ảnh chụp bản vẽ gia công, tem nhãn động cơ, thông số thiết bị...",
             label_visibility="collapsed"
         )
 
         c_ask, c_clr = st.columns([3, 1])
         with c_ask:
             if st.button("🚀 Bóc tách & Tư vấn", use_container_width=True, type="primary"):
-                if user_ai_inquiry.strip():
-                    with st.spinner("Đang bóc tách yêu cầu kỹ thuật & đối chiếu 475 vật tư kho xưởng..."):
+                if user_ai_inquiry.strip() or uploaded_doc is not None:
+                    prompt_text = user_ai_inquiry.strip() if user_ai_inquiry.strip() else "Phân tích bản vẽ kỹ thuật / hình ảnh đính kèm và bóc tách vật tư tận dụng kho."
+                    with st.spinner("Đang phân tích kỹ thuật & đối chiếu 475 vật tư kho xưởng..."):
                         ans = query_ai_chief_engineer(
-                            user_prompt=user_ai_inquiry.strip(),
+                            user_prompt=prompt_text,
                             df_th=df_th,
                             api_key=api_key,
-                            model_name=model_name
+                            model_name=model_name,
+                            uploaded_file=uploaded_doc
                         )
                         st.session_state["agent2_ai_response"] = ans
-                        st.session_state["agent2_ai_last_prompt"] = user_ai_inquiry.strip()
+                        st.session_state["agent2_ai_last_prompt"] = prompt_text
                         st.rerun()
                 else:
-                    st.warning("Vui lòng nhập bài toán kỹ thuật hoặc yêu cầu gia công.")
+                    st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
         with c_clr:
             if st.button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả"):
                 st.session_state.pop("agent2_ai_response", None)
@@ -1119,25 +1191,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                         st.session_state.pop("agent2_ai_response", None)
                         st.rerun()
 
-            # 2. Lọc bảng theo Thẻ KPI vừa bấm
+            # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
             cur_kpi = st.session_state.get("agent2_kpi_filter", "ALL")
             if cur_kpi == "OUT_OF_STOCK":
-                if "status_code" in df_th.columns:
-                    filtered_df = df_th[df_th["status_code"] == "OUT_OF_STOCK"].copy()
-                else:
-                    filtered_df = df_th[df_th["ton_thuc_te"] <= 0].copy()
+                filtered_df = df_th[df_th['_status_code'] == 'OUT_OF_STOCK'].copy()
                 kpi_desc = "🔴 ĐÃ CẠN (HẾT HÀNG)"
             elif cur_kpi == "WARNING":
-                if "status_code" in df_th.columns:
-                    filtered_df = df_th[df_th["status_code"] == "WARNING"].copy()
-                else:
-                    filtered_df = df_th[(df_th["ton_thuc_te"] > 0) & (df_th["dinh_muc_min"].notna()) & (df_th["dinh_muc_min"] > 0) & (df_th["ton_thuc_te"] <= df_th["dinh_muc_min"])].copy()
+                filtered_df = df_th[df_th['_status_code'] == 'WARNING'].copy()
                 kpi_desc = "🟡 SẮP HẾT ĐỊNH MỨC"
             elif cur_kpi == "SAFE":
-                if "status_code" in df_th.columns:
-                    filtered_df = df_th[df_th["status_code"] == "SAFE"].copy()
-                else:
-                    filtered_df = df_th[df_th["trang_thai"].str.contains("An toàn", case=False, na=False)].copy()
+                filtered_df = df_th[df_th['_status_code'] == 'SAFE'].copy()
                 kpi_desc = "🟢 AN TOÀN"
             elif cur_kpi == "ISSUES":
                 issued_names = df_xt["ten_vat_tu"].dropna().unique().tolist()
