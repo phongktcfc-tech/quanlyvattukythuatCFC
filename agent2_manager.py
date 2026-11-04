@@ -865,7 +865,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     # Khóa viewport 100% Zero-Scroll chuẩn kỹ thuật & Apple Store UI Theme
     st.markdown("""
     <style>
-        /* 1. Global Background, Typography & Zero-Scroll System Lock */
+        /* 1. Canvas & Global Typography */
         html, body, [data-testid="stAppViewContainer"], .main {
             overflow: hidden !important;
             height: 100dvh !important;
@@ -873,9 +873,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             margin: 0 !important;
             padding: 0 !important;
             box-sizing: border-box !important;
-            background-color: #f5f5f7 !important;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
-            color: #1d1d1f !important;
+            background-color: #FAFAFB !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
+            color: #0F172A !important;
         }
 
         [data-testid="stHeader"] {
@@ -891,94 +891,116 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             overflow: hidden !important;
         }
 
-        /* 2. Apple Headings */
-        h1, h2, h3, h4 {
+        /* 2. Apple Headings & Section Titles */
+        h1, h2, h3, h4, .section-header {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-            color: #1d1d1f !important;
-            font-weight: 600 !important;
+            color: #0F172A !important;
+            font-weight: 700 !important;
             letter-spacing: -0.02em !important;
         }
 
-        /* 3. Custom Apple 5px Scrollbar */
-        .agent2-scroll::-webkit-scrollbar,
-        [data-testid="stDataFrame"] ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
-        }
-        .agent2-scroll::-webkit-scrollbar-track,
-        [data-testid="stDataFrame"] ::-webkit-scrollbar-track {
-            background: #f5f5f7;
-        }
-        .agent2-scroll::-webkit-scrollbar-thumb,
-        [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb {
-            background: #d2d2d7;
-            border-radius: 980px;
-        }
-        .agent2-scroll::-webkit-scrollbar-thumb:hover,
-        [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb:hover {
-            background: #86868b;
-        }
-
-        /* 4. Apple Store Metric Feature Cards & Interactive Filter Buttons */
-        .apple-card {
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 16px 20px;
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-            transition: transform 0.32s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.32s ease, border-color 0.32s ease;
+        /* 3. Refined Apple Metric Card System */
+        .cfc-kpi-card {
+            background: #FFFFFF !important;
+            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            border-radius: 14px !important;
+            padding: 14px 18px !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             text-align: left;
             height: 100%;
+            cursor: pointer;
+            position: relative;
         }
 
-        .apple-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.09), 0 4px 8px rgba(0, 0, 0, 0.04);
-            border-color: rgba(0, 113, 227, 0.3);
+        /* Smooth Card Lift Hover Effect */
+        .cfc-kpi-card:hover {
+            transform: translateY(-4px) !important;
+            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.03) !important;
+            border-color: #CBD5E1 !important;
         }
 
-        .apple-card-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 4px;
+        /* Card Typography Hierarchy */
+        .cfc-kpi-title {
+            font-size: 11.5px !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
             display: flex;
             align-items: center;
             gap: 6px;
+            margin-bottom: 6px;
         }
 
-        .apple-card-number {
-            font-size: 26px;
-            font-weight: 700;
-            color: #1d1d1f;
-            letter-spacing: -0.03em;
+        .cfc-kpi-value-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .cfc-kpi-number {
+            font-size: 26px !important;
+            font-weight: 700 !important;
+            color: #0F172A !important;
+            letter-spacing: -0.025em !important;
             line-height: 1.1;
         }
 
-        .apple-card-unit {
-            font-size: 13px;
-            font-weight: 400;
-            color: #86868b;
-            margin-left: 4px;
+        .cfc-kpi-unit {
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            color: #94A3B8 !important;
         }
 
-        /* 5. 5 Horizontal Floating KPI Buttons with Hover Lift */
+        /* Status Variations on Active / Hover */
+        .cfc-kpi-card.status-safe:hover, .cfc-kpi-card.status-safe.active {
+            border-color: #10B981 !important;
+        }
+        .cfc-kpi-card.status-safe.active {
+            box-shadow: 0 0 0 2px #10B981, 0 8px 16px rgba(16, 185, 129, 0.12) !important;
+            background: #F0FDF4 !important;
+        }
+
+        .cfc-kpi-card.status-warning:hover, .cfc-kpi-card.status-warning.active {
+            border-color: #F59E0B !important;
+        }
+        .cfc-kpi-card.status-warning.active {
+            box-shadow: 0 0 0 2px #F59E0B, 0 8px 16px rgba(245, 158, 11, 0.12) !important;
+            background: #FFFBEB !important;
+        }
+
+        .cfc-kpi-card.status-danger:hover, .cfc-kpi-card.status-danger.active {
+            border-color: #EF4444 !important;
+        }
+        .cfc-kpi-card.status-danger.active {
+            box-shadow: 0 0 0 2px #EF4444, 0 8px 16px rgba(239, 68, 68, 0.12) !important;
+            background: #FEF2F2 !important;
+        }
+
+        .cfc-kpi-card.status-all:hover, .cfc-kpi-card.status-all.active {
+            border-color: #0071E3 !important;
+        }
+        .cfc-kpi-card.status-all.active {
+            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
+            background: #EFF6FF !important;
+        }
+
+        /* 4. Streamlit Interactive 5 KPI Buttons (Synced with .cfc-kpi-card) */
         div.st-key-btn_filter_all > button,
         div.st-key-btn_filter_safe > button,
         div.st-key-btn_filter_warning > button,
         div.st-key-btn_filter_out > button,
         div.st-key-btn_filter_issues > button {
-            background: #ffffff !important;
-            border-radius: 18px !important;
+            background: #FFFFFF !important;
+            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            border-radius: 14px !important;
             padding: 10px 14px !important;
-            border: 1px solid rgba(0, 0, 0, 0.06) !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important;
-            transition: all 0.32s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             height: 74px !important;
             display: flex !important;
             flex-direction: column !important;
@@ -994,9 +1016,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         div.st-key-btn_filter_warning > button:hover,
         div.st-key-btn_filter_out > button:hover,
         div.st-key-btn_filter_issues > button:hover {
-            transform: translateY(-6px) !important;
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.09), 0 4px 8px rgba(0, 0, 0, 0.04) !important;
-            border-color: rgba(0, 0, 0, 0.12) !important;
+            transform: translateY(-4px) !important;
+            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.03) !important;
+            border-color: #CBD5E1 !important;
         }
 
         div[class*="st-key-btn_filter_"] > button p {
@@ -1004,103 +1026,142 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             line-height: 1.25 !important;
         }
         div[class*="st-key-btn_filter_"] > button p:first-child {
-            font-size: 11px !important;
+            font-size: 11.5px !important;
             font-weight: 600 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.04em !important;
-            color: #86868b !important;
+            color: #64748B !important;
         }
         div[class*="st-key-btn_filter_"] > button p:last-child {
-            font-size: 23px !important;
+            font-size: 26px !important;
             font-weight: 700 !important;
-            color: #1d1d1f !important;
-            letter-spacing: -0.02em !important;
+            color: #0F172A !important;
+            letter-spacing: -0.025em !important;
+            line-height: 1.1 !important;
         }
 
-        /* Card Accent System */
-        div.st-key-btn_filter_all > button {
-            border-top: 3.5px solid #1d1d1f !important;
+        /* Specific Status Hover Variations for KPI Buttons */
+        div.st-key-btn_filter_all > button:hover {
+            border-color: #0071E3 !important;
         }
-        div.st-key-btn_filter_safe > button {
-            border-top: 3.5px solid #34c759 !important;
+        div.st-key-btn_filter_safe > button:hover {
+            border-color: #10B981 !important;
         }
-        div.st-key-btn_filter_warning > button {
-            border-top: 3.5px solid #ff9500 !important;
+        div.st-key-btn_filter_warning > button:hover {
+            border-color: #F59E0B !important;
         }
-        div.st-key-btn_filter_out > button {
-            border-top: 3.5px solid #ff3b30 !important;
+        div.st-key-btn_filter_out > button:hover {
+            border-color: #EF4444 !important;
         }
-        div.st-key-btn_filter_issues > button {
-            border-top: 3.5px solid #0071e3 !important;
+        div.st-key-btn_filter_issues > button:hover {
+            border-color: #0071E3 !important;
         }
 
-        /* Active Filter State for KPI Buttons */
-        div.st-key-btn_filter_all > button[kind="primary"],
-        div.st-key-btn_filter_safe > button[kind="primary"],
-        div.st-key-btn_filter_warning > button[kind="primary"],
-        div.st-key-btn_filter_out > button[kind="primary"],
+        /* Specific Status Active Variations for KPI Buttons */
+        div.st-key-btn_filter_all > button[kind="primary"] {
+            border-color: #0071E3 !important;
+            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
+            background: #EFF6FF !important;
+            transform: translateY(-2px) !important;
+        }
+        div.st-key-btn_filter_safe > button[kind="primary"] {
+            border-color: #10B981 !important;
+            box-shadow: 0 0 0 2px #10B981, 0 8px 16px rgba(16, 185, 129, 0.12) !important;
+            background: #F0FDF4 !important;
+            transform: translateY(-2px) !important;
+        }
+        div.st-key-btn_filter_warning > button[kind="primary"] {
+            border-color: #F59E0B !important;
+            box-shadow: 0 0 0 2px #F59E0B, 0 8px 16px rgba(245, 158, 11, 0.12) !important;
+            background: #FFFBEB !important;
+            transform: translateY(-2px) !important;
+        }
+        div.st-key-btn_filter_out > button[kind="primary"] {
+            border-color: #EF4444 !important;
+            box-shadow: 0 0 0 2px #EF4444, 0 8px 16px rgba(239, 68, 68, 0.12) !important;
+            background: #FEF2F2 !important;
+            transform: translateY(-2px) !important;
+        }
         div.st-key-btn_filter_issues > button[kind="primary"] {
-            background: #ffffff !important;
-            border: 2px solid #0071e3 !important;
-            box-shadow: 0 8px 24px rgba(0, 113, 227, 0.2) !important;
+            border-color: #0071E3 !important;
+            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
+            background: #EFF6FF !important;
             transform: translateY(-2px) !important;
         }
 
-        /* 6. Apple Rounded Buttons */
+        /* 5. Streamlit Interactive Buttons & Inputs */
         .stButton > button {
-            border-radius: 980px !important;
-            font-weight: 500 !important;
-            padding: 7px 16px !important;
-            font-size: 13px !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
-            background: #ffffff !important;
-            color: #1d1d1f !important;
-            transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+            border: 1px solid #E2E8F0 !important;
+            background: #FFFFFF !important;
+            color: #1E293B !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+            transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
         }
 
         .stButton > button:hover {
             transform: translateY(-2px) !important;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
-            border-color: rgba(0, 0, 0, 0.2) !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+            border-color: #CBD5E1 !important;
         }
 
         .stButton > button[kind="primary"] {
-            background: #0071e3 !important;
-            color: #ffffff !important;
+            background: #0071E3 !important;
+            color: #FFFFFF !important;
             border: none !important;
         }
 
         .stButton > button[kind="primary"]:hover {
-            background: #0077ed !important;
-            box-shadow: 0 8px 20px rgba(0, 113, 227, 0.35) !important;
+            background: #0077ED !important;
+            box-shadow: 0 6px 16px rgba(0, 113, 227, 0.25) !important;
+        }
+
+        /* 6. Clean Table / DataFrame Container */
+        [data-testid="stDataFrame"] {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+            overflow: hidden !important;
         }
 
         /* 7. Apple Input & Text Area */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
             border-radius: 12px !important;
-            border: 1px solid rgba(0, 0, 0, 0.12) !important;
-            background: #ffffff !important;
+            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            background: #FFFFFF !important;
             padding: 10px 14px !important;
             font-size: 13.5px !important;
-            color: #1d1d1f !important;
+            color: #0F172A !important;
             transition: all 0.2s ease !important;
         }
 
         .stTextInput > div > div > input:focus,
         .stTextArea > div > div > textarea:focus {
-            border-color: #0071e3 !important;
+            border-color: #0071E3 !important;
             box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18) !important;
         }
 
-        /* 8. Clean Table / Dataframe Styling */
-        [data-testid="stDataFrame"] {
-            border-radius: 16px !important;
-            overflow: hidden !important;
-            border: 1px solid rgba(0, 0, 0, 0.06) !important;
-            background: #ffffff !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+        /* 8. Custom 5px Scrollbar */
+        .agent2-scroll::-webkit-scrollbar,
+        [data-testid="stDataFrame"] ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .agent2-scroll::-webkit-scrollbar-track,
+        [data-testid="stDataFrame"] ::-webkit-scrollbar-track {
+            background: #FAFAFB;
+        }
+        .agent2-scroll::-webkit-scrollbar-thumb,
+        [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 980px;
+        }
+        .agent2-scroll::-webkit-scrollbar-thumb:hover,
+        [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
         }
 
         /* 9. Rounded Pills & Tabs */
@@ -1115,17 +1176,17 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         .stTabs [data-baseweb="tab"] {
             border-radius: 10px;
             padding: 6px 16px;
-            color: #86868b;
+            color: #64748B;
             font-weight: 500;
             font-size: 13px;
             border-bottom: none !important;
         }
 
         .stTabs [aria-selected="true"] {
-            background-color: #ffffff !important;
-            color: #1d1d1f !important;
+            background-color: #FFFFFF !important;
+            color: #0F172A !important;
             font-weight: 600 !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
             border-bottom: none !important;
         }
     </style>
@@ -1149,13 +1210,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid rgba(0,0,0,0.06); border-radius:18px; padding:8px 18px; box-shadow:0 4px 14px rgba(0,0,0,0.03);">
+        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 18px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
             <div style="font-size:1.35rem;">⚡</div>
             <div>
-                <div style="font-size:1.02rem; font-weight:700; color:#1d1d1f; letter-spacing:-0.02em;">
+                <div style="font-size:1.02rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">
                     AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN CFC
                 </div>
-                <div style="font-size:0.75rem; color:#86868b; margin-top:1px;">
+                <div style="font-size:0.75rem; color:#64748B; margin-top:1px;">
                     Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{target_email}</strong> lúc <strong>16:00</strong>
                 </div>
             </div>
@@ -1181,12 +1242,12 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
         st.markdown("""
-        <div style="background:#FFFFFF; border:1px solid rgba(0,0,0,0.06); border-radius:18px; padding:12px 14px; margin-bottom:8px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+        <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:12px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.86rem; font-weight:700; color:#1d1d1f; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
-                <span style="font-size:0.65rem; background:#0071e3; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:600;">ARGON 4</span>
+                <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
+                <span style="font-size:0.65rem; background:#0071E3; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:600;">ARGON 4</span>
             </div>
-            <div style="font-size:0.73rem; color:#86868b; margin-top:3px; line-height:1.35;">
+            <div style="font-size:0.73rem; color:#64748B; margin-top:3px; line-height:1.35;">
                 Tư vấn kỹ thuật • Bóc tách bản vẽ / công trình • Tận dụng kho sẵn có
             </div>
         </div>
@@ -1279,8 +1340,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                 if ok: st.toast("✓ Đã gửi báo cáo thanh lý!", icon="📧")
 
         st.markdown(f"""
-        <div style="background:#FFFFFF; border:1px solid rgba(0,0,0,0.06); border-radius:14px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#86868b; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
-            <div>📌 <strong style="color:#1d1d1f;">Cấu hình tự động:</strong></div>
+        <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#64748B; box-shadow:0 2px 6px rgba(15,23,42,0.02);">
+            <div>📌 <strong style="color:#0F172A;">Cấu hình tự động:</strong></div>
             <div>• Điểm đích: <code>{target_email}</code></div>
             <div>• Tự động quét: <strong>Mỗi 60 phút</strong></div>
             <div>• Giờ gửi Daily: <strong>16:00 mỗi ngày</strong></div>
@@ -1405,8 +1466,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             # Thông tin chỉ báo bộ lọc
             st.markdown(
                 f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
-                f"<span style='font-size:0.82rem; font-weight:600; color:#1d1d1f;'>Đang lọc theo thẻ: <span style='color:#0071e3; font-weight:700;'>{kpi_desc}</span></span>"
-                f"<span style='font-size:0.78rem; color:#86868b;'>Hiển thị: <strong style='color:#1d1d1f;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
+                f"<span style='font-size:0.82rem; font-weight:600; color:#0F172A;'>Đang lọc theo thẻ: <span style='color:#0071E3; font-weight:700;'>{kpi_desc}</span></span>"
+                f"<span style='font-size:0.78rem; color:#64748B;'>Hiển thị: <strong style='color:#0F172A;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -1529,8 +1590,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             # ── CỘT TRÁI: TOP 10 VẬT TƯ TIÊU HAO TRONG THÁNG ──
             with col_an_left:
                 st.markdown("""
-                <div style="background:#FFFFFF; border:1px solid rgba(0,0,0,0.06); border-radius:14px; padding:10px 14px; margin-bottom:8px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
-                    <div style="font-size:0.84rem; font-weight:700; color:#1d1d1f; letter-spacing:-0.01em;">
+                <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+                    <div style="font-size:0.84rem; font-weight:700; color:#0F172A; letter-spacing:-0.01em;">
                         🔥 TOP 10 VẬT TƯ TIÊU HAO TRONG THÁNG
                     </div>
                 </div>
@@ -1568,8 +1629,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             # ── CỘT PHẢI: TOP 10 THIẾT BỊ VỚI SƠ ĐỒ CÂY DRILL-DOWN ──
             with col_an_right:
                 st.markdown("""
-                <div style="background:#FFFFFF; border:1px solid rgba(0,0,0,0.06); border-radius:14px; padding:10px 14px; margin-bottom:8px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
-                    <div style="font-size:0.84rem; font-weight:700; color:#1d1d1f; letter-spacing:-0.01em;">
+                <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+                    <div style="font-size:0.84rem; font-weight:700; color:#0F172A; letter-spacing:-0.01em;">
                         ⚙️ TOP 10 THIẾT BỊ / HẠNG MỤC SỬ DỤNG (DRILL-DOWN)
                     </div>
                 </div>
