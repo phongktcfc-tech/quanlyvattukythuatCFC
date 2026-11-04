@@ -133,11 +133,26 @@
             container.focus();
         });
 
+        // Đảm bảo bắt tay (handshake) với Streamlit Client tức thì và định kỳ để tránh timeout gây khung vàng
+        let handshakeInterval = setInterval(() => {
+            try {
+                Streamlit.setComponentReady();
+                Streamlit.setFrameHeight(115);
+            } catch(e) {}
+        }, 300);
+
         Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, function() {
+            if (handshakeInterval) {
+                clearInterval(handshakeInterval);
+                handshakeInterval = null;
+            }
             Streamlit.setFrameHeight(115);
         });
-        Streamlit.setComponentReady();
-        Streamlit.setFrameHeight(115);
+
+        try {
+            Streamlit.setComponentReady();
+            Streamlit.setFrameHeight(115);
+        } catch(e) {}
     </script>
 </body>
 </html>
