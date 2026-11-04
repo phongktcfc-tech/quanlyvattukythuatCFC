@@ -2153,9 +2153,12 @@ with tab_scan:
                 st.rerun()
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # KHU VỰC HIỂN THỊ KẾT QUẢ ĐỐI CHIẾU TRỰC QUAN (KHÔNG CUỘN, KHÔNG CẮT CHỮ)
+    # KHU VỰC HIỂN THỊ KẾT QUẢ ĐỐI CHIẾU TRỰC QUAN (TỐI ƯU CỤC BỘ @st.fragment)
     # ═══════════════════════════════════════════════════════════════════════════
-    if st.session_state.get("reconciled_results"):
+    @st.fragment
+    def render_reconciled_results_panel(corpus):
+        if not st.session_state.get("reconciled_results"):
+            return
         res_list = st.session_state["reconciled_results"]
         total_docs = st.session_state.get("reconciled_total_docs", 1)
         file_path = st.session_state.get("reconciled_file_path")
@@ -2386,6 +2389,9 @@ with tab_scan:
                                 st.toast(f"✓ Đã gán mã {new_code} ({new_name}) và ghi nhớ vĩnh viễn!", icon="✅")
                                 time.sleep(0.3)
                                 st.rerun()
+
+    if st.session_state.get("reconciled_results"):
+        render_reconciled_results_panel(corpus)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC (TỐI ƯU CỤC BỘ @st.fragment)
