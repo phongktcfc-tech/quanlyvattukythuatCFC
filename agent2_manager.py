@@ -1105,7 +1105,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         tab_inv, tab_history, tab_analytics, tab_config = st.tabs([
             "📋 TỒN KHO THỰC TẾ",
             "📝 NHẬT KÝ XUẤT THIẾT BỊ",
-            "📊 PHÂN TÍCH TIÊU HAO & TỒN CHẾT",
+            "📊 PHÂN TÍCH TIÊU HAO THIẾT BỊ",
             "⚙️ BÁO CÁO & TỰ ĐỘNG HÓA"
         ])
 
@@ -1207,32 +1207,168 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             else:
                 st.info("Chưa có dữ liệu xuất trong các sheet tháng.")
 
-        # TAB 3: PHÂN TÍCH TIÊU HAO & VẬT TƯ CHẾT
+        # TAB 3: PHÂN TÍCH TIÊU HAO THIẾT BỊ (THEO THÁNG & DRILL-DOWN CÂY)
         with tab_analytics:
-            c_an1, c_an2 = st.columns(2)
-            with c_an1:
-                st.markdown("<div style='font-weight:700; color:#0F172A; font-size:0.88rem; margin-bottom:6px;'>🔥 TOP 10 VẬT TƯ TIÊU HAO NHIỀU NHẤT (LẬP KẾ HOẠCH MUA)</div>", unsafe_allow_html=True)
-                top_mat = get_top_consumed_items(df_xt, top_n=10)
-                if not top_mat.empty:
-                    top_mat.columns = ["Vật Tư", "ĐVT", "Tổng Tiêu Hoa"]
-                    st.dataframe(top_mat, use_container_width=True, height=220)
-                else:
-                    st.caption("Chưa đủ dữ liệu tiêu hao.")
+            # 1. Month-Based Dynamic Filter
+            available_months = []
+            if not df_xt.empty and "thang" in df_xt.columns:
+                unique_m = df_xt["thang"].dropna().unique().tolist()
+                now_month_num = datetime.datetime.now().month
+                curr_str = f"tháng {now_month_num}"
+                available_months = sorted(
+                    unique_m,
+                    key=lambda x: (0 if curr_str in str(x).lower() else 1, str(x)),
+                    reverse=False
+                )
+            if not available_months:
+                available_months = ["tháng 11", "tháng 10", "tháng 12"]
 
-            with c_an2:
-                st.markdown("<div style='font-weight:700; color:#0F172A; font-size:0.88rem; margin-bottom:6px;'>⚙️ TOP 10 THIẾT BỊ SỬ DỤNG NHIỀU VẬT TƯ NHẤT</div>", unsafe_allow_html=True)
-                top_eq = get_top_equipment_consumers(df_xt, top_n=10)
-                if not top_eq.empty:
-                    top_eq.columns = ["Thiết Bị / Vị Trí Máy", "Tổng Lượng Vật Tư"]
-                    st.dataframe(top_eq, use_container_width=True, height=220)
-                else:
-                    st.caption("Chưa đủ dữ liệu thiết bị.")
+            c_fltr1, c_fltr2 = st.columns([2.2, 4.8], vertical_alignment="center")
+            with c_fltr1:
+                selected_month = st.selectbox(
+                    "📅 Chọn chu kỳ phân tích:",
+                    options=available_months,
+                    index=0,
+                    key="analytics_month_selector"
+                )
 
-            st.markdown("<div style='font-weight:700; color:#0F172A; font-size:0.88rem; margin:10px 0 6px 0;'>❄️ VẬT TƯ TỒN ĐỌNG KHÔNG SỬ DỤNG (DEAD STOCK - ĐỀ XUẤT THANH LÝ)</div>", unsafe_allow_html=True)
-            dead_stock = get_dead_stock_items(df_th, df_xt)
-            st.caption(f"Có **{len(dead_stock):,}** mã vật tư còn tồn kho nhưng trong toàn bộ các tháng qua không phát sinh bất kỳ đợt xuất dùng nào.")
-            if not dead_stock.empty:
-                st.dataframe(dead_stock[["stt", "ten_vat_tu", "quy_cach", "dvt", "ton_thuc_te"]].rename(columns={"stt": "STT", "ten_vat_tu": "Tên Vật Tư", "quy_cach": "Quy Cách", "dvt": "ĐVT", "ton_thuc_te": "Tồn Thực Tế"}), use_container_width=True, height=180)
+            # Lọc dữ liệu theo tháng đã chọn
+            df_m = df_xt[df_xt["thang"] == selected_month].copy() if not df_xt.empty else pd.DataFrame()
+
+            # Date boundary logic: nếu là tháng hiện tại, chỉ lấy đến ngày thực tế hiện tại
+            now_dt = datetime.datetime.now()
+            is_current_month = (f"tháng {now_dt.month}" in str(selected_month).lower())
+
+            def safe_date_filter(val):
+                if val is None:
+                    return True
+                if isinstance(val, (datetime.datetime, datetime.date)):
+                    d = val.date() if isinstance(val, datetime.datetime) else val
+                    return d <= now_dt.date()
+                s = str(val).strip()
+                if not s:
+                    return True
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m", "%d-%m-%Y"):
+                    try:
+                        d = datetime.datetime.strptime(s, fmt)
+                        if fmt == "%d/%m":
+                            d = d.replace(year=now_dt.year)
+                        return d.date() <= now_dt.date()
+                    except ValueError:
+                        pass
+                return True
+
+            if is_current_month and not df_m.empty:
+                df_m = df_m[df_m["ngay"].apply(safe_date_filter)].copy()
+
+            total_month_qty = df_m["so_luong"].sum() if not df_m.empty else 0
+            total_month_rows = len(df_m)
+
+            with c_fltr2:
+                st.markdown(
+                    f"<div style='font-size:0.78rem; color:#475569; text-align:right; padding-top:6px;'>"
+                    f"Chu kỳ: <strong style='color:#2563EB;'>{selected_month.upper()}</strong>"
+                    f"{' <span style=\"color:#059669; font-weight:600;\">(● Real-time)</span>' if is_current_month else ''} • "
+                    f"Lượt xuất: <strong>{total_month_rows:,}</strong> • "
+                    f"Tổng lượng tiêu hao: <strong>{total_month_qty:,.1f}</strong>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
+
+            # 2. Side-by-Side 2 Columns Layout
+            col_an_left, col_an_right = st.columns([1, 1], gap="medium")
+
+            # ── CỘT TRÁI: TOP 10 VẬT TƯ TIÊU HAO TRONG THÁNG ──
+            with col_an_left:
+                st.markdown("""
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px; margin-bottom:6px;">
+                    <div style="font-size:0.82rem; font-weight:700; color:#0F172A;">
+                        🔥 TOP 10 VẬT TƯ TIÊU HAO TRONG THÁNG
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if not df_m.empty:
+                    top_mat = df_m.groupby(["ten_vat_tu", "dvt"])["so_luong"].sum().reset_index()
+                    top_mat = top_mat.sort_values(by="so_luong", ascending=False).head(10).reset_index(drop=True)
+                    top_mat["rank"] = [f"#{i+1}" for i in range(len(top_mat))]
+
+                    if total_month_qty > 0:
+                        top_mat["ty_le"] = (top_mat["so_luong"] / total_month_qty * 100).map(lambda x: f"{x:.1f}%")
+                    else:
+                        top_mat["ty_le"] = "0%"
+
+                    top_mat_display = top_mat[["rank", "ten_vat_tu", "dvt", "so_luong", "ty_le"]].copy()
+                    top_mat_display.columns = ["Top Rank", "Tên Vật Tư", "ĐVT", "Tổng Tiêu Hao Trong Tháng", "Tỷ Lệ"]
+
+                    st.dataframe(
+                        top_mat_display,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=360,
+                        column_config={
+                            "Top Rank": st.column_config.TextColumn("Top", width="small"),
+                            "Tên Vật Tư": st.column_config.TextColumn("Tên Vật Tư", width="large"),
+                            "ĐVT": st.column_config.TextColumn("ĐVT", width="small"),
+                            "Tổng Tiêu Hao Trong Tháng": st.column_config.NumberColumn("Tiêu Hao", format="%.1f", width="small"),
+                            "Tỷ Lệ": st.column_config.TextColumn("Tỷ Lệ", width="small")
+                        }
+                    )
+                else:
+                    st.info(f"Chưa có phát sinh dữ liệu xuất trong {selected_month}.")
+
+            # ── CỘT PHẢI: TOP 10 THIẾT BỊ VỚI SƠ ĐỒ CÂY DRILL-DOWN ──
+            with col_an_right:
+                st.markdown("""
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px; margin-bottom:6px;">
+                    <div style="font-size:0.82rem; font-weight:700; color:#0F172A;">
+                        ⚙️ TOP 10 THIẾT BỊ / HẠNG MỤC SỬ DỤNG (DRILL-DOWN)
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if not df_m.empty:
+                    df_m_clean = df_m.copy()
+                    df_m_clean["thiet_bi_khu_vuc"] = df_m_clean["thiet_bi_khu_vuc"].replace("", "Chưa ghi nhận thiết bị")
+
+                    eq_grp = df_m_clean.groupby("thiet_bi_khu_vuc")["so_luong"].sum().reset_index()
+                    eq_grp = eq_grp.sort_values(by="so_luong", ascending=False).head(10).reset_index(drop=True)
+
+                    tree_container = st.container(height=360)
+                    with tree_container:
+                        for rank_idx, eq_row in eq_grp.iterrows():
+                            eq_name = eq_row["thiet_bi_khu_vuc"]
+                            eq_tot = eq_row["so_luong"]
+                            sub_df = df_m_clean[df_m_clean["thiet_bi_khu_vuc"] == eq_name].copy()
+                            num_distinct = sub_df["ten_vat_tu"].nunique()
+
+                            expander_label = f"⚙️ [{rank_idx+1}] {eq_name} (Tổng xuất: {eq_tot:,.1f} vật tư - {num_distinct} mã)"
+                            with st.expander(expander_label, expanded=(rank_idx == 0)):
+                                def fmt_date_str(val):
+                                    if isinstance(val, (datetime.datetime, datetime.date)):
+                                        return val.strftime("%d/%m")
+                                    return str(val or "-").strip()
+
+                                sub_df["ngay_str"] = sub_df["ngay"].apply(fmt_date_str)
+                                sub_display = sub_df[["ten_vat_tu", "dvt", "so_luong", "ngay_str", "nguoi_nhan"]].copy()
+                                sub_display.columns = ["Tên Vật Tư", "ĐVT", "Số Lượng Xuất", "Ngày Xuất", "Người Nhận"]
+                                st.dataframe(
+                                    sub_display,
+                                    use_container_width=True,
+                                    hide_index=True,
+                                    height=min(180, 36 + len(sub_display) * 32),
+                                    column_config={
+                                        "Tên Vật Tư": st.column_config.TextColumn("Tên Vật Tư", width="medium"),
+                                        "ĐVT": st.column_config.TextColumn("ĐVT", width="small"),
+                                        "Số Lượng Xuất": st.column_config.NumberColumn("Số Lượng", format="%.1f", width="small"),
+                                        "Ngày Xuất": st.column_config.TextColumn("Ngày", width="small"),
+                                        "Người Nhận": st.column_config.TextColumn("Người Nhận", width="small")
+                                    }
+                                )
+                else:
+                    st.info(f"Chưa có phát sinh dữ liệu thiết bị trong {selected_month}.")
 
         # TAB 4: BÁO CÁO & TỰ ĐỘNG HÓA
         with tab_config:
