@@ -609,6 +609,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     import streamlit as st
     import html as py_html
     import time
+    import datetime
+
+    target_email = "linhb1702638@gmail.com"
 
     # Khóa viewport 100% Zero-Scroll chuẩn kỹ thuật
     st.markdown("""
@@ -660,10 +663,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     """, unsafe_allow_html=True)
 
     # 1. Header Bar (48px)
-    last_sync_str = "Chưa đồng bộ"
+    last_sync_str = "Hôm nay"
     if LOCAL_SHEET_FILE.exists():
-        mtime = datetime.datetime.fromtimestamp(LOCAL_SHEET_FILE.stat().st_mtime)
-        last_sync_str = mtime.strftime("%d/%m/%Y %H:%M")
+        try:
+            mtime = datetime.datetime.fromtimestamp(LOCAL_SHEET_FILE.stat().st_mtime)
+            last_sync_str = mtime.strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            last_sync_str = "Live"
 
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
@@ -675,7 +681,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                     AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN CFC
                 </div>
                 <div style="font-size:0.72rem; color:#64748B;">
-                    Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{TARGET_EMAIL}</strong> lúc <strong>16:00</strong>
+                    Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{target_email}</strong> lúc <strong>16:00</strong>
                 </div>
             </div>
         </div>
@@ -765,7 +771,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                 with st.spinner("Đang gửi email..."):
                     ok, msg = send_email_report("daily")
                     if ok:
-                        st.toast(f"✓ Đã gửi email báo cáo tới {TARGET_EMAIL}!", icon="📧")
+                        st.toast(f"✓ Đã gửi email báo cáo tới {target_email}!", icon="📧")
                     else:
                         st.error(msg)
 
@@ -786,7 +792,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         st.markdown(f"""
         <div style="background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; padding:8px; margin-top:8px; font-size:0.73rem; color:#64748B;">
             <div>📌 <strong>Cấu hình tự động:</strong></div>
-            <div>• Điểm đích: <code>{TARGET_EMAIL}</code></div>
+            <div>• Điểm đích: <code>{target_email}</code></div>
             <div>• Giờ gửi Daily: <strong>16:00 mỗi ngày</strong></div>
             <div>• Nhiệm vụ: Giám sát cạn kho & vật tư tiêu hao</div>
         </div>

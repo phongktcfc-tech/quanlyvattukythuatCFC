@@ -31,6 +31,7 @@ from PIL import Image
 
 # ── Google Generative AI ──
 import google.generativeai as genai
+import agent2_manager
 
 # ── PDF Parser ──
 try:
@@ -2031,8 +2032,9 @@ st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════
 active_agent_now = st.session_state.get("current_main_agent", AGENT_OPTIONS[0])
 if "AGENT 2" in active_agent_now:
-    from agent2_manager import render_agent2_ui
-    render_agent2_ui(api_key=api_key, model_name=model_name)
+    import importlib
+    importlib.reload(agent2_manager)
+    agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name)
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════════════════
