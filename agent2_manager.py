@@ -57,15 +57,49 @@ def format_vn_time(dt: datetime.datetime | None = None) -> str:
     return dt.strftime("%d/%m/%Y %H:%M:%S")
 
 
+def compute_item_status(row):
+    """
+    Phân loại trạng thái vật tư theo quy tắc kỹ thuật nghiêm ngặt:
+    1. OUT_OF_STOCK ('🔴 HẾT HÀNG'): Tồn Kho Thực Tế <= 0 (hoặc trống/missing coi như 0)
+    2. WARNING ('🟡 SẮP HẾT'): Tồn Kho Thực Tế > 0 AND Định Mức Tồn Tối Thiểu > 0 AND Tồn Kho Thực Tế <= Định Mức Tồn Tối Thiểu
+    3. SAFE ('🟢 AN TOÀN'): Tồn Kho Thực Tế > Định Mức Tồn Tối Thiểu (hoặc Định Mức Tồn Tối Thiểu trống/0 và Tồn Kho Thực Tế > 0)
+    """
+    if isinstance(row, (dict, pd.Series)):
+        val_str = str(row.get('Tồn Kho Thực Tế', row.get('ton_thuc_te', ''))).replace(',', '').strip()
+        min_str = str(row.get('Định Mức Tồn Tối Thiểu', row.get('dinh_muc_min', ''))).replace(',', '').strip()
+    else:
+        val_str = str(row).replace(',', '').strip()
+        min_str = ''
+
+    try:
+        stock = float(val_str) if val_str and val_str.lower() not in ['none', 'nan', ''] else 0.0
+    except (ValueError, TypeError):
+        stock = 0.0
+
+    try:
+        min_val = float(min_str) if min_str and min_str.lower() not in ['none', 'nan', ''] else None
+    except (ValueError, TypeError):
+        min_val = None
+
+    if stock <= 0:
+        return 'OUT_OF_STOCK', '🔴 HẾT HÀNG'
+    elif min_val is not None and min_val > 0 and stock <= min_val:
+        return 'WARNING', '🟡 SẮP HẾT'
+    else:
+        return 'SAFE', '🟢 AN TOÀN'
+
+
 def format_status_badge(val: str) -> str:
-    """Định dạng nhãn trạng thái trực quan."""
+    """Định dạng nhãn trạng thái trực quan chuẩn xác (Ưu tiên kiểm tra SẮP HẾT trước HẾT HÀNG)."""
     if not val:
         return "🟢 AN TOÀN"
-    s = str(val).lower()
-    if "hết" in s or "cạn" in s:
-        return "🔴 HẾT HÀNG"
-    if "sắp" in s or "thiếu" in s or "cảnh báo" in s:
+    s = str(val).strip().upper()
+    if "SẮP" in s or "SAP" in s or "WARNING" in s or "THIẾU" in s:
         return "🟡 SẮP HẾT"
+    if "HẾT" in s or "HET" in s or "CẠN" in s or "OUT_OF_STOCK" in s:
+        return "🔴 HẾT HÀNG"
+    if "AN TOÀN" in s or "SAFE" in s or "BÌNH THƯỜNG" in s:
+        return "🟢 AN TOÀN"
     return "🟢 AN TOÀN"
 
 
@@ -221,13 +255,11 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
                 except:
                     dinh_muc_val = None
 
-                # Đánh giá cảnh báo
-                if ton_thuc_te <= 0:
-                    status = "Hết hàng"
-                elif dinh_muc_val is not None and ton_thuc_te <= dinh_muc_val:
-                    status = "Sắp hết hàng"
-                else:
-                    status = "Bình thường"
+                # Đánh giá cảnh báo chuẩn xác qua compute_item_status
+                status_code, status_badge = compute_item_status({
+                    'Tồn Kho Thực Tế': ton_thuc_te,
+                    'Định Mức Tồn Tối Thiểu': dinh_muc_val
+                })
 
                 tonghop_data.append({
                     "stt": len(tonghop_data) + 1,
@@ -240,7 +272,8 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
                     "tong_xuat": xuat,
                     "ton_thuc_te": ton_thuc_te,
                     "dinh_muc_min": dinh_muc_val,
-                    "trang_thai": status,
+                    "status_code": status_code,
+                    "trang_thai": status_badge,
                     "ghi_chu": str(ws.cell(r, 11).value or "").strip()
                 })
 
@@ -308,9 +341,14 @@ def get_inventory_kpis(df_tonghop: pd.DataFrame, df_xuat: pd.DataFrame):
         }
 
     total_items = len(df_tonghop)
-    out_of_stock = len(df_tonghop[df_tonghop["trang_thai"] == "Hết hàng"])
-    warning = len(df_tonghop[df_tonghop["trang_thai"] == "Sắp hết hàng"])
-    safe = total_items - out_of_stock - warning
+    if "status_code" in df_tonghop.columns:
+        out_of_stock = len(df_tonghop[df_tonghop["status_code"] == "OUT_OF_STOCK"])
+        warning = len(df_tonghop[df_tonghop["status_code"] == "WARNING"])
+        safe = len(df_tonghop[df_tonghop["status_code"] == "SAFE"])
+    else:
+        out_of_stock = len(df_tonghop[df_tonghop["trang_thai"].astype(str).str.contains("Hết|Cạn", case=False)])
+        warning = len(df_tonghop[df_tonghop["trang_thai"].astype(str).str.contains("Sắp", case=False)])
+        safe = total_items - out_of_stock - warning
     total_issues = len(df_xuat) if not df_xuat.empty else 0
     total_issued = df_xuat["so_luong"].sum() if not df_xuat.empty else 0
 
@@ -368,7 +406,10 @@ def search_agent2_ai(query: str, df_tonghop: pd.DataFrame, df_nhap: pd.DataFrame
 
     # 1. Tìm theo cảnh báo / hết hàng
     if any(k in q for k in ["sắp hết", "hết hàng", "thiếu", "cần mua", "báo động", "định mức"]):
-        alerts = df_tonghop[df_tonghop["trang_thai"].isin(["Hết hàng", "Sắp hết hàng"])].copy()
+        if "status_code" in df_tonghop.columns:
+            alerts = df_tonghop[df_tonghop["status_code"].isin(["OUT_OF_STOCK", "WARNING"])].copy()
+        else:
+            alerts = df_tonghop[df_tonghop["trang_thai"].str.contains("Hết|Cạn|Sắp", case=False, na=False)].copy()
         return {
             "type": "alerts",
             "title": f"Danh sách {len(alerts)} vật tư đang chạm ngưỡng cảnh báo / hết hàng",
@@ -426,14 +467,17 @@ def generate_email_html(report_type: str, df_tonghop: pd.DataFrame, df_nhap: pd.
     subject = f"[CFC - XƯỞNG CƠ ĐIỆN] {type_titles.get(report_type, 'BÁO CÁO KHO THỰC TẾ')} ({datetime.datetime.now().strftime('%d/%m/%Y')})"
 
     # Lấy danh sách cần cảnh báo
-    alert_df = df_tonghop[df_tonghop["trang_thai"].isin(["Hết hàng", "Sắp hết hàng"])].head(25)
+    if "status_code" in df_tonghop.columns:
+        alert_df = df_tonghop[df_tonghop["status_code"].isin(["OUT_OF_STOCK", "WARNING"])].head(25)
+    else:
+        alert_df = df_tonghop[df_tonghop["trang_thai"].str.contains("Hết|Cạn|Sắp|WARNING|OUT_OF_STOCK", case=False, na=False)].head(25)
     top_consumed = get_top_consumed_items(df_xuat, top_n=10)
     dead_stock = get_dead_stock_items(df_tonghop, df_xuat).head(15)
 
     alert_rows_html = ""
     if not alert_df.empty:
         for _, r in alert_df.iterrows():
-            badge_color = "#EF4444" if r["trang_thai"] == "Hết hàng" else "#F59E0B"
+            badge_color = "#EF4444" if (r.get("status_code") == "OUT_OF_STOCK" or "HẾT" in str(r['trang_thai']).upper()) else "#F59E0B"
             alert_rows_html += f"""
             <tr style="border-bottom: 1px solid #E2E8F0;">
                 <td style="padding: 10px; font-weight: 600; color: #1E293B;">{r['ten_vat_tu']}</td>
@@ -1078,13 +1122,22 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             # 2. Lọc bảng theo Thẻ KPI vừa bấm
             cur_kpi = st.session_state.get("agent2_kpi_filter", "ALL")
             if cur_kpi == "OUT_OF_STOCK":
-                filtered_df = df_th[df_th["trang_thai"].str.contains("Hết hàng|Cạn", case=False, na=False)].copy()
+                if "status_code" in df_th.columns:
+                    filtered_df = df_th[df_th["status_code"] == "OUT_OF_STOCK"].copy()
+                else:
+                    filtered_df = df_th[df_th["ton_thuc_te"] <= 0].copy()
                 kpi_desc = "🔴 ĐÃ CẠN (HẾT HÀNG)"
             elif cur_kpi == "WARNING":
-                filtered_df = df_th[df_th["trang_thai"].str.contains("Sắp hết", case=False, na=False)].copy()
+                if "status_code" in df_th.columns:
+                    filtered_df = df_th[df_th["status_code"] == "WARNING"].copy()
+                else:
+                    filtered_df = df_th[(df_th["ton_thuc_te"] > 0) & (df_th["dinh_muc_min"].notna()) & (df_th["dinh_muc_min"] > 0) & (df_th["ton_thuc_te"] <= df_th["dinh_muc_min"])].copy()
                 kpi_desc = "🟡 SẮP HẾT ĐỊNH MỨC"
             elif cur_kpi == "SAFE":
-                filtered_df = df_th[df_th["trang_thai"].str.contains("An toàn", case=False, na=False)].copy()
+                if "status_code" in df_th.columns:
+                    filtered_df = df_th[df_th["status_code"] == "SAFE"].copy()
+                else:
+                    filtered_df = df_th[df_th["trang_thai"].str.contains("An toàn", case=False, na=False)].copy()
                 kpi_desc = "🟢 AN TOÀN"
             elif cur_kpi == "ISSUES":
                 issued_names = df_xt["ten_vat_tu"].dropna().unique().tolist()
