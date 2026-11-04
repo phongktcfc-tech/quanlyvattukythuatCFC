@@ -864,6 +864,19 @@ def load_master_df() -> pd.DataFrame:
     return df
 
 
+def format_vnd_currency(val) -> str:
+    """Định dạng số tiền sang chuẩn kế toán Việt Nam: 1.000.000, 10.000.000 (dùng dấu chấm ngăn cách hàng nghìn)."""
+    if pd.isna(val) or val is None or str(val).strip() == "" or str(val).strip().lower() in ("nan", "none", "-"):
+        return "0"
+    try:
+        n = float(val)
+        if n == 0:
+            return "0"
+        return f"{int(round(n)):,}".replace(",", ".")
+    except Exception:
+        return str(val)
+
+
 def count_files_processed_today() -> int:
     today_vn = get_vn_now().date()
     cnt = 0
@@ -1314,9 +1327,9 @@ def build_candidates_for_items(items_text: str, df: pd.DataFrame) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 # HÀM GỌI GEMINI AN TOÀN — HỖ TRỢ CHỌN SYSTEM PROMPT THEO TỪNG TAB
 # ═══════════════════════════════════════════════════════════════════════════
-def generate_content_safe(prompt_or_parts, preferred_model="gemini-3.5-flash", system_instruction=None):
+def generate_content_safe(prompt_or_parts, preferred_model="gemini-4-argon", system_instruction=None):
     instruction = system_instruction if system_instruction is not None else SYSTEM_PROMPT_RECONCILE
-    candidate_models = [preferred_model, "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    candidate_models = [preferred_model, "gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
     models_to_try = []
     for m in candidate_models:
         if m not in models_to_try:
@@ -1710,7 +1723,7 @@ with st.sidebar:
 
     model_name = st.selectbox(
         "⚡ ENGINE",
-        ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-argon"],
+        ["gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"],
         index=0,
     )
 
@@ -2400,7 +2413,18 @@ with tab_master:
     if zero_filter and "Cuối kỳ SL" in df_display.columns:
         df_display = df_display[df_display["Cuối kỳ SL"] == 0]
 
-    st.dataframe(df_display, use_container_width=True, height=320)
+    # Định dạng các cột giá trị tiền (GT) theo chuẩn 1.000.000, 10.000.000
+    df_view = df_display.copy()
+    gt_cols = [c for c in df_view.columns if "GT" in c or "giá" in c.lower() or "tiền" in c.lower()]
+    for col in gt_cols:
+        df_view[col] = df_view[col].apply(format_vnd_currency)
+
+    column_config = {
+        col: st.column_config.TextColumn(label=col, alignment="right")
+        for col in gt_cols
+    }
+
+    st.dataframe(df_view, use_container_width=True, height=320, column_config=column_config)
     st.caption(f"Đang hiển thị {len(df_display):,} / {len(df_master):,} mã hàng trong kho.")
 
     # ── KHU VỰC CẬP NHẬT FILE KHO MỚI & TỪ ĐIỂN ÁNH XẠ ──
