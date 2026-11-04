@@ -2000,8 +2000,6 @@ st.markdown(f"""
 # ═══════════════════════════════════════════════════════════════════════════
 # THANH ĐIỀU HÀNH TRUNG TÂM: CHUYỂN ĐỔI AGENT 1 & AGENT 2 NGAY MÀN HÌNH CHÍNH
 # ═══════════════════════════════════════════════════════════════════════════
-col_agent_bar, col_mini_chat = st.columns([5.2, 1.4], vertical_alignment="center")
-
 AGENT_OPTIONS = [
     "🤖 AGENT 1: ĐỐI CHIẾU THÔNG TIN VẬT TƯ (KHO GỐC)",
     "⚡ AGENT 2: THEO DÕI KHO XƯỞNG CƠ - ĐIỆN (LIVE SHEET)"
@@ -2009,6 +2007,14 @@ AGENT_OPTIONS = [
 
 if "current_main_agent" not in st.session_state:
     st.session_state["current_main_agent"] = AGENT_OPTIONS[0]
+
+is_agent2_active = "AGENT 2" in st.session_state.get("current_main_agent", "")
+
+if is_agent2_active:
+    col_agent_bar = st.container()
+    col_mini_chat = None
+else:
+    col_agent_bar, col_mini_chat = st.columns([5.2, 1.4], vertical_alignment="center")
 
 with col_agent_bar:
     selected_agent = st.segmented_control(
@@ -2018,12 +2024,14 @@ with col_agent_bar:
         key="main_agent_segmented_ui",
         label_visibility="collapsed"
     )
-    if selected_agent:
+    if selected_agent and selected_agent != st.session_state["current_main_agent"]:
         st.session_state["current_main_agent"] = selected_agent
+        st.rerun()
 
-with col_mini_chat:
-    with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
-        render_mini_chat_assistant(df_master, api_key, model_name)
+if col_mini_chat is not None:
+    with col_mini_chat:
+        with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
+            render_mini_chat_assistant(df_master, api_key, model_name)
 
 st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 

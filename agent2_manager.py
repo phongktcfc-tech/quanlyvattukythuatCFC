@@ -669,6 +669,85 @@ if __name__ == "__main__":
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# KỸ SƯ TRƯỞNG AI CƠ - ĐIỆN CFC (GEMINI 4 ARGON / FLASH ENGINE)
+# ═══════════════════════════════════════════════════════════════════════════
+SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER = """
+Bạn là KỸ SƯ TRƯỞNG CƠ - ĐIỆN KIÊM CHUYÊN GIA BÓC TÁCH VẬT TƯ & QUẢN TRỊ KHO NHÀ MÁY (CFC).
+Bạn có chuyên môn sâu về cơ khí chế tạo máy, kết cấu hàn, đường ống áp lực, thiết bị trao đổi nhiệt, hệ thống điện phân phối, động cơ, khởi động từ, biến tần, tự động hóa và các tiêu chuẩn kỹ thuật (TCVN, ASTM, JIS, DIN, IEC).
+
+MỤC TIÊU CỐT LÕI:
+1. Giải đáp mọi thắc mắc chuyên sâu về quy cách kỹ thuật, thông số cơ - điện, tính toán chọn thiết bị thay thế tương đương.
+2. Khi người dùng đưa ra một bài toán kỹ thuật, một yêu cầu gia công (ví dụ: bệ đỡ động cơ 22kW, tuyến ống cấp nước DN50, tủ điện khởi động sao-tam giác, gia công mặt bích, bảo trì hệ thống chiếu sáng...):
+   - Bước 1: PHÂN TÍCH NHU CẦU & BÓC TÁCH DANH MỤC VẬT TƯ: Liệt kê chi tiết các thành phần cần thiết (thép hình, bulong đai ốc, que hàn, mặt bích, phụ kiện ống, contactor, MCB, cáp điện...).
+   - Bước 2: ĐỐI CHIẾU VỚI KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN CFC: So sánh trực tiếp với 475 mã vật tư trong kho xưởng được cung cấp.
+   - Bước 3: ĐỀ XUẤT TẬN DỤNG TỐI ĐA VẬT TƯ SẴN CÓ:
+     * Nêu cụ thể mã/tên vật tư có trong kho phù hợp hoặc tương đương kỹ thuật dùng được ngay (kèm tồn kho thực tế).
+     * MỤC TIÊU TỐI THƯỢNG: Tận dụng triệt để vật tư trong xưởng trước khi mua mới để tiết kiệm chi phí cho nhà máy.
+     * Chỉ rõ những vật tư nào kho chưa có hoặc đã cạn kiệt số lượng thì mới lập danh sách đề xuất mua ngoài.
+   - Bước 4: LƯU Ý KỸ THUẬT THI CÔNG & AN TOÀN.
+
+Phong cách phản hồi: Chuyên nghiệp, trực diện, mạch lạc, dùng bảng Markdown hoặc danh sách có gạch đầu dòng rõ ràng.
+"""
+
+
+def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon") -> str:
+    """Gọi mô hình AI Gemini Argon 4 tư vấn kỹ thuật và bóc tách vật tư tận dụng kho."""
+    import google.generativeai as genai
+
+    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
+    if not effective_key:
+        return "⚠️ Chưa cấu hình Google AI API Key trong hệ thống. Vui lòng nhập API Key ở thanh bên trái để kích hoạt Kỹ sư Trưởng AI."
+
+    genai.configure(api_key=effective_key)
+
+    # Trích xuất 475 vật tư thành context súc tích
+    inventory_lines = []
+    if df_th is not None and not df_th.empty:
+        for _, r in df_th.iterrows():
+            name = str(r.get("ten_vat_tu", "")).strip()
+            spec = str(r.get("quy_cach", "")).strip()
+            dvt = str(r.get("dvt", "")).strip()
+            stock = r.get("ton_thuc_te", 0)
+            status = str(r.get("trang_thai", "")).strip()
+            if name and name != "nan":
+                inventory_lines.append(f"- {name} | {spec} | ĐVT: {dvt} | Tồn: {stock} | {status}")
+    inventory_context = "\n".join(inventory_lines)
+
+    full_prompt = f"""
+DANH MỤC 475 VẬT TƯ THỰC TẾ HIỆN CÓ TẠI KHO XƯỞNG CƠ - ĐIỆN CFC:
+{inventory_context}
+
+---
+YÊU CẦU KỸ THUẬT / CÔNG TRÌNH / GIA CÔNG CỦA KỸ SƯ:
+{user_prompt}
+
+Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư, đặc biệt ưu tiên TẬN DỤNG TỐI ĐA các vật tư có sẵn trong danh mục kho trên trước khi kiến nghị mua mới!
+"""
+
+    candidate_models = [model_name, "gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    models_to_try = []
+    for m in candidate_models:
+        if m and m not in models_to_try:
+            models_to_try.append(m)
+
+    last_err = None
+    for m in models_to_try:
+        try:
+            model = genai.GenerativeModel(
+                model_name=m,
+                system_instruction=SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER
+            )
+            resp = model.generate_content(full_prompt)
+            if resp and resp.text:
+                return resp.text
+        except Exception as e:
+            last_err = e
+            continue
+
+    return f"⚠️ Không thể kết nối với mô hình AI ({last_err}). Vui lòng kiểm tra lại API Key hoặc quota kết nối."
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # STREAMLIT UI: AGENT 2 — SINGLE-VIEWPORT INDUSTRIAL DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════
 def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
@@ -717,7 +796,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         .agent2-scroll::-webkit-scrollbar-thumb:hover {
             background: #94A3B8;
         }
-        /* Modern KPI Metric Cards */
+        /* Modern KPI Metric Cards & Interactive Buttons */
         .kpi-metric-card {
             background: #FFFFFF;
             border-radius: 10px;
@@ -729,6 +808,38 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         .kpi-metric-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        div.st-key-btn_filter_all > button,
+        div.st-key-btn_filter_safe > button,
+        div.st-key-btn_filter_warning > button,
+        div.st-key-btn_filter_out > button,
+        div.st-key-btn_filter_issues > button {
+            height: 72px !important;
+            border-radius: 10px !important;
+            padding: 6px 12px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid #E2E8F0 !important;
+            white-space: pre-line !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        div.st-key-btn_filter_all > button {
+            border-top: 3.5px solid #334155 !important;
+        }
+        div.st-key-btn_filter_safe > button {
+            border-top: 3.5px solid #10B981 !important;
+        }
+        div.st-key-btn_filter_warning > button {
+            border-top: 3.5px solid #F59E0B !important;
+        }
+        div.st-key-btn_filter_out > button {
+            border-top: 3.5px solid #EF4444 !important;
+        }
+        div.st-key-btn_filter_issues > button {
+            border-top: 3.5px solid #2563EB !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -778,24 +889,65 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     # 3. Main Workspace: Cột Trái (290px) + Cột Phải (Flex-1)
     col_left, col_right = st.columns([1.1, 3.4], gap="small")
 
-    # ── CỘT TRÁI: ĐÃ DỌN DẸP HOÀN TOÀN RADIO GROUP THEO YÊU CẦU ──
+    # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
         st.markdown("""
-        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-            <div style="font-size:0.82rem; font-weight:700; color:#1E293B; margin-bottom:4px;">🔍 TRA CỨU AI THÔNG MINH</div>
-            <div style="font-size:0.72rem; color:#64748B;">Tìm kiếm theo tên vật tư, thiết bị máy móc, vị trí hoặc người nhận</div>
+        <div style="background:linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color:#FFFFFF; border-radius:10px; padding:10px 12px; margin-bottom:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:0.83rem; font-weight:700; letter-spacing:0.3px;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
+                <span style="font-size:0.65rem; background:#2563EB; color:#FFF; padding:2px 6px; border-radius:4px; font-weight:600;">ARGON 4</span>
+            </div>
+            <div style="font-size:0.7rem; color:#94A3B8; margin-top:3px; line-height:1.3;">
+                Tư vấn kỹ thuật • Bóc tách công trình / gia công • Tận dụng tối đa kho trước khi mua mới
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        search_query = st.text_input(
-            "Tra cứu AI đa thuộc tính:",
-            placeholder="Ví dụ: Contactor, Bơm DD F4, Hiệp...",
-            key="agent2_search_input",
+        user_ai_inquiry = st.text_area(
+            "Yêu cầu kỹ thuật / Gia công công trình:",
+            placeholder="VD: Gia công bệ đỡ động cơ 22kW, Tuyến ống DN50, hỏi thông số bulong/contactor...",
+            height=85,
+            key="agent2_ai_inquiry_input",
             label_visibility="collapsed"
         )
 
+        c_ask, c_clr = st.columns([3, 1])
+        with c_ask:
+            if st.button("🚀 Bóc tách & Tư vấn", use_container_width=True, type="primary"):
+                if user_ai_inquiry.strip():
+                    with st.spinner("Đang bóc tách yêu cầu kỹ thuật & đối chiếu 475 vật tư kho xưởng..."):
+                        ans = query_ai_chief_engineer(
+                            user_prompt=user_ai_inquiry.strip(),
+                            df_th=df_th,
+                            api_key=api_key,
+                            model_name=model_name
+                        )
+                        st.session_state["agent2_ai_response"] = ans
+                        st.session_state["agent2_ai_last_prompt"] = user_ai_inquiry.strip()
+                        st.rerun()
+                else:
+                    st.warning("Vui lòng nhập bài toán kỹ thuật hoặc yêu cầu gia công.")
+        with c_clr:
+            if st.button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả"):
+                st.session_state.pop("agent2_ai_response", None)
+                st.session_state.pop("agent2_ai_last_prompt", None)
+                st.rerun()
+
+        # Hiển thị kết quả AI thu nhỏ ở cột trái nếu có
+        if "agent2_ai_response" in st.session_state:
+            with st.expander("📋 Kết quả Kỹ sư Trưởng AI", expanded=True):
+                st.markdown(st.session_state["agent2_ai_response"])
+
         st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#1E293B; margin-bottom:6px;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
+
+        search_query = st.text_input(
+            "Tra cứu nhanh danh sách:",
+            placeholder="🔍 Lọc nhanh bảng (tên, quy cách...)",
+            key="agent2_quick_search_input",
+            label_visibility="collapsed"
+        )
+
+        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#1E293B; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
 
         c_sync, c_mail = st.columns(2)
         with c_sync:
@@ -836,43 +988,74 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
         </div>
         """, unsafe_allow_html=True)
 
-    # ── CỘT PHẢI: 5 HIGHLIGHTED HORIZONTAL KPI CARDS + TABS ──
+    # ── CỘT PHẢI: 5 HIGHLIGHTED HORIZONTAL KPI CARDS (BẤM ĐỂ LỌC) + TABS ──
     with col_right:
-        # Hàng 1: 5 KPI Cards hiện đại, nổi bật
-        st.markdown(f"""
-        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-bottom:8px;">
-            <div class="kpi-metric-card" style="border-top:3px solid #334155;">
-                <div style="font-size:0.68rem; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.3px;">📦 Tổng vật tư</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#0F172A; margin-top:2px; font-variant-numeric:tabular-nums;">
-                    {kpis['total_items']:,} <span style="font-size:0.72rem; font-weight:600; color:#64748B;">mã</span>
-                </div>
-            </div>
-            <div class="kpi-metric-card" style="border-top:3px solid #10B981; background:linear-gradient(180deg,#FFFFFF 0%,#F0FDF4 100%);">
-                <div style="font-size:0.68rem; font-weight:700; color:#059669; text-transform:uppercase; letter-spacing:0.3px;">🟢 An toàn</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#059669; margin-top:2px; font-variant-numeric:tabular-nums;">
-                    {kpis['safe']:,} <span style="font-size:0.72rem; font-weight:600; color:#059669;">mã</span>
-                </div>
-            </div>
-            <div class="kpi-metric-card" style="border-top:3px solid #F59E0B; background:linear-gradient(180deg,#FFFFFF 0%,#FFFBEB 100%); box-shadow:0 4px 8px -1px rgba(245,158,11,0.18);">
-                <div style="font-size:0.68rem; font-weight:700; color:#D97706; text-transform:uppercase; letter-spacing:0.3px;">🟡 Sắp hết định mức</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#D97706; margin-top:2px; font-variant-numeric:tabular-nums;">
-                    {kpis['warning']:,} <span style="font-size:0.72rem; font-weight:600; color:#D97706;">mã</span>
-                </div>
-            </div>
-            <div class="kpi-metric-card" style="border-top:3px solid #EF4444; background:linear-gradient(180deg,#FFFFFF 0%,#FEF2F2 100%); box-shadow:0 4px 8px -1px rgba(239,68,68,0.18);">
-                <div style="font-size:0.68rem; font-weight:700; color:#DC2626; text-transform:uppercase; letter-spacing:0.3px;">🔴 Đã cạn (Hết hàng)</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#DC2626; margin-top:2px; font-variant-numeric:tabular-nums;">
-                    {kpis['out_of_stock']:,} <span style="font-size:0.72rem; font-weight:600; color:#DC2626;">mã</span>
-                </div>
-            </div>
-            <div class="kpi-metric-card" style="border-top:3px solid #2563EB; background:linear-gradient(180deg,#FFFFFF 0%,#EFF6FF 100%);">
-                <div style="font-size:0.68rem; font-weight:700; color:#2563EB; text-transform:uppercase; letter-spacing:0.3px;">⚡ Lượt xuất xưởng</div>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:1.3rem; font-weight:800; color:#1D4ED8; margin-top:2px; font-variant-numeric:tabular-nums;">
-                    {kpis['total_issues']:,} <span style="font-size:0.72rem; font-weight:600; color:#2563EB;">lần</span>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Hàng 1: 5 Interactive KPI Metric Cards (Đóng vai trò nút lọc danh sách theo thẻ được bấm)
+        if "agent2_kpi_filter" not in st.session_state:
+            st.session_state["agent2_kpi_filter"] = "ALL"
+
+        cur_kpi = st.session_state["agent2_kpi_filter"]
+        col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5, gap="small")
+
+        with col_k1:
+            is_sel = (cur_kpi == "ALL")
+            if st.button(
+                f"📦 TỔNG VẬT TƯ\n\n{kpis['total_items']:,} mã",
+                key="btn_filter_all",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+                help="Bấm để lọc toàn bộ 475 mã vật tư kho"
+            ):
+                st.session_state["agent2_kpi_filter"] = "ALL"
+                st.rerun()
+
+        with col_k2:
+            is_sel = (cur_kpi == "SAFE")
+            if st.button(
+                f"🟢 AN TOÀN\n\n{kpis['safe']:,} mã",
+                key="btn_filter_safe",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+                help="Bấm để lọc vật tư còn tồn an toàn"
+            ):
+                st.session_state["agent2_kpi_filter"] = "SAFE"
+                st.rerun()
+
+        with col_k3:
+            is_sel = (cur_kpi == "WARNING")
+            if st.button(
+                f"🟡 SẮP HẾT ĐỊNH MỨC\n\n{kpis['warning']:,} mã",
+                key="btn_filter_warning",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+                help="Bấm để lọc vật tư sắp hết cần bổ sung"
+            ):
+                st.session_state["agent2_kpi_filter"] = "WARNING"
+                st.rerun()
+
+        with col_k4:
+            is_sel = (cur_kpi == "OUT_OF_STOCK")
+            if st.button(
+                f"🔴 ĐÃ CẠN (HẾT HÀNG)\n\n{kpis['out_of_stock']:,} mã",
+                key="btn_filter_out",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+                help="Bấm để lọc vật tư đã cạn kiệt trong kho"
+            ):
+                st.session_state["agent2_kpi_filter"] = "OUT_OF_STOCK"
+                st.rerun()
+
+        with col_k5:
+            is_sel = (cur_kpi == "ISSUES")
+            if st.button(
+                f"⚡ LƯỢT XUẤT XƯỞNG\n\n{kpis['total_issues']:,} lần",
+                key="btn_filter_issues",
+                use_container_width=True,
+                type="primary" if is_sel else "secondary",
+                help="Bấm để lọc danh sách các vật tư đã từng xuất phục vụ bảo trì"
+            ):
+                st.session_state["agent2_kpi_filter"] = "ISSUES"
+                st.rerun()
 
         # Hàng 2: Segmented Tabs (Zero-scroll)
         tab_inv, tab_history, tab_analytics, tab_config = st.tabs([
@@ -882,34 +1065,36 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             "⚙️ BÁO CÁO & TỰ ĐỘNG HÓA"
         ])
 
-        # TAB 1: TỒN KHO THỰC TẾ (ST.DATAFRAME NATIVE RESPONSIVE & INLINE FILTER PILLS)
+        # TAB 1: TỒN KHO THỰC TẾ
         with tab_inv:
-            col_filter_pills, col_tbl_info = st.columns([3.2, 1.8], vertical_alignment="center")
-            with col_filter_pills:
-                filter_choice = st.pills(
-                    "Lọc trạng thái kho:",
-                    options=[
-                        f"Tất cả ({kpis['total_items']})",
-                        f"🟢 An toàn ({kpis['safe']})",
-                        f"🟡 Sắp hết ({kpis['warning']})",
-                        f"🔴 Hết hàng ({kpis['out_of_stock']})"
-                    ],
-                    default=f"Tất cả ({kpis['total_items']})",
-                    key="agent2_tbl_filter_pills",
-                    label_visibility="collapsed"
-                )
+            # 1. Banner kết quả bóc tách từ Kỹ sư Trưởng AI (nếu có)
+            if "agent2_ai_response" in st.session_state:
+                with st.expander(f"💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI (Cho yêu cầu: \"{st.session_state.get('agent2_ai_last_prompt', '')}\")", expanded=True):
+                    st.markdown(st.session_state["agent2_ai_response"])
+                    if st.button("✕ Thu gọn kết quả tư vấn", key="btn_close_ai_top"):
+                        st.session_state.pop("agent2_ai_response", None)
+                        st.rerun()
 
-            # Lọc theo Trạng thái Pills
-            if "Hết hàng" in str(filter_choice):
+            # 2. Lọc bảng theo Thẻ KPI vừa bấm
+            cur_kpi = st.session_state.get("agent2_kpi_filter", "ALL")
+            if cur_kpi == "OUT_OF_STOCK":
                 filtered_df = df_th[df_th["trang_thai"].str.contains("Hết hàng|Cạn", case=False, na=False)].copy()
-            elif "Sắp hết" in str(filter_choice):
+                kpi_desc = "🔴 ĐÃ CẠN (HẾT HÀNG)"
+            elif cur_kpi == "WARNING":
                 filtered_df = df_th[df_th["trang_thai"].str.contains("Sắp hết", case=False, na=False)].copy()
-            elif "An toàn" in str(filter_choice):
+                kpi_desc = "🟡 SẮP HẾT ĐỊNH MỨC"
+            elif cur_kpi == "SAFE":
                 filtered_df = df_th[df_th["trang_thai"].str.contains("An toàn", case=False, na=False)].copy()
+                kpi_desc = "🟢 AN TOÀN"
+            elif cur_kpi == "ISSUES":
+                issued_names = df_xt["ten_vat_tu"].dropna().unique().tolist()
+                filtered_df = df_th[df_th["ten_vat_tu"].isin(issued_names)].copy()
+                kpi_desc = "⚡ ĐÃ TỪNG XUẤT XƯỞNG"
             else:
                 filtered_df = df_th.copy()
+                kpi_desc = "📦 TẤT CẢ VẬT TƯ"
 
-            # Lọc theo Search AI
+            # 3. Lọc theo Quick Search (nếu có)
             if search_query.strip():
                 sq = search_query.strip().lower()
                 filtered_df = filtered_df[
@@ -918,13 +1103,14 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
                     filtered_df["ghi_chu"].astype(str).str.lower().str.contains(sq, na=False)
                 ]
 
-            with col_tbl_info:
-                st.markdown(
-                    f"<div style='text-align:right; font-size:0.78rem; color:#64748B;'>"
-                    f"Hiển thị: <strong>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
+            # Thông tin chỉ báo bộ lọc
+            st.markdown(
+                f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
+                f"<span style='font-size:0.8rem; font-weight:700; color:#1E293B;'>Đang lọc theo thẻ: <span style='color:#2563EB;'>{kpi_desc}</span></span>"
+                f"<span style='font-size:0.78rem; color:#64748B;'>Hiển thị: <strong>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
             # Gán nhãn Huy hiệu trạng thái đẹp mắt
             df_display = filtered_df.copy()
