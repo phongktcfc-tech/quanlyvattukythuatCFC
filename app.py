@@ -1623,6 +1623,7 @@ def render_compact_table_html(items: list) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 # MINI CHAT ASSISTANT (TRỢ LÝ CƠ - ĐIỆN DẠNG POPOVER NỔI CỐ ĐỊNH)
 # ═══════════════════════════════════════════════════════════════════════════
+@st.fragment
 def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name: str):
     st.markdown("""
     <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem; margin-bottom: 2px;">
@@ -2387,9 +2388,10 @@ with tab_scan:
                                 st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC
+# SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC (TỐI ƯU CỤC BỘ @st.fragment)
 # ═══════════════════════════════════════════════════════════════════════════
-with tab_master:
+@st.fragment
+def render_tab_master(df_master: pd.DataFrame):
     # ── HÀNG ĐIỀU KHIỂN & BỘ LỌC ──
     col_search, col_group, col_zero, col_dl = st.columns([3, 2, 1.3, 2.5])
     with col_search:
@@ -2492,10 +2494,14 @@ with tab_master:
             else:
                 st.info("Chưa có từ khóa học nào trong bộ nhớ. Khi duyệt mã mới ở Tab 1, hệ thống sẽ tự động ghi nhớ vào đây.")
 
+with tab_master:
+    render_tab_master(df_master)
+
 # ═══════════════════════════════════════════════════════════════════════════
-# SUB-TAB 3: BÁO CÁO / PHIẾU ĐÃ XỬ LÝ (ĐÓNG GÓI DẠNG CÂY NĂM / THÁNG / NGÀY)
+# SUB-TAB 3: BÁO CÁO / PHIẾU ĐÃ XỬ LÝ (TỐI ƯU CỤC BỘ @st.fragment)
 # ═══════════════════════════════════════════════════════════════════════════
-with tab_reports:
+@st.fragment
+def render_tab_reports():
     # Tự động quét và đóng gói các file báo cáo vào cây thư mục Năm / Tháng / Ngày
     organize_reports_into_tree()
     all_reports = sorted(REPORT_DIR.rglob("*.xlsx"), key=os.path.getmtime, reverse=True)
@@ -2581,3 +2587,6 @@ with tab_reports:
                                         st.warning(f"Không thể đọc xem trước nội dung: {e}")
     else:
         st.info("Chưa có báo cáo nào được tạo. Khi đối chiếu xong ở Tab 1, các phiếu sẽ tự động đóng gói theo cây Năm / Tháng / Ngày tại đây.")
+
+with tab_reports:
+    render_tab_reports()
