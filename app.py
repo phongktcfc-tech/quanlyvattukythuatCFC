@@ -518,18 +518,15 @@ KIẾN THỨC BẮT BUỘC:
 NGUYÊN TẮC ĐỐI CHIẾU VÀ MÃ ĐỀ XUẤT (THUẬT TOÁN ĐỐI CHIẾU THÔNG MINH ĐA THUỘC TÍNH):
 1. Trích xuất chính xác từng dòng: tên vật tư, quy cách kỹ thuật, số lượng, đơn vị tính.
 2. Chuẩn hóa tên kỹ thuật, xóa bỏ cách gọi dân dã/tiếng lóng.
-3. QUY ĐỔI ĐỒNG NHẤT QUY CÁCH THỢ CƠ KHÍ & ĐIỆN CÔNG NGHIỆP:
-   - "ly", "li" chính là milimét "mm" (Ví dụ: "1,5ly" = "1.5mm"; "10ly" = "10mm"; "3,8ly" = "3.8mm").
-   - "1m0", "1.0m" chính là khổ "1m". "1m2", "1.2m", "1,2m" là cùng chiều dài 1.2 mét.
-   - "ô vuông", "mắt lưới" tương đương "ô".
-   - "Khởi động từ" chính là "Contactor" (Ví dụ: "Khởi động từ MC-100a" / "Contactor 100A", "Khởi động từ MC-150a" / "Contactor 150A").
-   - "Đèn led bán nguyệt 1.2m" / "1m2" / "Đèn led 1,2m" là cùng một loại đèn tuýp LED 1.2m (mã 03.0853).
-   - "Đèn led âm trần 9W" / "Bóng đèn led 9w" là cùng chủng loại đèn LED 9W (mã 03.1141).
-   - "Lưới inox 304 ô 1.5mm khổ 1m0" chính là mã kho "03.0586 | Lưới inox ô 1,5ly khổ 1m".
-4. QUY TẮC ĐỐI CHIẾU THÔNG MINH (QUY CÁCH + CÔNG DỤNG + TỪ ĐỒNG NGHĨA):
-   - TUYỆT ĐỐI KHÔNG cứng nhắc chỉ tìm theo tên chữ cái trùng lặp 100%. Trong nhà máy cơ điện, vật tư thường có nhiều tên thương mại khác nhau nhưng CÙNG CÔNG DỤNG & CÙNG THÔNG SỐ (Ví dụ: "Đá mài 100mm" và "Đá mài fi 10"; "Khởi động từ MC-100a" và "Contactor 100A"; "Đèn led bán nguyệt 36W 1.2m" và "Đèn led 1,2m"; "Đèn led âm trần 9W" và "Bóng đèn led 9w").
-   - Hãy căn cứ vào danh sách ỨNG VIÊN KHO được cung cấp: Nếu ứng viên có cùng nhóm chủng loại/công dụng và thông số kỹ thuật cốt lõi (như Contactor cùng Ampe 100A/150A, Đèn cùng chiều dài 1.2m hoặc cùng công suất 9W), BẮT BUỘC ưu tiên KHỚP về mã kho đó, TUYỆT ĐỐI TRÁNH tự ý sinh mã mới gây trùng lặp danh mục kho.
-   - KHỚP: Cùng chủng loại, công dụng và thông số -> Trả mã hàng cũ chuẩn (ví dụ 03.1221, 02.1186, 03.0853, 03.1141, 03.0586), tên trong kho, tồn kho hiện tại.
+3. QUY ĐỔI ĐỒNG NHẤT QUY CÁCH ÁP DỤNG CHO TẤT CẢ VẬT TƯ TOÀN NHÀ MÁY:
+   - Cơ khí / Kim khí / Làm kín: "1,5ly" = "1.5mm" (ly = li = mm); "1m0" = "1m"; "Lục giác M8x25" = "Bu lông M8x25"; "Tắc kê sắt 12x80" = "Bu lông nở 12x80"; "Phốt dầu" = "Phớt"; "Ron/Sin cao su" = "Gioăng".
+   - Đường ống, Van & Phụ kiện: "1 inch" = "phi 34" = "DN25"; "2 inch" = "phi 60" = "DN50"; "Co ren" = "Cút"; "Măng sông" = "Nối ren"; "Cà rá" = "Lơ thu"; "Bầu thu" = "Côn thu"; "Rắc co" = "Union".
+   - Điện & Thiết bị đóng cắt: "Khởi động từ MC-100a/150a" = "Contactor 100A/150A"; "Cầu dao tép/MCB" = "Aptomat"; "Đèn led bán nguyệt 1.2m/1m2" = "Đèn led 1,2m"; "Đèn led âm trần 9W" = "Bóng đèn led 9w".
+   - Truyền động, Dầu mỡ & Tiêu hao: "Mỡ bôi trơn EP2" = "Mỡ bò"; "Dây curoa Bando B65" = "Dây curoa B65"; "Đá cắt 355" = "Đá Cắt 350"; "Bạc đạn" = "Vòng bi"; "Dây rút" = "Lạt nhựa".
+4. NGUYÊN TẮC ĐỐI CHIẾU THÔNG MINH (QUY CÁCH + CÔNG DỤNG + TỪ ĐỒNG NGHĨA):
+   - TUYỆT ĐỐI KHÔNG cứng nhắc tra đúng 100% chữ cái. Trong nhà máy công nghiệp, vật tư thường có nhiều tên thương mại hoặc hãng sản xuất khác nhau nhưng CÙNG CÔNG DỤNG & CÙNG THÔNG SỐ CỐT LÕI (Ví dụ: Co ren 1" và Co 34 kẽm; Bu lông M8x25 và Lục giác M8*25; Van bi DN50 và Van bi phi 60; Mỡ bôi trơn EP2 và Mỡ bò; Đá cắt 355 và Đá cắt 350; Contactor 100A và MC-100a; Đèn led 1m2 và Đèn led 1,2m).
+   - Hãy căn cứ vào danh sách ỨNG VIÊN KHO được cung cấp: Nếu ứng viên có cùng nhóm chủng loại/công dụng và thông số kỹ thuật cốt lõi tương đương, BẮT BUỘC ưu tiên KHỚP về mã kho đó (trang_thai: 'KHỚP', ma_vat_tu_cu: mã kho tương ứng, ma_de_xuat: null). TUYỆT ĐỐI TRÁNH tự ý sinh mã mới gây trùng lặp danh mục kho.
+   - KHỚP: Cùng chủng loại, công dụng và thông số -> Trả mã hàng cũ chuẩn (ví dụ 03.1221, 02.1186, 03.0853, 03.1141, 03.0586, 02.0083...), tên trong kho, tồn kho hiện tại.
    - MỚI: Chỉ khi kho hoàn toàn không có vật tư cùng chủng loại/thông số tương đương -> Quy cách mã BẮT BUỘC dạng số 0x.xxxx (ví dụ 03.9347, 03.9348, 02.2841). TUYỆT ĐỐI KHÔNG dùng mã chữ cái như VB.INOX hay TB.KN.
    - CẦN_XÁC_NHẬN: Thiếu thông số quan trọng để phân biệt.
 
@@ -1050,8 +1047,121 @@ CAT_TAXONOMY = {
         "name": "Sơn & Hóa chất",
         "keywords": ["sơn", "sơn dầu", "sơn chống rỉ", "dung môi", "xăng nhật"],
         "exclude": []
+    },
+    "phu_kien_ong": {
+        "name": "Phụ kiện đường ống & Khớp nối",
+        "keywords": ["co", "tê", "măng sông", "cà rá", "bầu thu", "côn thu", "rắc co", "khớp nối mềm", "nắp bịt", "kép ren", "chén hàn", "nút ren"],
+        "exclude": []
+    },
+    "dau_mo": {
+        "name": "Dầu mỡ bôi trơn",
+        "keywords": ["mỡ bò", "mỡ bôi trơn", "dầu nhớt", "dầu thủy lực", "dầu hộp số", "dầu cầu", "dầu bôi trơn", "dầu động cơ", "dầu máy", "mỡ chịu nhiệt", "vg68", "vg46", "gear oil"],
+        "exclude": []
+    },
+    "dung_cu": {
+        "name": "Dụng cụ & Thiết bị thi công",
+        "keywords": ["kìm", "cờ lê", "mỏ lết", "cần điếu", "lục giác", "mũi khoan", "taro", "búa", "cảo", "đầu tuýp"],
+        "exclude": []
+    },
+    "bao_ho": {
+        "name": "Bảo hộ lao động",
+        "keywords": ["găng tay", "khẩu trang", "nón bảo hộ", "mũ bảo hộ", "kính hàn", "kính bảo hộ", "ủng", "dây an toàn"],
+        "exclude": []
+    },
+    "do_kiem": {
+        "name": "Thiết bị đo kiểm & Tự động hóa",
+        "keywords": ["đồng hồ áp", "áp kế", "nhiệt kế", "cảm biến", "sensor", "công tắc hành trình", "timer", "bộ điều khiển nhiệt", "flow meter"],
+        "exclude": []
+    },
+    "xich_tai": {
+        "name": "Xích tải & Nhông truyền động",
+        "keywords": ["xích", "nhông xích", "đĩa xích", "khóa xích", "xích tải", "xích đôi"],
+        "exclude": []
     }
 }
+
+def normalize_factory_terms(text: str) -> str:
+    """Chuẩn hóa thuật ngữ, tiếng lóng thợ kỹ thuật, quy đổi đơn vị đo lường cho tất cả vật tư."""
+    t = unicodedata.normalize("NFC", str(text)).lower()
+    t = re.sub(r'(\d+),(\d+)', r'\1.\2', t)
+
+    # 1. Điện & Thiết bị đóng cắt
+    t = re.sub(r'\bkhởi động từ\b|\bkđt\b|\bkdt\b', 'contactor', t)
+    t = re.sub(r'\báp tô mát\b|\báp-tô-mát\b|\bap to mat\b', 'aptomat', t)
+    t = re.sub(r'\bcầu dao tự động\b|\bcầu dao tép\b', 'aptomat', t)
+    t = re.sub(r'\bmcb\b|\bmccb\b', 'aptomat', t)
+    t = re.sub(r'\bbóng đèn led\b|\bđèn tuýp led\b|\bđèn led bán nguyệt\b|\bđèn led âm trần\b|\bđèn downlight\b', 'đèn led', t)
+    t = re.sub(r'\brơle nhiệt\b|\brơ le nhiệt\b|\brelay nhiệt\b', 'rơle nhiệt', t)
+    t = re.sub(r'\bbiến tần\b|\binverter\b', 'biến tần', t)
+    t = re.sub(r'\b3 pha\b|\b3p\b|\bba pha\b', '3pha', t)
+    t = re.sub(r'\b1 pha\b|\b1p\b|\bmột pha\b', '1pha', t)
+
+    # 2. Cơ khí & Truyền động
+    t = re.sub(r'\bbạc đạn\b|\bổ bi\b', 'vòng bi', t)
+    t = re.sub(r'\bmô tơ\b|\bmôtơ\b|\bmotor\b', 'động cơ', t)
+    t = re.sub(r'\bhộp số giảm tốc\b|\bhộp số\b|\bhộp nhông\b', 'hộp giảm tốc', t)
+    t = re.sub(r'\bru lô\b|\brulo\b', 'con lăn', t)
+    t = re.sub(r'\bnhông xích\b|\bđĩa xích\b', 'nhông', t)
+    t = re.sub(r'\bdây đai\b|\bcuroa\b', 'dây curoa', t)
+
+    # 3. Phụ kiện đường ống & Van
+    t = re.sub(r'\bcút ren\b|\bcút hàn\b|\bcút 90\b|\bco lơi\b|\bco 90\b', 'co', t)
+    t = re.sub(r'\bchia 3\b|\bnối tê\b', 'tê', t)
+    t = re.sub(r'\bống nối ren\b|\bkhớp nối ren\b|\bmăng-sông\b|\bmang song\b', 'măng sông', t)
+    t = re.sub(r'\blơ thu\b|\blơ thu ren\b|\bnối thu ren\b|\bca ra\b|\bcà-rá\b', 'cà rá', t)
+    t = re.sub(r'\bcôn thu\b|\bống thu\b|\bbầu giảm\b', 'bầu thu', t)
+    t = re.sub(r'\brắc-co\b|\bracco\b|\braco\b', 'rắc co', t)
+    t = re.sub(r'\bkhớp nối chống rung\b|\bống nối mềm\b', 'khớp nối mềm', t)
+    t = re.sub(r'\bnắp bịt\b|\bnút ren\b|\bchén hàn\b', 'nắp bịt', t)
+
+    # 4. Bu lông, ốc vít & Làm kín
+    t = re.sub(r'\bbulon\b|\bbulông\b|\blục giác chìm\b|\blục giác thép\b|\blục giác\b', 'bu lông lục giác', t)
+    t = re.sub(r'\bđai ốc\b|\becu\b|\bê cu\b|\bê-cu\b', 'tán', t)
+    t = re.sub(r'\bvòng đệm\b|\blông đền\b|\blong đen\b', 'long đền', t)
+    t = re.sub(r'\bbu lông nở\b|\bnở sắt\b|\bnở rút\b', 'tắc kê sắt', t)
+    t = re.sub(r'\bnở inox\b', 'tắc kê inox', t)
+    t = re.sub(r'\bphốt dầu\b|\boil seal\b|\bphốt\b', 'phớt', t)
+    t = re.sub(r'\bsin cao su\b|\bo-ring\b|\bvòng sin\b', 'gioăng', t)
+    t = re.sub(r'\bron\b|\bgasket\b', 'gioăng', t)
+
+    # 5. Dầu mỡ & Hóa chất
+    t = re.sub(r'\bmỡ bôi trơn\b|\bmỡ chịu nhiệt\b', 'mỡ bò', t)
+    t = re.sub(r'\bbăng tan\b|\bbăng cao su non\b', 'băng keo non', t)
+    t = re.sub(r'\blạt nhựa\b', 'dây rút', t)
+
+    # 6. Quy đổi kích thước thông dụng
+    t = re.sub(r'\b1m2\b', '1.2m', t)
+    t = re.sub(r'\b0m6\b', '0.6m', t)
+    t = re.sub(r'(\d+(?:\.\d+)?)\s*(?:ly|li)\b', r'\1mm', t)
+    t = re.sub(r'\b([Mm]\d+)\s*[\*xX]\s*(\d+)\b', r'\1x\2', t)
+    t = re.sub(r'\b(\d+)\s*[\*]\s*(\d+)\b', r'\1x\2', t)
+
+    # Đá cắt / đá mài: 355mm chính là đá 350
+    t = re.sub(r'355\s*(?:x|\*|mm|\b)', '350 ', t)
+
+    # 7. Quy đổi hệ inch ống sang phi / DN phổ biến
+    t = re.sub(r'\b1/2\s*(?:inch|\")\b|\bdn15\b', 'phi 21', t)
+    t = re.sub(r'\b3/4\s*(?:inch|\")\b|\bdn20\b', 'phi 27', t)
+    t = re.sub(r'\b1\s*(?:inch|\")\b|\bdn25\b', 'phi 34', t)
+    t = re.sub(r'\b1\s*[-/.]\s*1/4\s*(?:inch|\")\b|\bdn32\b', 'phi 42', t)
+    t = re.sub(r'\b1\s*[-/.]\s*1/2\s*(?:inch|\")\b|\bdn40\b', 'phi 49', t)
+    t = re.sub(r'\b2\s*(?:inch|\")\b|\bdn50\b', 'phi 60', t)
+    t = re.sub(r'\b2\s*[-/.]\s*1/2\s*(?:inch|\")\b|\bdn65\b', 'phi 76', t)
+    t = re.sub(r'\b3\s*(?:inch|\")\b|\bdn80\b', 'phi 90', t)
+    t = re.sub(r'\b4\s*(?:inch|\")\b|\bdn100\b', 'phi 114', t)
+
+    # 8. Quy đổi HP -> kW
+    t = re.sub(r'\b1\s*(?:hp|ngựa)\b', '0.75kw', t)
+    t = re.sub(r'\b2\s*(?:hp|ngựa)\b', '1.5kw', t)
+    t = re.sub(r'\b3\s*(?:hp|ngựa)\b', '2.2kw', t)
+    t = re.sub(r'\b5\s*(?:hp|ngựa)\b', '3.7kw', t)
+    t = re.sub(r'\b7\.5\s*(?:hp|ngựa)\b', '5.5kw', t)
+    t = re.sub(r'\b10\s*(?:hp|ngựa)\b', '7.5kw', t)
+    t = re.sub(r'\b15\s*(?:hp|ngựa)\b', '11kw', t)
+    t = re.sub(r'\b20\s*(?:hp|ngựa)\b', '15kw', t)
+    t = re.sub(r'\b30\s*(?:hp|ngựa)\b', '22kw', t)
+
+    return t.strip()
 
 def detect_category(text: str) -> str:
     t = unicodedata.normalize("NFC", str(text)).lower()
@@ -1063,13 +1173,7 @@ def detect_category(text: str) -> str:
     return "khac"
 
 def extract_tech_specs(text: str) -> dict:
-    t = unicodedata.normalize("NFC", str(text)).lower()
-    t = re.sub(r'(\d+),(\d+)', r'\1.\2', t)
-    # Quy đổi tiếng lóng & từ đồng nghĩa kỹ thuật phổ biến
-    t = re.sub(r'\b1m2\b', '1.2m', t)
-    t = re.sub(r'\b0m6\b', '0.6m', t)
-    t = t.replace('khởi động từ', 'contactor')
-    t = t.replace('bóng đèn led', 'đèn led')
+    t = normalize_factory_terms(text)
 
     spec = {
         "cat": detect_category(t),
@@ -1080,6 +1184,7 @@ def extract_tech_specs(text: str) -> dict:
         "mesh": None,
         "amps": [],
         "watts": [],
+        "bolt": None,
         "is_duc": "đúc" in t,
         "is_kem": "kẽm" in t,
         "is_ap_luc": "áp lực" in t,
@@ -1091,12 +1196,21 @@ def extract_tech_specs(text: str) -> dict:
     if m_amps:
         spec["amps"] = [int(x) for x in m_amps if 5 <= int(x) <= 2500]
 
-    # 2. Bóc tách công suất Watt (9W, 18W, 25W, 36W, 40W, 150W...)
+    # 2. Bóc tách công suất Watt & kW (9W, 18W, 25W, 36W, 40W, 150W, 1.5kW, 7.5kW...)
     m_watts = re.findall(r'\b(\d+(?:\.\d+)?)\s*w\b', t)
     if m_watts:
         spec["watts"] = [float(x) for x in m_watts if float(x) <= 50000]
+    m_kw = re.findall(r'\b(\d+(?:\.\d+)?)\s*kw\b', t)
+    if m_kw:
+        spec["watts"].extend([float(x) * 1000 for x in m_kw if float(x) <= 1000])
 
-    # 3. Bóc tách chiều dài m (1.2m, 1,2m, 1m2, 6m/cây...)
+    # 3. Kích thước mắt lưới (ô 1.5mm, ô 1,5ly, ô 10ly...) - Bóc tách trước chiều dài
+    m_mesh = re.search(r'ô\s*(?:vuông\s*)?(\d+(?:\.\d+)?)\s*(?:mm)?', t)
+    if m_mesh:
+        spec["mesh"] = float(m_mesh.group(1))
+        spec["cat"] = "luoi"
+
+    # 4. Bóc tách chiều dài m (1.2m, 1,2m, 1m2, 6m/cây...)
     m_len_dim = re.search(r'\b(\d+)m(\d+)\b', t)
     if m_len_dim:
         spec["length"] = float(f"{m_len_dim.group(1)}.{m_len_dim.group(2)}")
@@ -1105,7 +1219,7 @@ def extract_tech_specs(text: str) -> dict:
         if m_len:
             spec["length"] = float(m_len.group(1))
 
-    # 4. Mã vòng bi chuẩn kỹ thuật (loại trừ trường hợp đèn chiếu sáng có nhiệt độ màu Kelvin như 6500K, 4000K, 3000K)
+    # 5. Mã vòng bi chuẩn kỹ thuật (loại trừ trường hợp đèn chiếu sáng có nhiệt độ màu Kelvin như 6500K, 4000K, 3000K)
     t_no_kelvin = re.sub(r'\b\d{3,4}\s*k\b', '', t)
     is_lighting = spec["cat"] == "den_led" or any(k in t for k in ["đèn", "bóng", "chiếu sáng", "led", "âm trần", "bán nguyệt"])
     if not is_lighting:
@@ -1115,21 +1229,19 @@ def extract_tech_specs(text: str) -> dict:
             spec["bearing"] = code_clean
             spec["cat"] = "vong_bi"
 
-    # 5. Kích thước mắt lưới (ô 1.5mm, ô 1,5ly, ô 10ly...)
-    m_mesh = re.search(r'ô\s*(?:vuông\s*)?(\d+(?:\.\d+)?)\s*(?:mm|ly|li)?', t)
-    if m_mesh:
-        spec["mesh"] = float(m_mesh.group(1))
-        spec["cat"] = "luoi"
-
-    # 6. Đường kính phi (phi 60, fi 60, d60, ø60, dn50...)
+    # 6. Đường kính phi (phi 60, fi 60, d60, ø60, dn50, đá 350...)
     m_dia = re.search(r'(?:phi|fi|d|ø|dn)\s*(\d+(?:\.\d+)?)', t)
     if m_dia:
         spec["dia"] = float(m_dia.group(1))
         if spec["dia"] == 10 and any(k in t for k in ["đá", "mài", "cắt"]):
             spec["dia"] = 100.0  # phi 10 đá mài thợ gọi = 100mm
+    elif spec["cat"] in ("mai_cat", "nham"):
+        m_disc = re.search(r'\b(350|355|100|125|150|180)\b', t)
+        if m_disc:
+            spec["dia"] = 350.0 if m_disc.group(1) in ("350", "355") else float(m_disc.group(1))
 
     # 7. Cặp kích thước AxB (ví dụ: 60x7mm, 27x5mm...)
-    m_dim = re.search(r'(?:phi|fi|d|ø)?\s*(\d+(?:\.\d+)?)\s*(?:x|\*)\s*(\d+(?:\.\d+)?)\s*(?:mm|ly|li)?', t)
+    m_dim = re.search(r'(?:phi|fi|d|ø)?\s*(\d+(?:\.\d+)?)\s*(?:x|\*)\s*(\d+(?:\.\d+)?)\s*(?:mm)?', t)
     if m_dim:
         v1 = float(m_dim.group(1))
         v2 = float(m_dim.group(2))
@@ -1141,7 +1253,7 @@ def extract_tech_specs(text: str) -> dict:
 
     # 8. Độ dày thành ống / tấm (6ly, 6mm, dày 5mm...)
     if spec["thick"] is None:
-        m_th = re.search(r'(?:dày\s*)?(\d+(?:\.\d+)?)\s*(?:ly|li|mm)\b', t)
+        m_th = re.search(r'(?:dày\s*)?(\d+(?:\.\d+)?)\s*mm\b', t)
         if m_th:
             v_th = float(m_th.group(1))
             if v_th != spec["dia"]:
@@ -1151,22 +1263,35 @@ def extract_tech_specs(text: str) -> dict:
 
 def compute_technical_match_pct(q_text: str, cand_text: str, cand_ton: float = 0) -> tuple[int, str]:
     """Tính toán % độ trùng khớp theo 3 tầng kỹ thuật: Tên chủng loại (35%) -> Quy cách (45%) -> Đặc tính sử dụng (20%)."""
-    q_spec = extract_tech_specs(q_text)
-    c_spec = extract_tech_specs(cand_text)
+    q_norm = normalize_factory_terms(q_text)
+    c_norm = normalize_factory_terms(cand_text)
+    q_spec = extract_tech_specs(q_norm)
+    c_spec = extract_tech_specs(c_norm)
 
     # ── TẦNG 1: TRÙNG KHỚP TÊN / CHỦNG LOẠI CỐT LÕI (35%) ──
+    cat_score = 100
     if q_spec["cat"] != "khac" and c_spec["cat"] != "khac":
         if q_spec["cat"] != c_spec["cat"]:
-            # Trường hợp có thể dùng thay thế gần: thép ống và ống inox
-            if {q_spec["cat"], c_spec["cat"]} == {"thep_ong", "ong_inox"}:
+            COMPATIBLE_PAIRS = [
+                {"thep_ong", "ong_inox"},
+                {"thep_ong", "phu_kien_ong"},
+                {"ong_inox", "phu_kien_ong"},
+                {"thep_ong", "ong_nhua_mem"},
+                {"aptomat", "contactor"},
+                {"ro_le", "contactor"},
+                {"bulon", "thep_hinh"}
+            ]
+            if {q_spec["cat"], c_spec["cat"]} in COMPATIBLE_PAIRS:
                 cat_score = 70
             else:
-                return 0, "Khác chủng loại vật tư"
-        else:
-            cat_score = 100
+                base_set_r = fuzz.token_set_ratio(q_norm, c_norm)
+                if base_set_r >= 80:
+                    cat_score = base_set_r
+                else:
+                    return 0, "Khác chủng loại vật tư"
     else:
-        base_fuzz = fuzz.token_set_ratio(q_text, cand_text)
-        if base_fuzz < 40:
+        base_fuzz = fuzz.token_set_ratio(q_norm, c_norm)
+        if base_fuzz < 35:
             return 0, "Tên gọi không tương đồng"
         cat_score = base_fuzz
 
@@ -1262,11 +1387,12 @@ def compute_technical_match_pct(q_text: str, cand_text: str, cand_ton: float = 0
 
         spec_score = int(dia_score * 0.7 + thick_score * 0.3)
     else:
-        # Dùng max của token_set_ratio và token_sort_ratio để xử lý hoàn hảo tên ngắn vs tên dài
-        set_r = fuzz.token_set_ratio(q_text, cand_text)
-        sort_r = fuzz.token_sort_ratio(q_text, cand_text)
+        # Dùng max của token_set_ratio và token_sort_ratio sau khi đã chuẩn hóa tiếng lóng kỹ thuật
+        set_r = fuzz.token_set_ratio(q_norm, c_norm)
+        sort_r = fuzz.token_sort_ratio(q_norm, c_norm)
         spec_score = max(set_r, sort_r)
-        if set_r >= 90:
+        if set_r >= 85:
+            spec_score = max(spec_score, 90)
             spec_notes.append("Trùng khớp cụm từ khóa chính")
 
     # ── TẦNG 3: TRÙNG KHỚP ĐẶC TÍNH KỸ THUẬT SỬ DỤNG (20%) ──
@@ -2128,15 +2254,12 @@ with tab_scan:
                                 f"DANH SÁCH ỨNG VIÊN KHO GỐC (ĐÃ ĐỐI CHIẾU THÔNG MINH THEO CHỦNG LOẠI & QUY CÁCH KỸ THUẬT):\n"
                                 + "\n\n".join(cand_lines)
                                 + "\n\nQUY TẮC BẮT BUỘC KHI ĐỐI CHIẾU:\n"
-                                "1. Quy đổi tương đương chuẩn thợ cơ khí & điện:\n"
-                                "   - '1,5ly' = '1.5mm' (ly = li = mm; 10ly = 10mm; 3,8ly = 3.8mm).\n"
-                                "   - '1m0' = '1m' = '1.0m' (khổ 1m0 chính là khổ 1m).\n"
-                                "   - '1m2' = '1.2m' = '1,2m' (Đèn led bán nguyệt 1.2m chính là Đèn led 1,2m).\n"
-                                "   - 'ô vuông' = 'ô'.\n"
-                                "   - 'inox 304' / 'inox' là cùng chủng loại inox.\n"
-                                "   - 'Khởi động từ MC-100a' / 'MC-150a' chính là 'Contactor 100A' / 'Contactor 150A'.\n"
-                                "   - 'Đèn led âm trần 9W' chính là 'Bóng đèn led 9w'.\n"
-                                "2. Khi danh sách ứng viên có mã kho cùng chủng loại và quy cách tương đương: "
+                                "1. Quy đổi tương đương chuẩn công nghiệp áp dụng cho TẤT CẢ VẬT TƯ:\n"
+                                "   - Cơ khí / Kim khí: '1,5ly' = '1.5mm'; '1m0' = '1m'; 'Lục giác M8x25' = 'Bu lông M8x25'; 'Tắc kê sắt 12x80' = 'Bu lông nở 12x80'.\n"
+                                "   - Đường ống & Van: '1 inch' = 'phi 34' = 'DN25'; 'DN50' = 'phi 60' = '2 inch'; 'Co ren' = 'Cút'; 'Măng sông' = 'Nối ren'; 'Cà rá' = 'Lơ thu'.\n"
+                                "   - Điện & Chiếu sáng: 'Khởi động từ MC-100a/150a' = 'Contactor 100A/150A'; 'Cầu dao tép/MCB' = 'Aptomat'; 'Đèn led 1m2' = 'Đèn led 1,2m'; 'Đèn âm trần 9W' = 'Bóng led 9w'.\n"
+                                "   - Truyền động & Tiêu hao: 'Mỡ bôi trơn EP2' = 'Mỡ bò'; 'Dây curoa Bando B65' = 'Dây curoa B65'; 'Đá cắt 355' = 'Đá Cắt 350'; 'Bạc đạn' = 'Vòng bi'.\n"
+                                "2. Khi danh sách ứng viên có mã kho cùng chủng loại và quy cách/thông số tương đương: "
                                 "BẮT BUỘC KHỚP MÃ CŨ (trang_thai: 'KHỚP', ma_vat_tu_cu: mã kho tương ứng, ma_de_xuat: null). "
                                 "TUYỆT ĐỐI KHÔNG sinh mã mới khi kho đã có sẵn!\n"
                                 "3. Chỉ cấp mã MỚI (0x.xxxx) khi kho hoàn toàn không có vật tư cùng chủng loại và quy cách.\n"
