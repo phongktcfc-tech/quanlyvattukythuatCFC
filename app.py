@@ -2005,10 +2005,8 @@ AGENT_OPTIONS = [
     "⚡ AGENT 2: THEO DÕI KHO XƯỞNG CƠ - ĐIỆN (LIVE SHEET)"
 ]
 
-if "current_main_agent" not in st.session_state:
-    st.session_state["current_main_agent"] = AGENT_OPTIONS[0]
-
-is_agent2_active = "AGENT 2" in st.session_state.get("current_main_agent", "")
+current_agent_active = st.session_state.get("main_agent_segmented_ui") or st.session_state.get("current_main_agent", AGENT_OPTIONS[0])
+is_agent2_active = "AGENT 2" in str(current_agent_active)
 
 if is_agent2_active:
     col_agent_bar = st.container()
@@ -2020,15 +2018,16 @@ with col_agent_bar:
     selected_agent = st.segmented_control(
         "LỰA CHỌN PHÂN HỆ ĐIỀU HÀNH:",
         options=AGENT_OPTIONS,
-        default=st.session_state["current_main_agent"],
+        default=current_agent_active if current_agent_active in AGENT_OPTIONS else AGENT_OPTIONS[0],
         key="main_agent_segmented_ui",
         label_visibility="collapsed"
     )
-    if selected_agent and selected_agent != st.session_state["current_main_agent"]:
+    if selected_agent and selected_agent != st.session_state.get("current_main_agent"):
         st.session_state["current_main_agent"] = selected_agent
         st.rerun()
 
-if col_mini_chat is not None:
+# Trợ lý Cơ-Điện popover chỉ hiển thị tại Agent 1 (theo yêu cầu chuẩn kỹ thuật)
+if not is_agent2_active and col_mini_chat is not None and "AGENT 2" not in str(selected_agent or ""):
     with col_mini_chat:
         with st.popover("💬 Trợ lý Cơ-Điện", use_container_width=True):
             render_mini_chat_assistant(df_master, api_key, model_name)
