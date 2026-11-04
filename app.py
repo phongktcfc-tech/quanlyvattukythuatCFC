@@ -40,6 +40,16 @@ except ImportError:
     HAS_FITZ = False
 
 # ═══════════════════════════════════════════════════════════════════════════
+# CẤU HÌNH TRANG STREAMLIT (BẮT BUỘC ĐẦU TIÊN)
+# ═══════════════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="QUẢN TRỊ VẬT TƯ CƠ - ĐIỆN | AI HUD",
+    page_icon="⚙️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
 # CẤU HÌNH ĐƯỜNG DẪN HỆ THỐNG
 # ═══════════════════════════════════════════════════════════════════════════
 BASE_DIR = Path(__file__).resolve().parent
@@ -576,14 +586,8 @@ Trình bày dạng Thẻ thông tin & Bảng barem:
 """
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CẤU HÌNH GIAO DIỆN DARK INDUSTRIAL SCADA / DIGITAL TWIN HUD
+# CẤU HÌNH GIAO DIỆN LIGHT TECHNICAL SCADA / INDUSTRIAL HUD
 # ═══════════════════════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="QUẢN TRỊ VẬT TƯ CƠ - ĐIỆN | AI HUD",
-    page_icon="⚙️",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
 
 st.markdown("""
 <style>
