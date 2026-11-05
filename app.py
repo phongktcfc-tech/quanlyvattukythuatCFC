@@ -19,7 +19,16 @@ import html
 import sqlite3
 import shutil
 import zoneinfo
+import threading
 from pathlib import Path
+
+try:
+    from streamlit.runtime.scriptrunner import add_script_run_ctx
+except ImportError:
+    try:
+        from streamlit.runtime.scriptrunner_utils.script_run_context import add_script_run_ctx
+    except ImportError:
+        add_script_run_ctx = None
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -2499,6 +2508,11 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                         args=(queue_copy, df_master, corpus, model_name, ts_live),
                         daemon=True
                     )
+                    if add_script_run_ctx:
+                        try:
+                            add_script_run_ctx(th)
+                        except Exception:
+                            pass
                     th.start()
                     st.rerun()
 
