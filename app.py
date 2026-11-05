@@ -1964,13 +1964,31 @@ with st.sidebar:
             pass
 
     api_key = st.text_input(
-        "🔑 GOOGLE AI KEY",
+        "🔑 GOOGLE AI KEY (Agent 1)",
         type="password",
         value=default_key,
     )
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
         genai.configure(api_key=api_key)
+
+    default_nv_key = os.environ.get("NVIDIA_API_KEY", "")
+    if not default_nv_key:
+        try:
+            default_nv_key = st.secrets.get("NVIDIA_API_KEY", "")
+        except Exception:
+            pass
+    if not default_nv_key:
+        default_nv_key = "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"
+
+    nvidia_api_key = st.text_input(
+        "🟢 NVIDIA NIM KEY (Agent 2)",
+        type="password",
+        value=default_nv_key,
+        help="Khóa API của NVIDIA giúp Agent 2 chạy độc lập 100% tài nguyên, không nghẽn với Agent 1"
+    )
+    if nvidia_api_key:
+        os.environ["NVIDIA_API_KEY"] = nvidia_api_key
 
     model_name = st.selectbox(
         "⚡ ENGINE",
@@ -2970,6 +2988,6 @@ active_agent_now = st.session_state.get("main_agent_segmented_ui") or st.session
 if "AGENT 2" in str(active_agent_now):
     import importlib
     importlib.reload(agent2_manager)
-    agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=False)
+    agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=False, nvidia_api_key=nvidia_api_key)
 else:
     render_agent1_ui(df_master, api_key, model_name)

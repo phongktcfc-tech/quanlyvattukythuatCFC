@@ -785,16 +785,60 @@ Phong cách phản hồi: Chuyên nghiệp, trực diện, mạch lạc, dùng b
 """
 
 
-def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon", uploaded_file=None) -> str:
-    """Gọi mô hình AI Gemini Argon 4 tư vấn kỹ thuật và bóc tách vật tư tận dụng kho (hỗ trợ phân tích đa phương thức: hình ảnh/bản vẽ kỹ thuật)."""
+def query_nvidia_nim_chief_engineer(
+    full_prompt: str,
+    system_instruction: str,
+    nvidia_key: str = "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",
+    model: str = "nvidia/nemotron-3-ultra-550b-a55b"
+) -> str:
+    """Gọi mô hình siêu trí tuệ NVIDIA NIM (Nemotron-3-Ultra-550B) để Agent 2 chạy độc lập 100% tài nguyên."""
+    import requests
+    url = "https://integrate.api.nvidia.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {nvidia_key}",
+        "Content-Type": "application/json"
+    }
+    candidate_models = [
+        model,
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "nvidia/nemotron-3.5-lightning-30b-a3b"
+    ]
+    models_to_try = []
+    for m in candidate_models:
+        if m and m not in models_to_try:
+            models_to_try.append(m)
+
+    for m in models_to_try:
+        payload = {
+            "model": m,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": full_prompt}
+            ],
+            "temperature": 0.2,
+            "max_tokens": 2048
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=35)
+            if resp.status_code == 200:
+                data = resp.json()
+                msg = data.get("choices", [{}])[0].get("message", {})
+                ans = msg.get("content")
+                if ans and ans.strip():
+                    return ans.strip()
+                reasoning = msg.get("reasoning_content")
+                if reasoning and reasoning.strip():
+                    return reasoning.strip()
+        except Exception:
+            continue
+    return ""
+
+
+def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon", uploaded_file=None, nvidia_api_key: str = "") -> str:
+    """Gọi Kỹ sư Trưởng AI tư vấn kỹ thuật và bóc tách vật tư tận dụng kho (Ưu tiên NVIDIA NIM Ultra 550B độc lập tài nguyên, dự phòng Google Gemini)."""
     import google.generativeai as genai
     from PIL import Image
-
-    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
-    if not effective_key:
-        return "⚠️ Chưa cấu hình Google AI API Key trong hệ thống. Vui lòng nhập API Key ở thanh bên trái để kích hoạt Kỹ sư Trưởng AI."
-
-    genai.configure(api_key=effective_key)
 
     # Trích xuất 475 vật tư thành context súc tích
     inventory_lines = []
@@ -819,6 +863,22 @@ YÊU CẦU KỸ THUẬT / CÔNG TRÌNH / BẢN VẼ GIA CÔNG CỦA KỸ SƯ:
 
 Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư (đọc kỹ thông số bản vẽ/hình ảnh đính kèm nếu có), đặc biệt ưu tiên TẬN DỤNG TỐI ĐA các vật tư có sẵn trong danh mục kho trên trước khi kiến nghị mua mới!
 """
+
+    # 1. ƯU TIÊN ĐẶC BIỆT: ĐỘNG CƠ NVIDIA NIM (Agent 2 chạy độc lập 100%, không nghẽn với Agent 1)
+    effective_nv_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY", "") or "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"
+    if uploaded_file is None and effective_nv_key:
+        nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)
+        if nv_res:
+            return f"🟢 **[ĐỘNG CƠ ĐỘC LẬP: NVIDIA NIM ULTRA 550B]**\n\n{nv_res}"
+
+    # 2. DỰ PHÒNG HOẶC PHÂN TÍCH BẢN VẼ ĐÍNH KÈM: GOOGLE GEMINI
+    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
+    if not effective_key:
+        if effective_nv_key:
+            return "⚠️ Đang kết nối NVIDIA NIM nhưng gặp sự cố mạng tạm thời. Vui lòng bấm thử lại."
+        return "⚠️ Chưa cấu hình Google AI API Key trong hệ thống. Vui lòng nhập API Key ở thanh bên trái để kích hoạt Kỹ sư Trưởng AI."
+
+    genai.configure(api_key=effective_key)
 
     content_parts = [full_prompt]
     if uploaded_file is not None:
@@ -854,7 +914,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 # ═══════════════════════════════════════════════════════════════════════════
 # STREAMLIT UI: AGENT 2 — SINGLE-VIEWPORT INDUSTRIAL DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════
-def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is_split: bool = False):
+def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is_split: bool = False, nvidia_api_key: str = ""):
     import streamlit as st
     import html as py_html
     import time
@@ -1288,7 +1348,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:12px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
-                <span style="font-size:0.65rem; background:#0071E3; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:600;">ARGON 4</span>
+                <span style="font-size:0.65rem; background:#10B981; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM 550B</span>
             </div>
             <div style="font-size:0.73rem; color:#64748B; margin-top:3px; line-height:1.35;">
                 Tư vấn kỹ thuật • Bóc tách bản vẽ / công trình • Tận dụng kho sẵn có
@@ -1323,7 +1383,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                             df_th=df_th,
                             api_key=api_key,
                             model_name=model_name,
-                            uploaded_file=uploaded_doc
+                            uploaded_file=uploaded_doc,
+                            nvidia_api_key=nvidia_api_key
                         )
                         st.session_state["agent2_ai_response"] = ans
                         st.session_state["agent2_ai_last_prompt"] = prompt_text
