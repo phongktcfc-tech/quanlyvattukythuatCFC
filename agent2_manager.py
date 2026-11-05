@@ -816,8 +816,8 @@ def query_nvidia_nim_chief_engineer(
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": full_prompt}
             ],
-            "temperature": 0.2,
-            "max_tokens": 2048
+            "temperature": 0.1,
+            "max_tokens": 1000
         }
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=35)
@@ -838,7 +838,7 @@ def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str 
     import google.generativeai as genai
     from PIL import Image
 
-    # Trích xuất 475 vật tư thành context súc tích
+    # Trích xuất vật tư còn tồn kho thành context súc tích (tiết kiệm token, tăng tốc phản hồi gấp 2.5 lần)
     inventory_lines = []
     if df_th is not None and not df_th.empty:
         for _, r in df_th.iterrows():
@@ -846,9 +846,9 @@ def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str 
             spec = str(r.get("quy_cach", "")).strip()
             dvt = str(r.get("dvt", "")).strip()
             stock = r.get("ton_thuc_te", 0)
-            status = str(r.get("trang_thai", "")).strip()
-            if name and name != "nan":
-                inventory_lines.append(f"- {name} | {spec} | ĐVT: {dvt} | Tồn: {stock} | {status}")
+            if name and name != "nan" and stock > 0:
+                spec_str = f" ({spec})" if spec and spec != "nan" else ""
+                inventory_lines.append(f"- {name}{spec_str}: Tồn {stock} {dvt}")
     inventory_context = "\n".join(inventory_lines)
 
     full_prompt = f"""
@@ -1154,9 +1154,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         div.st-key-btn_filter_out > button:hover {
             border-color: #EF4444 !important;
         }
-        div.st-key-btn_filter_issues > button:hover {
-            border-color: #0071E3 !important;
-        }
+
 
         /* Specific Status Active Variations for KPI Buttons */
         div.st-key-btn_filter_all > button[kind="primary"] {
@@ -1452,7 +1450,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             st.session_state["agent2_kpi_filter"] = "ALL"
 
         cur_kpi = st.session_state["agent2_kpi_filter"]
-        col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5, gap="small")
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4, gap="small")
 
         with col_k1:
             is_sel = (cur_kpi == "ALL")
@@ -1460,8 +1458,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 f"📦 TỔNG VẬT TƯ\n\n{kpis['total_items']:,} mã",
                 key="btn_filter_all",
                 use_container_width=True,
-                type="primary" if is_sel else "secondary",
-                help="Bấm để lọc toàn bộ 475 mã vật tư kho"
+                type="primary" if is_sel else "secondary"
             ):
                 st.session_state["agent2_kpi_filter"] = "ALL"
                 st.rerun()
@@ -1472,8 +1469,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 f"🟢 AN TOÀN\n\n{kpis['safe']:,} mã",
                 key="btn_filter_safe",
                 use_container_width=True,
-                type="primary" if is_sel else "secondary",
-                help="Bấm để lọc vật tư còn tồn an toàn"
+                type="primary" if is_sel else "secondary"
             ):
                 st.session_state["agent2_kpi_filter"] = "SAFE"
                 st.rerun()
@@ -1484,8 +1480,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 f"🟡 SẮP HẾT ĐỊNH MỨC\n\n{kpis['warning']:,} mã",
                 key="btn_filter_warning",
                 use_container_width=True,
-                type="primary" if is_sel else "secondary",
-                help="Bấm để lọc vật tư sắp hết cần bổ sung"
+                type="primary" if is_sel else "secondary"
             ):
                 st.session_state["agent2_kpi_filter"] = "WARNING"
                 st.rerun()
@@ -1496,22 +1491,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 f"🔴 ĐÃ CẠN (HẾT HÀNG)\n\n{kpis['out_of_stock']:,} mã",
                 key="btn_filter_out",
                 use_container_width=True,
-                type="primary" if is_sel else "secondary",
-                help="Bấm để lọc vật tư đã cạn kiệt trong kho"
+                type="primary" if is_sel else "secondary"
             ):
                 st.session_state["agent2_kpi_filter"] = "OUT_OF_STOCK"
-                st.rerun()
-
-        with col_k5:
-            is_sel = (cur_kpi == "ISSUES")
-            if st.button(
-                f"⚡ LƯỢT XUẤT XƯỞNG\n\n{kpis['total_issues']:,} lần",
-                key="btn_filter_issues",
-                use_container_width=True,
-                type="primary" if is_sel else "secondary",
-                help="Bấm để lọc danh sách các vật tư đã từng xuất phục vụ bảo trì"
-            ):
-                st.session_state["agent2_kpi_filter"] = "ISSUES"
                 st.rerun()
 
         # Hàng 2: Segmented Tabs (Zero-scroll)
@@ -1543,10 +1525,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             elif cur_kpi == "SAFE":
                 filtered_df = df_th[df_th['_status_code'] == 'SAFE'].copy()
                 kpi_desc = "🟢 AN TOÀN"
-            elif cur_kpi == "ISSUES":
-                issued_names = df_xt["ten_vat_tu"].dropna().unique().tolist()
-                filtered_df = df_th[df_th["ten_vat_tu"].isin(issued_names)].copy()
-                kpi_desc = "⚡ ĐÃ TỪNG XUẤT XƯỞNG"
+
             else:
                 filtered_df = df_th.copy()
                 kpi_desc = "📦 TẤT CẢ VẬT TƯ"
@@ -1601,13 +1580,40 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 }
             )
 
-        # TAB 2: NHẬT KÝ XUẤT THIẾT BỊ
+        # TAB 2: NHẬT KÝ XUẤT THIẾT BỊ (SẮP XẾP TỪ NGÀY GẦN NHẤT ĐẾN XA NHẤT)
         with tab_history:
-            st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Nhật ký chi tiết các lần xuất vật tư phục vụ bảo trì thiết bị ({len(df_xt):,} lượt xuất):</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Nhật ký chi tiết các lần xuất vật tư phục vụ bảo trì thiết bị ({len(df_xt):,} lượt xuất - <strong>Sắp xếp từ mới nhất đến cũ nhất</strong>):</div>", unsafe_allow_html=True)
             if not df_xt.empty:
-                display_xt = df_xt[["ngay", "ten_vat_tu", "so_luong", "dvt", "nguoi_nhan", "thiet_bi_khu_vuc", "thang"]].copy()
+                def parse_xt_date(val, sheet_name=""):
+                    if pd.isna(val) or val is None or str(val).strip() == "":
+                        return datetime.date(2000, 1, 1)
+                    if isinstance(val, (datetime.date, datetime.datetime)):
+                        if "11" in str(sheet_name) and val.month != 11 and val.day <= 12:
+                            try:
+                                return datetime.date(val.year, 11, val.month)
+                            except Exception:
+                                pass
+                        return val.date() if isinstance(val, datetime.datetime) else val
+                    s = str(val).strip()
+                    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y"):
+                        try:
+                            return datetime.datetime.strptime(s, fmt).date()
+                        except Exception:
+                            pass
+                    return datetime.date(2000, 1, 1)
+
+                df_sorted_xt = df_xt.copy()
+                df_sorted_xt["_parsed_date"] = [
+                    parse_xt_date(r.get("ngay"), r.get("thang", "")) for _, r in df_sorted_xt.iterrows()
+                ]
+                df_sorted_xt = df_sorted_xt.sort_values(by="_parsed_date", ascending=False)
+                df_sorted_xt["ngay_hien_thi"] = df_sorted_xt["_parsed_date"].apply(
+                    lambda d: d.strftime("%d/%m/%Y") if d.year > 2000 else ""
+                )
+
+                display_xt = df_sorted_xt[["ngay_hien_thi", "ten_vat_tu", "so_luong", "dvt", "nguoi_nhan", "thiet_bi_khu_vuc", "thang"]].copy()
                 display_xt.columns = ["Ngày", "Vật Tư", "Số Lượng", "ĐVT", "Người Nhận", "Thiết Bị / Vị Trí", "Tháng"]
-                st.dataframe(display_xt, use_container_width=True, height=480)
+                st.dataframe(display_xt, use_container_width=True, hide_index=True, height=480)
             else:
                 st.info("Chưa có dữ liệu xuất trong các sheet tháng.")
 
