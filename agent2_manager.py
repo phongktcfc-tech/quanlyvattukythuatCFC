@@ -789,9 +789,9 @@ def query_nvidia_nim_chief_engineer(
     full_prompt: str,
     system_instruction: str,
     nvidia_key: str = "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",
-    model: str = "nvidia/nemotron-3-ultra-550b-a55b"
+    model: str = "google/diffusiongemma-26b-a4b-it"
 ) -> str:
-    """Gọi mô hình siêu trí tuệ NVIDIA NIM (Nemotron-3-Ultra-550B) để Agent 2 chạy độc lập 100% tài nguyên."""
+    """Gọi mô hình AI NVIDIA NIM chuyên gia bóc tách kỹ thuật tiếng Việt chuẩn 100% cho Agent 2."""
     import requests
     url = "https://integrate.api.nvidia.com/v1/chat/completions"
     headers = {
@@ -800,9 +800,9 @@ def query_nvidia_nim_chief_engineer(
     }
     candidate_models = [
         model,
-        "nvidia/nemotron-3-ultra-550b-a55b",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-        "nvidia/nemotron-3.5-lightning-30b-a3b"
+        "google/diffusiongemma-26b-a4b-it",
+        "google/gemma-3-12b-it",
+        "google/gemma-3-4b-it"
     ]
     models_to_try = []
     for m in candidate_models:
@@ -825,11 +825,9 @@ def query_nvidia_nim_chief_engineer(
                 data = resp.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
                 ans = msg.get("content")
-                if ans and ans.strip():
+                # Bắt buộc nội dung trả về phải là kết quả tiếng Việt chính thức, không lấy reasoning tiếng Anh
+                if ans and len(ans.strip()) > 30:
                     return ans.strip()
-                reasoning = msg.get("reasoning_content")
-                if reasoning and reasoning.strip():
-                    return reasoning.strip()
         except Exception:
             continue
     return ""
@@ -869,7 +867,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
     if uploaded_file is None and effective_nv_key:
         nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)
         if nv_res:
-            return f"🟢 **[ĐỘNG CƠ ĐỘC LẬP: NVIDIA NIM ULTRA 550B]**\n\n{nv_res}"
+            return f"🟢 **[ĐỘNG CƠ ĐỘC LẬP: NVIDIA NIM AI]**\n\n{nv_res}"
 
     # 2. DỰ PHÒNG HOẶC PHÂN TÍCH BẢN VẼ ĐÍNH KÈM: GOOGLE GEMINI
     effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
@@ -1348,7 +1346,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:12px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
-                <span style="font-size:0.65rem; background:#10B981; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM 550B</span>
+                <span style="font-size:0.65rem; background:#10B981; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM AI</span>
             </div>
             <div style="font-size:0.73rem; color:#64748B; margin-top:3px; line-height:1.35;">
                 Tư vấn kỹ thuật • Bóc tách bản vẽ / công trình • Tận dụng kho sẵn có
