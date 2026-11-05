@@ -854,7 +854,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 # ═══════════════════════════════════════════════════════════════════════════
 # STREAMLIT UI: AGENT 2 — SINGLE-VIEWPORT INDUSTRIAL DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════
-def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
+def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is_split: bool = False):
     import streamlit as st
     import html as py_html
     import time
@@ -862,10 +862,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
 
     target_email = "linhb1702638@gmail.com"
 
-    # Khóa viewport 100% Zero-Scroll chuẩn kỹ thuật & Apple Store UI Theme
-    st.markdown("""
-    <style>
-        /* 1. Canvas & Global Typography */
+    viewport_lock = """
         html, body, [data-testid="stAppViewContainer"], .main {
             overflow: hidden !important;
             height: 100dvh !important;
@@ -877,7 +874,17 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
             color: #0F172A !important;
         }
+    """ if not is_split else """
+        [data-testid="stAppViewContainer"], .main {
+            background-color: #FAFAFB !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
+            color: #0F172A !important;
+        }
+    """
 
+    # Khóa viewport 100% Zero-Scroll chuẩn kỹ thuật (khi chạy đơn độc) & Apple Store UI Theme
+    st.markdown("<style>" + viewport_lock + """
+        /* 1. Canvas & Global Typography */
         [data-testid="stHeader"] {
             display: none !important;
         }
@@ -1237,7 +1244,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash"):
     kpis = get_inventory_kpis(df_th, df_xt)
 
     # 3. Main Workspace: Cột Trái (290px) + Cột Phải (Flex-1)
-    col_left, col_right = st.columns([1.1, 3.4], gap="small")
+    col_left, col_right = st.columns([1, 1.6], gap="small") if is_split else st.columns([1.1, 3.4], gap="small")
 
     # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
