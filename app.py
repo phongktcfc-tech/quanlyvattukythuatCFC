@@ -1927,11 +1927,7 @@ with st.sidebar:
     st.markdown("### 🤖 PHÂN HỆ ĐANG CHỌN")
     active_name = st.session_state.get("main_agent_segmented_ui") or st.session_state.get("current_main_agent", "🤖 AGENT 1")
     is_ag2 = "AGENT 2" in str(active_name)
-    is_split = "SONG SONG" in str(active_name)
-    if is_split:
-        status_color = "#0071E3"
-        status_label = "🔀 Song Song (Làm 2 việc cùng lúc)"
-    elif is_ag2:
+    if is_ag2:
         status_color = "#10B981"
         status_label = "⚡ Agent 2: Theo dõi kho xưởng Live"
     else:
@@ -2010,35 +2006,71 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# THANH ĐIỀU HÀNH TRUNG TÂM: ĐIỀU PHỐI ĐA NHIỆM & HOẠT ĐỘNG SONG SONG
+# THANH ĐIỀU HÀNH TRUNG TÂM: 2 PHÂN HỆ ĐỘC LẬP & XỬ LÝ NỀN (BACKGROUND THREADING)
 # ═══════════════════════════════════════════════════════════════════════════
 MODE_AGENT1 = "🤖 AGENT 1: ĐỐI CHIẾU KHO GỐC"
 MODE_AGENT2 = "⚡ AGENT 2: THEO DÕI KHO XƯỞNG (LIVE)"
-MODE_SPLIT = "🔀 CHẾ ĐỘ SONG SONG (LÀM 2 VIỆC CÙNG LÚC)"
+AGENT_OPTIONS = [MODE_AGENT1, MODE_AGENT2]
 
-AGENT_OPTIONS = [MODE_AGENT1, MODE_AGENT2, MODE_SPLIT]
+# Khởi tạo trạng thái tiến trình ngầm cho Agent 1
+if "a1_is_running" not in st.session_state:
+    st.session_state.a1_is_running = False
+if "a1_task_completed" not in st.session_state:
+    st.session_state.a1_task_completed = False
+if "a1_results" not in st.session_state:
+    st.session_state.a1_results = None
+if "a1_progress_val" not in st.session_state:
+    st.session_state.a1_progress_val = 0.0
+if "a1_status_msg" not in st.session_state:
+    st.session_state.a1_status_msg = ""
+if "a1_task_state" not in st.session_state:
+    st.session_state["a1_task_state"] = {
+        "is_running": False,
+        "task_completed": False,
+        "results": None,
+        "progress_val": 0.0,
+        "status_msg": "",
+        "total_docs": 0,
+        "file_path": "",
+        "file_name": "",
+        "error": None
+    }
 
-# Hỗ trợ URL Query Parameters (?agent=1, ?agent=2, ?agent=both) để mở tab/cửa sổ độc lập
-qp_agent = st.query_params.get("agent", "").strip().lower()
+# Đồng bộ trạng thái từ worker thread vào session state
+ts_now = st.session_state["a1_task_state"]
+st.session_state.a1_is_running = ts_now.get("is_running", False)
+st.session_state.a1_task_completed = ts_now.get("task_completed", False)
+st.session_state.a1_results = ts_now.get("results")
+st.session_state.a1_progress_val = ts_now.get("progress_val", 0.0)
+st.session_state.a1_status_msg = ts_now.get("status_msg", "")
+
+if st.session_state.a1_task_completed and st.session_state.a1_results and not st.session_state.get("reconciled_results"):
+    st.session_state["reconciled_results"] = st.session_state.a1_results
+    st.session_state["reconciled_total_docs"] = ts_now.get("total_docs", 1)
+    st.session_state["reconciled_file_path"] = ts_now.get("file_path", "")
+    st.session_state["reconciled_file_name"] = ts_now.get("file_name", "")
+
+# Hỗ trợ URL Query Parameters (?tab=agent1, ?tab=agent2)
+qp_tab = (st.query_params.get("tab") or st.query_params.get("agent") or "").strip().lower()
 if "current_main_agent" not in st.session_state:
-    if qp_agent in ["2", "agent2"]:
+    if qp_tab in ["agent2", "2"]:
         st.session_state["current_main_agent"] = MODE_AGENT2
-    elif qp_agent in ["both", "dual", "split", "all"]:
-        st.session_state["current_main_agent"] = MODE_SPLIT
     else:
         st.session_state["current_main_agent"] = MODE_AGENT1
 
 current_agent_active = st.session_state.get("main_agent_segmented_ui") or st.session_state.get("current_main_agent", MODE_AGENT1)
+if current_agent_active not in AGENT_OPTIONS:
+    current_agent_active = MODE_AGENT1
+
 is_agent2_only = (current_agent_active == MODE_AGENT2)
 
-# Thanh điều hướng và nút mở cửa sổ riêng
-col_agent_bar, col_quick_links = st.columns([4.6, 2.4], vertical_alignment="center")
+col_agent_bar, col_quick_links = st.columns([5.0, 2.0], vertical_alignment="center")
 
 with col_agent_bar:
     selected_agent = st.segmented_control(
         "LỰA CHỌN PHÂN HỆ ĐIỀU HÀNH:",
         options=AGENT_OPTIONS,
-        default=current_agent_active if current_agent_active in AGENT_OPTIONS else MODE_AGENT1,
+        default=current_agent_active,
         key="main_agent_segmented_ui",
         label_visibility="collapsed"
     )
@@ -2051,22 +2083,242 @@ with col_quick_links:
     st.markdown(f"""
     <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px;">
         <span style="font-size:0.73rem; color:#64748B;">Mở độc lập:</span>
-        <a href="{base_url}/?agent=1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#EFF6FF; color:#0071E3; border:1px solid rgba(0,113,227,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
+        <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#EFF6FF; color:#0071E3; border:1px solid rgba(0,113,227,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
             🤖 Agent 1 ↗
         </a>
-        <a href="{base_url}/?agent=2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#ECFDF5; color:#10B981; border:1px solid rgba(16,185,129,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
+        <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#ECFDF5; color:#10B981; border:1px solid rgba(16,185,129,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
             ⚡ Agent 2 ↗
         </a>
     </div>
     """, unsafe_allow_html=True)
 
-# Trợ lý Cơ-Điện popover chỉ hiển thị khi có Agent 1
+# Trợ lý Cơ-Điện popover (chỉ hiển thị tại Agent 1)
 if not is_agent2_only:
     with st.sidebar:
         with st.popover("💬 Trợ lý Cơ-Điện (Master)", use_container_width=True):
             render_mini_chat_assistant(df_master, api_key, model_name)
 
 st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AGENT 1: BACKGROUND WORKER ENGINE (NON-BLOCKING THREADED PROCESSING)
+# ═══════════════════════════════════════════════════════════════════════════
+def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_state):
+    """
+    Tiến trình chạy ngầm độc lập cho Agent 1.
+    Chạy trên background thread, không phụ thuộc UI Streamlit để tránh bị ngắt quãng khi người dùng chuyển sang Agent 2.
+    """
+    try:
+        task_state["is_running"] = True
+        task_state["task_completed"] = False
+        task_state["results"] = None
+        task_state["error"] = None
+
+        total_items = len(all_queue)
+        task_state["total_docs"] = total_items
+        raw_collected_results = []
+
+        for idx, item in enumerate(all_queue):
+            pct = idx / max(total_items, 1)
+            task_state["progress_val"] = round(pct * 0.85, 2)
+            task_state["status_msg"] = f"🤖 [{idx + 1}/{total_items}] Đang phân tích chứng từ: {item['name']}..."
+
+            save_dest = DAILY_DIR / item["name"]
+            try:
+                with open(save_dest, "wb") as f:
+                    f.write(item["bytes"])
+            except Exception:
+                pass
+
+            try:
+                # ── EXCEL ──
+                if item["type"] == "excel":
+                    df_in = pd.read_excel(io.BytesIO(item["bytes"]))
+                    in_text = df_in.to_string(index=False)
+                    cands = build_candidates_for_items(in_text, df_master)
+                    prompt = (
+                        f"DANH SÁCH VẬT TƯ CHỨNG TỪ '{item['name']}':\n{in_text}\n\n"
+                        f"ỨNG VIÊN KHO:\n{cands}\n\n"
+                        f"Trả JSON đối chiếu theo quy định."
+                    )
+                    response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+
+                # ── PDF ──
+                elif item["type"] == "pdf":
+                    pdf_txt = ""
+                    if HAS_FITZ:
+                        doc = fitz.open(stream=item["bytes"], filetype="pdf")
+                        pdf_txt = "\n".join(page.get_text() for page in doc)
+                        doc.close()
+
+                    if pdf_txt.strip():
+                        cands = build_candidates_for_items(pdf_txt, df_master)
+                        prompt = (
+                            f"NỘI DUNG VĂN BẢN PDF '{item['name']}':\n{pdf_txt}\n\n"
+                            f"ỨNG VIÊN KHO:\n{cands}\n\n"
+                            f"Bóc tách vật tư và đối chiếu kho. Trả JSON đối chiếu."
+                        )
+                        response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                    else:
+                        pix = render_pdf_first_page_as_image(item["bytes"])
+                        if pix:
+                            cands = build_candidates_for_items(item["name"], df_master)
+                            parts = [
+                                f"CHỨNG TỪ QUÉT DẠNG ẢNH TỪ PDF '{item['name']}'.\n"
+                                f"ỨNG VIÊN KHO GẦN NHẤT:\n{cands}\n\n"
+                                f"Bóc tách danh mục vật tư, tên gọi, quy cách, ĐVT, số lượng và trả JSON đối chiếu.",
+                                {"mime_type": "image/png", "data": pix}
+                            ]
+                            response = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                        else:
+                            continue
+
+                # ── HÌNH ẢNH ──
+                else:
+                    mime = item.get("mime", "image/png")
+                    cands = build_candidates_for_items(item["name"], df_master)
+                    parts = [
+                        f"CHỨNG TỪ VẬT TƯ DẠNG ẢNH '{item['name']}'.\n"
+                        f"ỨNG VIÊN KHO GẦN NHẤT:\n{cands}\n\n"
+                        f"Bóc tách danh sách vật tư dạng bảng gồm tên, quy cách, ĐVT, số lượng. "
+                        f"Chuẩn hóa tên gọi và quy cách kỹ thuật. "
+                        f"Đối chiếu với kho 1.318 mã để xác định xem là KHỚP mã cũ hay đề xuất MỚI dạng số 0x.xxxx. "
+                        f"Trả kết quả trong khối JSON thuần túy.",
+                        {"mime_type": mime, "data": item["bytes"]}
+                    ]
+                    first_res = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                    ai_txt = first_res.text
+
+                    prelim_data = parse_json_from_response(ai_txt)
+                    cand_lines = []
+                    if prelim_data and isinstance(prelim_data, list):
+                        for p_row in prelim_data:
+                            p_name = p_row.get("ten_trich_xuat", "") or ""
+                            p_spec = p_row.get("quy_cach", "") or ""
+                            p_full = f"{p_name} {p_spec}".strip()
+                            cands_str = find_candidates(p_full, df_master, corpus, top_k=4)
+                            if cands_str:
+                                cand_lines.append(f"• Vật tư '{p_name}' (Quy cách: '{p_spec}'):\n{cands_str}")
+                    else:
+                        extracted_names = re.findall(r'"ten_trich_xuat"\s*:\s*"([^"]+)"', ai_txt)
+                        for name in extracted_names:
+                            cands_str = find_candidates(name, df_master, corpus, top_k=4)
+                            if cands_str:
+                                cand_lines.append(f"• '{name}':\n{cands_str}")
+
+                    if cand_lines:
+                        followup_prompt = (
+                            f"DANH SÁCH ỨNG VIÊN KHO GỐC (ĐÃ ĐỐI CHIẾU THÔNG MINH THEO CHỦNG LOẠI & QUY CÁCH KỸ THUẬT):\n"
+                            + "\n\n".join(cand_lines)
+                            + "\n\nQUY TẮC BẮT BUỘC KHI ĐỐI CHIẾU:\n"
+                            "1. Quy đổi tương đương chuẩn công nghiệp áp dụng cho TẤT CẢ VẬT TƯ.\n"
+                            "2. Khi danh sách ứng viên có mã kho cùng chủng loại và quy cách/thông số tương đương: "
+                            "BẮT BUỘC KHỚP MÃ CŨ. TUYỆT ĐỐI KHÔNG sinh mã mới khi kho đã có sẵn!\n"
+                            "3. Chỉ cấp mã MỚI (0x.xxxx) khi kho hoàn toàn không có vật tư cùng chủng loại và quy cách.\n"
+                            "Hãy hoàn thiện bảng JSON đối chiếu chính xác nhất."
+                        )
+                        response = generate_content_safe(f"{ai_txt}\n\n{followup_prompt}", preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                    else:
+                        response = first_res
+
+                doc_results = parse_json_from_response(response.text)
+                if doc_results:
+                    for row in doc_results:
+                        row["chung_tu_goc"] = item["name"]
+                        raw_collected_results.append(row)
+
+            except Exception as item_err:
+                pass
+
+            time.sleep(0.5)
+
+        task_state["progress_val"] = 0.90
+        task_state["status_msg"] = "🔄 Đang đối chiếu kho master 1.318 mã & cấp mã đề xuất..."
+
+        if raw_collected_results:
+            consolidated_results = []
+            needed_count = len(raw_collected_results) + 10
+            next_03_codes = allocate_next_codes(df_master, needed_count, group="03")
+            next_02_codes = allocate_next_codes(df_master, needed_count, group="02")
+            idx_03 = 0
+            idx_02 = 0
+
+            for i, r in enumerate(raw_collected_results, 1):
+                r["stt"] = i
+                t_goc = r.get("ten_trich_xuat", "") or ""
+                t_chuan = r.get("ten_chuan_hoa", "") or ""
+                q_cach = r.get("quy_cach", "") or ""
+                search_str = f"{t_goc} {q_cach}".strip()
+
+                alias_match = match_from_alias_memory(t_goc)
+                if not alias_match and t_chuan:
+                    alias_match = match_from_alias_memory(t_chuan)
+
+                if alias_match:
+                    target_code = alias_match.get("target_code", "")
+                    target_name = alias_match.get("target_name", "")
+                    r["trang_thai"] = "KHỚP"
+                    r["ma_vat_tu_cu"] = target_code
+                    r["ten_trong_kho"] = target_name
+                    r["ton_kho"] = 0
+                    r["ma_de_xuat"] = "-"
+                    r["goi_y_tuong_duong"] = f"{target_code} ({target_name} — Trí nhớ đã học)"
+                    r["ghi_chu"] = f"✓ Khớp 100% từ Trí nhớ đã học (Mã: {target_code})"
+                    consolidated_results.append(r)
+                    continue
+
+                candidates = get_candidate_matches(search_str, corpus, top_k=3)
+                r["candidates"] = candidates
+                best = candidates[0] if candidates else None
+
+                sim_items = []
+                for c in candidates:
+                    ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
+                    sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
+                r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
+
+                if best and best["score"] >= 95 and (r.get("trang_thai") != "KHỚP" or not r.get("ma_vat_tu_cu") or (best["score"] >= 98 and r.get("ma_vat_tu_cu") != best["ma"])):
+                    r["trang_thai"] = "KHỚP"
+                    r["ma_vat_tu_cu"] = best["ma"]
+                    r["ten_trong_kho"] = best["ten"]
+                    r["ton_kho"] = best["ton"]
+                    r["ma_de_xuat"] = "-"
+                    r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')})"
+
+                elif r.get("trang_thai") == "KHỚP":
+                    r["ma_de_xuat"] = "-"
+                    old_code = r.get("ma_vat_tu_cu", "") or ""
+                    if not r.get("ghi_chu"):
+                        r["ghi_chu"] = f"✓ Khớp mã kho {old_code}"
+
+                else:
+                    full_kw = (t_goc + " " + t_chuan + " " + q_cach).lower()
+                    if any(w in full_kw for w in ["xi măng", "cát", "đá 1*", "đá 4*", "gạch", "vôi bột", "bê tông tươi"]):
+                        r["ma_de_xuat"] = next_02_codes[idx_02]
+                        idx_02 += 1
+                    else:
+                        r["ma_de_xuat"] = next_03_codes[idx_03]
+                        idx_03 += 1
+
+                    if not r.get("ghi_chu"):
+                        r["ghi_chu"] = f"Chưa có trong kho. Đề xuất cấp mã mới {r['ma_de_xuat']}"
+
+                consolidated_results.append(r)
+
+            batch_file = save_batch_report_excel(consolidated_results, f"{total_items}_ChungTu")
+            task_state["file_path"] = str(batch_file)
+            task_state["file_name"] = batch_file.name
+            task_state["results"] = consolidated_results
+            task_state["progress_val"] = 1.0
+            task_state["status_msg"] = f"✓ Hoàn tất đối chiếu toàn bộ {total_items} chứng từ!"
+            task_state["task_completed"] = True
+
+    except Exception as e:
+        task_state["error"] = str(e)
+        task_state["status_msg"] = f"Lỗi xử lý: {str(e)}"
+    finally:
+        task_state["is_running"] = False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2213,214 +2465,41 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ({len(all_queue)} CHỨNG TỪ)", type="primary", use_container_width=True):
+            ts_live = st.session_state["a1_task_state"]
+            if ts_live.get("is_running", False):
+                st.markdown("""
+                <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:10px; padding:10px 14px; margin-bottom:10px;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#1E40AF;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
+                    <div style="font-size:0.75rem; color:#3B82F6; margin-top:2px;">
+                        Tiến trình được bảo vệ độc lập trong background worker. Bạn có thể tự do chuyển sang Agent 2 hoặc các chức năng khác mà không lo bị gián đoạn!
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.progress(ts_live.get("progress_val", 0.05))
+                st.caption(f"Trạng thái: **{ts_live.get('status_msg', 'Đang xử lý...')}**")
+                time.sleep(1)
+                st.rerun()
+
+            elif st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ({len(all_queue)} CHỨNG TỪ)", type="primary", use_container_width=True):
                 if not api_key:
                     st.error("⛔ Vui lòng nhập Google AI Key tại sidebar bên trái!")
-                    st.stop()
+                else:
+                    ts_live["is_running"] = True
+                    ts_live["task_completed"] = False
+                    ts_live["results"] = None
+                    ts_live["error"] = None
+                    ts_live["progress_val"] = 0.05
+                    ts_live["status_msg"] = f"Bắt đầu khởi động background worker cho {len(all_queue)} chứng từ..."
+                    st.session_state["reconciled_results"] = None
 
-                corpus = build_search_corpus(df_master)
-                progress_bar = st.progress(0.0)
-                status_box = st.empty()
-
-                raw_collected_results = []
-                total_items = len(all_queue)
-
-                for idx, item in enumerate(all_queue):
-                    pct = (idx) / total_items
-                    progress_bar.progress(pct)
-                    status_box.markdown(f"🤖 **[{idx + 1}/{total_items}]** Đang phân tích chứng từ: `{item['name']}`...")
-
-                    save_dest = DAILY_DIR / item["name"]
-                    with open(save_dest, "wb") as f:
-                        f.write(item["bytes"])
-
-                    try:
-                        # ── EXCEL ──
-                        if item["type"] == "excel":
-                            df_in = pd.read_excel(io.BytesIO(item["bytes"]))
-                            in_text = df_in.to_string(index=False)
-                            cands = build_candidates_for_items(in_text, df_master)
-                            prompt = (
-                                f"DANH SÁCH VẬT TƯ CHỨNG TỪ '{item['name']}':\n{in_text}\n\n"
-                                f"ỨNG VIÊN KHO:\n{cands}\n\n"
-                                f"Trả JSON đối chiếu theo quy định."
-                            )
-                            response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
-
-                        # ── PDF ──
-                        elif item["type"] == "pdf":
-                            pdf_txt = ""
-                            if HAS_FITZ:
-                                doc = fitz.open(stream=item["bytes"], filetype="pdf")
-                                pdf_txt = "\n".join(page.get_text() for page in doc)
-                                doc.close()
-
-                            if pdf_txt.strip():
-                                cands = build_candidates_for_items(pdf_txt, df_master)
-                                prompt = (
-                                    f"NỘI DUNG PDF '{item['name']}':\n{pdf_txt}\n\n"
-                                    f"ỨNG VIÊN KHO:\n{cands}\n\n"
-                                    f"Trả JSON đối chiếu."
-                                )
-                                response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
-                            else:
-                                doc = fitz.open(stream=item["bytes"], filetype="pdf")
-                                imgs = [{"mime_type": "image/png", "data": page.get_pixmap(dpi=180).tobytes("png")} for page in doc]
-                                doc.close()
-                                parts = [
-                                    f"Đọc trích xuất tất cả vật tư kỹ thuật trong PDF '{item['name']}' và đối chiếu với kho 1.318 mã. Trả JSON theo quy định.",
-                                    *imgs
-                                ]
-                                response = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
-
-                        # ── HÌNH ẢNH ──
-                        elif item["type"] == "image":
-                            mime = "image/png" if item["ext"] == "png" else "image/jpeg"
-                            parts = [
-                                f"Đọc và bóc tách TOÀN BỘ danh sách vật tư từ phiếu giao hàng/hóa đơn '{item['name']}'. "
-                                f"Chuẩn hóa tên gọi và quy cách kỹ thuật. "
-                                f"Đối chiếu với kho 1.318 mã để xác định xem là KHỚP mã cũ hay đề xuất MỚI dạng số 0x.xxxx. "
-                                f"Trả kết quả trong khối JSON thuần túy.",
-                                {"mime_type": mime, "data": item["bytes"]}
-                            ]
-                            first_res = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
-                            ai_txt = first_res.text
-
-                            prelim_data = parse_json_from_response(ai_txt)
-                            cand_lines = []
-                            if prelim_data and isinstance(prelim_data, list):
-                                for p_row in prelim_data:
-                                    p_name = p_row.get("ten_trich_xuat", "") or ""
-                                    p_spec = p_row.get("quy_cach", "") or ""
-                                    p_full = f"{p_name} {p_spec}".strip()
-                                    cands_str = find_candidates(p_full, df_master, corpus, top_k=4)
-                                    if cands_str:
-                                        cand_lines.append(f"• Vật tư '{p_name}' (Quy cách: '{p_spec}'):\n{cands_str}")
-                            else:
-                                extracted_names = re.findall(r'"ten_trich_xuat"\s*:\s*"([^"]+)"', ai_txt)
-                                for name in extracted_names:
-                                    cands_str = find_candidates(name, df_master, corpus, top_k=4)
-                                    if cands_str:
-                                        cand_lines.append(f"• '{name}':\n{cands_str}")
-
-                            if cand_lines:
-                                followup_prompt = (
-                                    f"DANH SÁCH ỨNG VIÊN KHO GỐC (ĐÃ ĐỐI CHIẾU THÔNG MINH THEO CHỦNG LOẠI & QUY CÁCH KỸ THUẬT):\n"
-                                    + "\n\n".join(cand_lines)
-                                    + "\n\nQUY TẮC BẮT BUỘC KHI ĐỐI CHIẾU:\n"
-                                    "1. Quy đổi tương đương chuẩn công nghiệp áp dụng cho TẤT CẢ VẬT TƯ:\n"
-                                    "   - Cơ khí / Kim khí: '1,5ly' = '1.5mm'; '1m0' = '1m'; 'Lục giác M8x25' = 'Bu lông M8x25'; 'Tắc kê sắt 12x80' = 'Bu lông nở 12x80'.\n"
-                                    "   - Đường ống & Van: '1 inch' = 'phi 34' = 'DN25'; 'DN50' = 'phi 60' = '2 inch'; 'Co ren' = 'Cút'; 'Măng sông' = 'Nối ren'; 'Cà rá' = 'Lơ thu'.\n"
-                                    "   - Điện & Chiếu sáng: 'Khởi động từ MC-100a/150a' = 'Contactor 100A/150A'; 'Cầu dao tép/MCB' = 'Aptomat'; 'Đèn led 1m2' = 'Đèn led 1,2m'; 'Đèn âm trần 9W' = 'Bóng led 9w'.\n"
-                                    "   - Truyền động & Tiêu hao: 'Mỡ bôi trơn EP2' = 'Mỡ bò'; 'Dây curoa Bando B65' = 'Dây curoa B65'; 'Đá cắt 355' = 'Đá Cắt 350'; 'Bạc đạn' = 'Vòng bi'.\n"
-                                    "2. Khi danh sách ứng viên có mã kho cùng chủng loại và quy cách/thông số tương đương: "
-                                    "BẮT BUỘC KHỚP MÃ CŨ (trang_thai: 'KHỚP', ma_vat_tu_cu: mã kho tương ứng, ma_de_xuat: null). "
-                                    "TUYỆT ĐỐI KHÔNG sinh mã mới khi kho đã có sẵn!\n"
-                                    "3. Chỉ cấp mã MỚI (0x.xxxx) khi kho hoàn toàn không có vật tư cùng chủng loại và quy cách.\n"
-                                    "Hãy hoàn thiện bảng JSON đối chiếu chính xác nhất."
-                                )
-                                response = generate_content_safe(f"{ai_txt}\n\n{followup_prompt}", preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
-                            else:
-                                response = first_res
-
-                        doc_results = parse_json_from_response(response.text)
-                        if doc_results:
-                            for row in doc_results:
-                                row["chung_tu_goc"] = item["name"]
-                                raw_collected_results.append(row)
-
-                    except Exception as e:
-                        st.error(f"Lỗi khi xử lý `{item['name']}`: {e}")
-
-                    time.sleep(1)
-
-                progress_bar.progress(1.0)
-                status_box.success(f"✓ Hoàn tất đối chiếu toàn bộ {total_items} chứng từ!")
-
-                # ═══════════════════════════════════════════════════════════════
-                # HẬU XỬ LÝ CHUYÊN SÂU: GỢI Ý MÃ TƯƠNG ĐƯƠNG & CẤP MÃ 0x.xxxx DẠNG SỐ
-                # ═══════════════════════════════════════════════════════════════
-                if raw_collected_results:
-                    consolidated_results = []
-
-                    needed_count = len(raw_collected_results) + 10
-                    next_03_codes = allocate_next_codes(df_master, needed_count, group="03")
-                    next_02_codes = allocate_next_codes(df_master, needed_count, group="02")
-                    idx_03 = 0
-                    idx_02 = 0
-
-                    for i, r in enumerate(raw_collected_results, 1):
-                        r["stt"] = i
-                        t_goc = r.get("ten_trich_xuat", "") or ""
-                        t_chuan = r.get("ten_chuan_hoa", "") or ""
-                        q_cach = r.get("quy_cach", "") or ""
-                        search_str = f"{t_goc} {q_cach}".strip()
-
-                        # ── BƯỚC 1: KIỂM TRA ƯU TIÊN TỪ ĐIỂN ÁNH XẠ ĐÃ HỌC (PERSISTENT ALIAS MEMORY) ──
-                        alias_match = match_from_alias_memory(t_goc)
-                        if not alias_match and t_chuan:
-                            alias_match = match_from_alias_memory(t_chuan)
-
-                        if alias_match:
-                            target_code = alias_match.get("target_code", "")
-                            target_name = alias_match.get("target_name", "")
-                            r["trang_thai"] = "KHỚP"
-                            r["ma_vat_tu_cu"] = target_code
-                            r["ten_trong_kho"] = target_name
-                            r["ton_kho"] = 0
-                            r["ma_de_xuat"] = "-"
-                            r["goi_y_tuong_duong"] = f"{target_code} ({target_name} — Trí nhớ đã học)"
-                            r["ghi_chu"] = f"✓ Khớp 100% từ Trí nhớ đã học (Mã: {target_code})"
-                            consolidated_results.append(r)
-                            continue
-
-                        # ── BƯỚC 2: TÌM KIẾM ỨNG VIÊN KHO GỐC (THUẬT TOÁN ĐA THUỘC TÍNH: TÊN + QUY CÁCH + ĐẶC TÍNH KỸ THUẬT) ──
-                        candidates = get_candidate_matches(search_str, corpus, top_k=3)
-                        r["candidates"] = candidates
-                        best = candidates[0] if candidates else None
-
-                        # Gợi ý danh sách tương đương: Sắp xếp theo % giảm dần, tối đa 3 món gần nhất
-                        sim_items = []
-                        for c in candidates:
-                            ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
-                            sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
-                        r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
-
-                        # Khớp tự động: Chỉ tự động khớp kho khi độ trùng khớp chuẩn kỹ thuật >= 95%
-                        if best and best["score"] >= 95 and (r.get("trang_thai") != "KHỚP" or not r.get("ma_vat_tu_cu") or (best["score"] >= 98 and r.get("ma_vat_tu_cu") != best["ma"])):
-                            r["trang_thai"] = "KHỚP"
-                            r["ma_vat_tu_cu"] = best["ma"]
-                            r["ten_trong_kho"] = best["ten"]
-                            r["ton_kho"] = best["ton"]
-                            r["ma_de_xuat"] = "-"
-                            r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')})"
-
-                        elif r.get("trang_thai") == "KHỚP":
-                            r["ma_de_xuat"] = "-"
-                            old_code = r.get("ma_vat_tu_cu", "") or ""
-                            if not r.get("ghi_chu"):
-                                r["ghi_chu"] = f"✓ Khớp mã kho {old_code}"
-
-                        else:
-                            full_kw = (t_goc + " " + t_chuan + " " + q_cach).lower()
-                            if any(w in full_kw for w in ["xi măng", "cát", "đá 1*", "đá 4*", "gạch", "vôi bột", "bê tông tươi"]):
-                                r["ma_de_xuat"] = next_02_codes[idx_02]
-                                idx_02 += 1
-                            else:
-                                r["ma_de_xuat"] = next_03_codes[idx_03]
-                                idx_03 += 1
-
-                            if not r.get("ghi_chu"):
-                                r["ghi_chu"] = f"Chưa có trong kho. Đề xuất cấp mã mới {r['ma_de_xuat']}"
-
-                        consolidated_results.append(r)
-
-                    # Lưu vào session_state để hiển thị bền vững & không bị mất khi thao tác bộ lọc
-                    st.session_state["reconciled_results"] = consolidated_results
-                    st.session_state["reconciled_total_docs"] = total_items
-                    batch_file = save_batch_report_excel(consolidated_results, f"{total_items}_ChungTu")
-                    st.session_state["reconciled_file_path"] = str(batch_file)
-                    st.session_state["reconciled_file_name"] = batch_file.name
+                    queue_copy = list(all_queue)
+                    corpus = build_search_corpus(df_master)
+                    th = threading.Thread(
+                        target=run_agent1_background_worker,
+                        args=(queue_copy, df_master, corpus, model_name, ts_live),
+                        daemon=True
+                    )
+                    th.start()
                     st.rerun()
 
         # ═══════════════════════════════════════════════════════════════════════════
@@ -2870,38 +2949,13 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ĐIỀU PHỐI THI HÀNH: ĐỘC LẬP HOẶC SONG SONG CÙNG LÚC
+# ĐIỀU PHỐI THI HÀNH: AGENT 1 HOẶC AGENT 2 ĐỘC LẬP
 # ═══════════════════════════════════════════════════════════════════════════
 active_agent_now = st.session_state.get("main_agent_segmented_ui") or st.session_state.get("current_main_agent", MODE_AGENT1)
 
-if active_agent_now == MODE_SPLIT:
-    # CHẾ ĐỘ SONG SONG: Màn hình chia đôi 2 cột để làm 2 việc cùng lúc
-    col_ag1, col_ag2 = st.columns([1, 1], gap="medium")
-    with col_ag1:
-        st.markdown("""
-        <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:6px 12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:0.85rem; font-weight:700; color:#1E40AF;">🤖 AGENT 1: ĐỐI CHIẾU THÔNG TIN VẬT TƯ (KHO GỐC)</span>
-            <span style="font-size:0.72rem; color:#2563EB; font-weight:600;">KHO MASTER 1.410 MÃ</span>
-        </div>
-        """, unsafe_allow_html=True)
-        render_agent1_ui(df_master, api_key, model_name)
-    with col_ag2:
-        st.markdown("""
-        <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:6px 12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:0.85rem; font-weight:700; color:#065F46;">⚡ AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN</span>
-            <span style="font-size:0.72rem; color:#059669; font-weight:600;">LIVE SHEET 475 MÃ</span>
-        </div>
-        """, unsafe_allow_html=True)
-        import importlib
-        importlib.reload(agent2_manager)
-        agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=True)
-
-elif active_agent_now == MODE_AGENT2:
-    # CHẾ ĐỘ THUẦN AGENT 2 (TOÀN MÀN HÌNH WORKSTATION)
+if "AGENT 2" in str(active_agent_now):
     import importlib
     importlib.reload(agent2_manager)
     agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=False)
-
 else:
-    # CHẾ ĐỘ THUẦN AGENT 1 (TOÀN MÀN HÌNH ĐỐI CHIẾU)
     render_agent1_ui(df_master, api_key, model_name)
