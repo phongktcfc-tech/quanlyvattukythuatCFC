@@ -863,16 +863,62 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     target_email = "linhb1702638@gmail.com"
 
     viewport_lock = """
-        html, body, [data-testid="stAppViewContainer"], .main {
-            overflow: hidden !important;
-            height: 100dvh !important;
-            max-height: 100dvh !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-sizing: border-box !important;
+        /* 1. Re-enable standard viewport scrolling */
+        html, body {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            height: auto !important;
+        }
+
+        [data-testid="stAppViewContainer"] {
+            overflow-y: auto !important;
+            height: auto !important;
+            min-height: 100vh !important;
             background-color: #FAFAFB !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
             color: #0F172A !important;
+        }
+
+        [data-testid="stMainBlockContainer"], section.main {
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        .block-container {
+            padding: 8px 16px 20px 16px !important;
+            max-width: 100% !important;
+            height: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: visible !important;
+        }
+
+        /* 2. Scrollable Container for AI Consultation Results */
+        .ai-result-scrollbox {
+            max-height: 70vh;
+            overflow-y: auto !important;
+            overflow-x: hidden;
+            padding: 16px 20px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+        }
+
+        /* Custom Sleek Scrollbar */
+        .ai-result-scrollbox::-webkit-scrollbar {
+            width: 6px;
+        }
+        .ai-result-scrollbox::-webkit-scrollbar-track {
+            background: #F1F5F9;
+            border-radius: 8px;
+        }
+        .ai-result-scrollbox::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 8px;
+        }
+        .ai-result-scrollbox::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
         }
     """ if not is_split else """
         [data-testid="stAppViewContainer"], .main {
@@ -882,20 +928,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         }
     """
 
-    # Khóa viewport 100% Zero-Scroll chuẩn kỹ thuật (khi chạy đơn độc) & Apple Store UI Theme
     st.markdown("<style>" + viewport_lock + """
         /* 1. Canvas & Global Typography */
         [data-testid="stHeader"] {
             display: none !important;
-        }
-
-        .block-container {
-            padding: 8px 16px 10px 16px !important;
-            max-width: 100% !important;
-            height: 100dvh !important;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
         }
 
         /* 2. Apple Headings & Section Titles */
@@ -1300,11 +1336,6 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 st.session_state.pop("agent2_ai_last_prompt", None)
                 st.rerun()
 
-        # Hiển thị kết quả AI thu nhỏ ở cột trái nếu có
-        if "agent2_ai_response" in st.session_state:
-            with st.expander("📋 Kết quả Kỹ sư Trưởng AI", expanded=True):
-                st.markdown(st.session_state["agent2_ai_response"])
-
         st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
         search_query = st.text_input(
@@ -1437,7 +1468,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             # 1. Banner kết quả bóc tách từ Kỹ sư Trưởng AI (nếu có)
             if "agent2_ai_response" in st.session_state:
                 with st.expander(f"💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI (Cho yêu cầu: \"{st.session_state.get('agent2_ai_last_prompt', '')}\")", expanded=True):
-                    st.markdown(st.session_state["agent2_ai_response"])
+                    st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["agent2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
                     if st.button("✕ Thu gọn kết quả tư vấn", key="btn_close_ai_top"):
                         st.session_state.pop("agent2_ai_response", None)
                         st.rerun()
