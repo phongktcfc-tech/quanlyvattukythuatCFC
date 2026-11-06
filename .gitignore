@@ -16,3 +16,7 @@ public_url.txt
 .env
 
 agent2_cron.log
+.codegraph/
+scratch/
+backup/
+
