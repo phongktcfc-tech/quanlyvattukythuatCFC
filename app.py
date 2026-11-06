@@ -41,6 +41,7 @@ from PIL import Image
 # ── Google Generative AI ──
 import google.generativeai as genai
 import agent2_manager
+from sku_matching_engine import UniversalTechnicalSKUMatcher
 
 # ── PDF Parser ──
 try:
@@ -502,6 +503,10 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
         merged_df.to_excel(MASTER_FILE, index=False)
         load_master_df.clear()
         build_search_corpus.clear()
+        try:
+            get_global_sku_matcher.clear()
+        except Exception:
+            pass
         return True, f"Hợp nhất thành công kho vật tư: Tổng {len(merged_df):,} mã hàng (Đã cập nhật từ file '{filename}')."
     except Exception as e:
         return False, f"Lỗi cập nhật kho: {e}"
@@ -886,6 +891,13 @@ def load_master_df() -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].astype(str).replace("nan", "").fillna("").str.strip()
     return df
+
+
+@st.cache_resource(show_spinner=False)
+def get_global_sku_matcher() -> UniversalTechnicalSKUMatcher:
+    """Khởi tạo hoặc lấy matcher đối chiếu vật tư 5 tầng (Singleton cached in memory)."""
+    df = load_master_df()
+    return UniversalTechnicalSKUMatcher(df)
 
 
 def format_vnd_currency(val) -> str:
@@ -1432,17 +1444,49 @@ def compute_technical_match_pct(q_text: str, cand_text: str, cand_ton: float = 0
     return total_pct, reason_str
 
 
-def get_candidate_matches(query: str, corpus: list, top_k: int = 3) -> list[dict]:
+def get_candidate_matches(query: str, corpus: list = None, top_k: int = 3, input_price: float = 0.0) -> list[dict]:
     """
-    Thuật toán đối chiếu thông minh đa thuộc tính chuẩn kỹ sư:
-    1. Trùng khớp tên/chủng loại (Triệt tiêu 100% gợi ý khác loại như thép ống sang tấm nhựa/Inox V).
-    2. Trùng khớp quy cách hàng hóa (Cỡ phi, độ dày, mắt lưới, mã chuẩn).
-    3. Trùng khớp đặc tính kỹ thuật sử dụng (đúc chịu áp, kẽm, inox...).
-    -> Sắp xếp độ trùng khớp theo % giảm dần, lấy tối đa 3 món gần giống nhất.
+    Thuật toán đối chiếu thông minh 5 tầng (Universal Technical SKU Matching Engine):
+    - Tầng 1: Tiền xử lý & chuẩn hóa kỹ thuật (thập phân, tấc/phân, phi, dải thông số).
+    - Tầng 2: Từ điển đồng nghĩa 10 nhóm ngành kỹ thuật CFC.
+    - Tầng 3: Bóc tách cấu trúc vật tư (chủng loại, thông số định danh, model, quy cách).
+    - Tầng 4: Chấm điểm trọng số thông minh (Tên 35đ, Thông số 45đ, Model/Quy cách 20đ).
+    - Tầng 5: Phân cấp 3 nhóm (EXACT_MATCH >= 75đ, GENERIC_MATCH 60-74đ, SIMILAR 35-59đ).
     """
-    if not corpus or not query:
+    if not query or not str(query).strip():
         return []
 
+    try:
+        matcher = get_global_sku_matcher()
+        match_res = matcher.match_item(str(query), input_price=input_price, top_k=top_k)
+        top_cands = match_res.get("top_candidates", [])
+        if top_cands:
+            results = []
+            for c in top_cands:
+                score = c["score"]
+                reasons_str = ", ".join(c["reasons"]) if c.get("reasons") else "Tương đương kỹ thuật"
+                results.append({
+                    "score": score,
+                    "pct_str": f"[{int(score)}%]",
+                    "ma": str(c["ma_hang"]),
+                    "ten": str(c["ten_hang"]),
+                    "dvt": str(c["dvt"]),
+                    "ton": c["cuoi_ky_sl"],
+                    "same_cat": True,
+                    "ly_do": reasons_str,
+                    "tier": c.get("tier", "SIMILAR_MISMATCH"),
+                    "don_gia_bq": c.get("don_gia_bq", 0.0),
+                    "price_diff_pct": c.get("price_diff_pct"),
+                    "data_alerts": c.get("data_alerts", []),
+                    "reasons": c.get("reasons", [])
+                })
+            return results
+    except Exception as e:
+        pass
+
+    # Fallback dự phòng nếu có corpus
+    if not corpus:
+        return []
     results = []
     for item in corpus:
         text_val, real_idx, ma, ten, dvt, ton = item
@@ -1456,7 +1500,12 @@ def get_candidate_matches(query: str, corpus: list, top_k: int = 3) -> list[dict
                 "dvt": str(dvt),
                 "ton": ton,
                 "same_cat": True,
-                "ly_do": reason
+                "ly_do": reason,
+                "tier": "EXACT_MATCH" if pct >= 75 else ("GENERIC_MATCH" if pct >= 60 else "SIMILAR_MISMATCH"),
+                "don_gia_bq": 0.0,
+                "price_diff_pct": None,
+                "data_alerts": [],
+                "reasons": [reason]
             })
 
     results.sort(key=lambda x: x["score"], reverse=True)
@@ -1776,12 +1825,23 @@ def render_compact_table_html(items: list) -> str:
         else:
             goi_y_html = "<span style='color:#94a3b8;'>-</span>"
 
+        is_generic = "danh mục chung" in ghi_chu.lower() or item.get("tier") == "GENERIC_MATCH"
+        price_alert_html = f"<div style='font-size:0.7rem; color:#D97706; font-weight:600; margin-top:2px;'>{html.escape(str(item['canh_bao_gia']))}</div>" if item.get("canh_bao_gia") else ""
+        alert_tags = item.get("canh_bao_kho") or []
+        stock_alert_html = "".join([f"<span style='display:inline-block; margin-top:2px; font-size:0.68rem; padding:1px 5px; border-radius:4px; background:#FEE2E2; color:#DC2626; font-weight:600;'>{html.escape(a)}</span>" for a in alert_tags])
+
         if trang_thai == "KHỚP":
+            badge_bg = "#EEF2FF" if is_generic else "#ECFDF5"
+            badge_color = "#4338CA" if is_generic else "#059669"
+            badge_border = "#C7D2FE" if is_generic else "#A7F3D0"
+            badge_text = "🔵 KHỚP MÃ CHUNG" if is_generic else "🟢 KHỚP KHO"
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; margin-bottom:4px;'>🟢 KHỚP KHO</span>"
-                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#059669; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:{badge_bg}; color:{badge_color}; border:1px solid {badge_border}; margin-bottom:4px;'>{badge_text}</span>"
+                f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:{badge_color}; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
                 f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#0F172A;'>{ton_kho} {don_vi}</strong></div>"
+                f"{stock_alert_html}"
+                f"{price_alert_html}"
                 f"</div>"
             )
         elif trang_thai == "MỚI":
@@ -2295,25 +2355,45 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                     consolidated_results.append(r)
                     continue
 
-                candidates = get_candidate_matches(search_str, corpus, top_k=3)
+                try:
+                    in_price = float(r.get("don_gia", 0) or 0)
+                except Exception:
+                    in_price = 0.0
+
+                candidates = get_candidate_matches(search_str, corpus, top_k=5, input_price=in_price)
                 r["candidates"] = candidates
                 best = candidates[0] if candidates else None
 
                 sim_items = []
                 for c in candidates:
                     ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
-                    sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{ly_do})")
+                    alert_txt = f" {' '.join(c.get('data_alerts', []))}" if c.get("data_alerts") else ""
+                    price_txt = f" | BQ: {c['don_gia_bq']:,.0f}đ" if c.get("don_gia_bq", 0) > 0 else ""
+                    sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})")
                 r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
-                if best and best["score"] >= 95 and (r.get("trang_thai") != "KHỚP" or not r.get("ma_vat_tu_cu") or (best["score"] >= 98 and r.get("ma_vat_tu_cu") != best["ma"])):
+                if best and (best.get("tier") == "EXACT_MATCH" or best.get("score", 0) >= 75):
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
                     r["ton_kho"] = best["ton"]
                     r["ma_de_xuat"] = "-"
-                    r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')})"
-
-                elif r.get("trang_thai") == "KHỚP":
+                    alert_tag = f" {' '.join(best.get('data_alerts', []))}" if best.get("data_alerts") else ""
+                    r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')}){alert_tag}"
+                    if in_price > 0 and best.get("don_gia_bq", 0) > 0:
+                        diff = round(((in_price - best["don_gia_bq"]) / best["don_gia_bq"]) * 100, 1)
+                        if abs(diff) >= 20:
+                            sign = "+" if diff > 0 else ""
+                            r["canh_bao_gia"] = f"⚠️ Giá lệch {sign}{diff}% (Xuất: {in_price:,.0f}đ vs BQ: {best['don_gia_bq']:,.0f}đ)"
+                            r["ghi_chu"] += f" | {r['canh_bao_gia']}"
+                elif best and (best.get("tier") == "GENERIC_MATCH" or best.get("score", 0) >= 60):
+                    r["trang_thai"] = "KHỚP"
+                    r["ma_vat_tu_cu"] = best["ma"]
+                    r["ten_trong_kho"] = best["ten"]
+                    r["ton_kho"] = best["ton"]
+                    r["ma_de_xuat"] = "-"
+                    r["ghi_chu"] = f"✓ Khớp danh mục chung mã {best['ma']} ({best.get('ly_do', 'Kho lưu tên chung')})"
+                elif r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu"):
                     r["ma_de_xuat"] = "-"
                     old_code = r.get("ma_vat_tu_cu", "") or ""
                     if not r.get("ghi_chu"):
@@ -2679,18 +2759,41 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                             for it in res_list:
                                 t_r = it.get("ten_trich_xuat", "")
                                 q_s = it.get("quy_cach", "")
-                                cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=3)
+                                try:
+                                    in_p = float(it.get("don_gia", 0) or 0)
+                                except Exception:
+                                    in_p = 0.0
+                                cands_new = get_candidate_matches(f"{t_r} {q_s}", corpus, top_k=5, input_price=in_p)
                                 it["candidates"] = cands_new
                                 best_new = cands_new[0] if cands_new else None
-                                sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in cands_new]
+                                sim_items = []
+                                for c in cands_new:
+                                    ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
+                                    alert_txt = f" {' '.join(c.get('data_alerts', []))}" if c.get("data_alerts") else ""
+                                    price_txt = f" | BQ: {c['don_gia_bq']:,.0f}đ" if c.get("don_gia_bq", 0) > 0 else ""
+                                    sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})")
                                 it["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
-                                if best_new and best_new["score"] >= 95:
+                                if best_new and (best_new.get("tier") == "EXACT_MATCH" or best_new["score"] >= 75):
                                     it["trang_thai"] = "KHỚP"
                                     it["ma_vat_tu_cu"] = best_new["ma"]
                                     it["ten_trong_kho"] = best_new["ten"]
                                     it["ton_kho"] = best_new["ton"]
                                     it["ma_de_xuat"] = "-"
-                                    it["ghi_chu"] = f"✓ Khớp mã kho {best_new['ma']} ({best_new['ly_do']})"
+                                    alert_tag = f" {' '.join(best_new.get('data_alerts', []))}" if best_new.get("data_alerts") else ""
+                                    it["ghi_chu"] = f"✓ Khớp mã kho {best_new['ma']} ({best_new['ly_do']}){alert_tag}"
+                                    if in_p > 0 and best_new.get("don_gia_bq", 0) > 0:
+                                        diff = round(((in_p - best_new["don_gia_bq"]) / best_new["don_gia_bq"]) * 100, 1)
+                                        if abs(diff) >= 20:
+                                            sign = "+" if diff > 0 else ""
+                                            it["canh_bao_gia"] = f"⚠️ Giá lệch {sign}{diff}% (Xuất: {in_p:,.0f}đ vs BQ: {best_new['don_gia_bq']:,.0f}đ)"
+                                            it["ghi_chu"] += f" | {it['canh_bao_gia']}"
+                                elif best_new and (best_new.get("tier") == "GENERIC_MATCH" or best_new["score"] >= 60):
+                                    it["trang_thai"] = "KHỚP"
+                                    it["ma_vat_tu_cu"] = best_new["ma"]
+                                    it["ten_trong_kho"] = best_new["ten"]
+                                    it["ton_kho"] = best_new["ton"]
+                                    it["ma_de_xuat"] = "-"
+                                    it["ghi_chu"] = f"✓ Khớp danh mục chung mã {best_new['ma']} ({best_new['ly_do']})"
                             st.session_state["reconciled_results"] = res_list
                             batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
                             st.session_state["reconciled_file_path"] = str(batch_file)
@@ -2707,9 +2810,14 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
                         item_cands = item.get("candidates") or []
                         if not item_cands or any("pct_str" not in c for c in item_cands):
-                            item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=3)
+                            item_cands = get_candidate_matches(f"{t_raw} {q_spec}", corpus, top_k=5)
                             item["candidates"] = item_cands
-                            sim_items = [f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']} [{c['ly_do']}])" for c in item_cands]
+                            sim_items = []
+                            for c in item_cands:
+                                ly_do = f" [{c['ly_do']}]" if c.get("ly_do") else ""
+                                alert_txt = f" {' '.join(c.get('data_alerts', []))}" if c.get("data_alerts") else ""
+                                price_txt = f" | BQ: {c['don_gia_bq']:,.0f}đ" if c.get("don_gia_bq", 0) > 0 else ""
+                                sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})")
                             item["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
                         options_map = {}
@@ -2718,7 +2826,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
                         for c in item_cands:
                             ly_do = f" — {c['ly_do']}" if c.get("ly_do") else ""
-                            opt_lbl = f"👉 [{c['score']}%] Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{ly_do})"
+                            alert_txt = f" {' '.join(c.get('data_alerts', []))}" if c.get("data_alerts") else ""
+                            price_txt = f" | BQ: {c['don_gia_bq']:,.0f}đ" if c.get("don_gia_bq", 0) > 0 else ""
+                            opt_lbl = f"👉 [{c['score']}%] Chọn mã {c['ma']} | {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})"
                             options_map[opt_lbl] = {
                                 "type": "candidate",
                                 "code": c["ma"],
