@@ -1548,7 +1548,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             <div style="font-size:1.35rem;">⚡</div>
             <div>
                 <div style="font-size:1.02rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">
-                    AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN CFC
+                    AGENT 2: GIÁM SÁT TỒN KHO
                 </div>
                 <div style="font-size:0.75rem; color:#64748B; margin-top:1px;">
                     Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{target_email}</strong> lúc <strong>16:00</strong>
@@ -1587,47 +1587,52 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         </div>
         """, unsafe_allow_html=True)
 
-        user_ai_inquiry = st.text_area(
-            "Yêu cầu kỹ thuật / Gia công công trình:",
-            placeholder="VD: Gia công bệ đỡ động cơ 22kW, Tuyến ống DN50, hỏi thông số bulong/contactor...",
-            height=75,
-            key="agent2_ai_inquiry_input",
-            label_visibility="collapsed"
-        )
+        with st.form(key="agent2_form", clear_on_submit=False):
+            user_ai_inquiry = st.text_input(
+                "Yêu cầu kỹ thuật / Gia công công trình (Gõ xong nhấn Enter):",
+                placeholder="VD: Sửa chữa mái nhà dột rộng 100m2, bệ đỡ động cơ...",
+                key="agent2_ai_inquiry_input",
+                label_visibility="collapsed"
+            )
 
-        uploaded_doc = st.file_uploader(
-            "📷 Tải ảnh bản vẽ / tem nhãn kỹ thuật:",
-            type=["png", "jpg", "jpeg", "webp"],
-            key="agent2_ai_image_upload",
-            help="Tải ảnh chụp bản vẽ gia công, tem nhãn động cơ, thông số thiết bị...",
-            label_visibility="collapsed"
-        )
+            uploaded_doc = st.file_uploader(
+                "📷 Tải ảnh bản vẽ / tem nhãn kỹ thuật:",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="agent2_ai_image_upload",
+                help="Tải ảnh chụp bản vẽ gia công, tem nhãn động cơ, thông số thiết bị...",
+                label_visibility="collapsed"
+            )
 
-        c_ask, c_clr = st.columns([3, 1])
-        with c_ask:
-            if st.button("🚀 Bóc tách & Tư vấn", use_container_width=True, type="primary"):
-                if user_ai_inquiry.strip() or uploaded_doc is not None:
-                    prompt_text = user_ai_inquiry.strip() if user_ai_inquiry.strip() else "Phân tích bản vẽ kỹ thuật / hình ảnh đính kèm và bóc tách vật tư tận dụng kho."
-                    with st.spinner("Đang phân tích kỹ thuật & đối chiếu 475 vật tư kho xưởng..."):
-                        ans = query_ai_chief_engineer(
-                            user_prompt=prompt_text,
-                            df_th=df_th,
-                            api_key=api_key,
-                            model_name=model_name,
-                            uploaded_file=uploaded_doc,
-                            nvidia_api_key=nvidia_api_key
-                        )
-                        st.session_state["agent2_ai_response"] = ans
-                        st.session_state["agent2_ai_last_prompt"] = prompt_text
-                        st.session_state["ag2_ai_timestamp"] = time.time()
-                        st.rerun()
-                else:
-                    st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
-        with c_clr:
-            if st.button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả"):
-                st.session_state.pop("agent2_ai_response", None)
-                st.session_state.pop("agent2_ai_last_prompt", None)
-                st.rerun()
+            c_ask, c_clr = st.columns([3, 1])
+            with c_ask:
+                submit_ask = st.form_submit_button("🚀 Bóc tách & Tư vấn", use_container_width=True, type="primary")
+            with c_clr:
+                submit_clr = st.form_submit_button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả")
+
+        if submit_clr:
+            st.session_state.pop("agent2_ai_response", None)
+            st.session_state.pop("agent2_ai_last_prompt", None)
+            st.session_state.pop("ag2_ai_timestamp", None)
+            st.rerun()
+
+        if submit_ask:
+            if user_ai_inquiry.strip() or uploaded_doc is not None:
+                prompt_text = user_ai_inquiry.strip() if user_ai_inquiry.strip() else "Phân tích bản vẽ kỹ thuật / hình ảnh đính kèm và bóc tách vật tư tận dụng kho."
+                with st.spinner("Đang phân tích kỹ thuật & đối chiếu vật tư kho xưởng..."):
+                    ans = query_ai_chief_engineer(
+                        user_prompt=prompt_text,
+                        df_th=df_th,
+                        api_key=api_key,
+                        model_name=model_name,
+                        uploaded_file=uploaded_doc,
+                        nvidia_api_key=nvidia_api_key
+                    )
+                    st.session_state["agent2_ai_response"] = ans
+                    st.session_state["agent2_ai_last_prompt"] = prompt_text
+                    st.session_state["ag2_ai_timestamp"] = time.time()
+                    st.rerun()
+            else:
+                st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
         st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
@@ -1741,20 +1746,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 st.rerun()
 
         # Thanh chuyển nhanh sang các nghiệp vụ phụ khác (Nhật ký, Tiêu hao, Báo cáo)
-        c_nav1, c_nav2, c_nav3, c_nav4 = st.columns([1.5, 1.4, 1.4, 1.3], gap="small")
+        c_nav1, c_nav2, c_nav3 = st.columns(3, gap="small")
         with c_nav1:
-            if st.button("📋 Bảng Tồn Kho Xưởng", use_container_width=True, type="primary" if cur_view == "INVENTORY" else "secondary"):
-                st.session_state["agent2_active_view"] = "INVENTORY"
-                st.rerun()
-        with c_nav2:
             if st.button("📝 Nhật Ký Xuất Thiết Bị", use_container_width=True, type="primary" if cur_view == "HISTORY" else "secondary"):
                 st.session_state["agent2_active_view"] = "HISTORY"
                 st.rerun()
-        with c_nav3:
+        with c_nav2:
             if st.button("📊 Phân Tích Tiêu Hao", use_container_width=True, type="primary" if cur_view == "ANALYTICS" else "secondary"):
                 st.session_state["agent2_active_view"] = "ANALYTICS"
                 st.rerun()
-        with c_nav4:
+        with c_nav3:
             if st.button("⚙️ Báo Cáo & Cấu Hình", use_container_width=True, type="primary" if cur_view == "CONFIG" else "secondary"):
                 st.session_state["agent2_active_view"] = "CONFIG"
                 st.rerun()
