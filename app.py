@@ -50,6 +50,27 @@ try:
 except ImportError:
     HAS_FITZ = False
 
+def render_pdf_pages_as_images(pdf_bytes: bytes, max_pages: int = 5, dpi: int = 150) -> list[bytes]:
+    """Chuyển đổi các trang PDF sang danh sách ảnh PNG bytes để phân tích OCR/Vision."""
+    if not HAS_FITZ or not pdf_bytes:
+        return []
+    images = []
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        for p_no in range(min(len(doc), max_pages)):
+            page = doc[p_no]
+            pix = page.get_pixmap(dpi=dpi)
+            images.append(pix.tobytes("png"))
+        doc.close()
+    except Exception as e:
+        print(f"Lỗi render PDF sang ảnh: {e}")
+    return images
+
+def render_pdf_first_page_as_image(pdf_bytes: bytes, dpi: int = 150) -> bytes | None:
+    """Chuyển đổi trang đầu tiên của file PDF sang ảnh PNG bytes."""
+    imgs = render_pdf_pages_as_images(pdf_bytes, max_pages=1, dpi=dpi)
+    return imgs[0] if imgs else None
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CẤU HÌNH TRANG STREAMLIT (BẮT BUỘC ĐẦU TIÊN)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1619,7 +1640,16 @@ def build_candidates_for_items(items_text: str, df: pd.DataFrame) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 def generate_content_safe(prompt_or_parts, preferred_model="gemini-4-argon", system_instruction=None):
     instruction = system_instruction if system_instruction is not None else SYSTEM_PROMPT_RECONCILE
-    candidate_models = [preferred_model, "gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    candidate_models = [
+        preferred_model,
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-4-argon",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite"
+    ]
     models_to_try = []
     for m in candidate_models:
         if m not in models_to_try:
@@ -1640,14 +1670,31 @@ def generate_content_safe(prompt_or_parts, preferred_model="gemini-4-argon", sys
 
 
 def parse_json_from_response(text: str) -> list | None:
-    m = re.search(r"```json\s*([\s\S]*?)```", text)
+    if not text:
+        return None
+    # 1. Thử trích xuất từ khối markdown ```json ... ``` hoặc ``` ... ```
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if m:
         try:
-            return json.loads(m.group(1))
+            cleaned = m.group(1).strip()
+            cleaned = re.sub(r",\s*([\]\}])", r"\1", cleaned)
+            return json.loads(cleaned)
         except Exception:
             pass
+    # 2. Thử trích xuất mảng JSON [...] trực tiếp từ chuỗi
+    m_arr = re.search(r"\[\s*\{[\s\S]*\}\s*\]", text)
+    if m_arr:
+        try:
+            cleaned = m_arr.group(0).strip()
+            cleaned = re.sub(r",\s*([\]\}])", r"\1", cleaned)
+            return json.loads(cleaned)
+        except Exception:
+            pass
+    # 3. Thử parse trực tiếp
     try:
-        return json.loads(text)
+        cleaned = text.strip()
+        cleaned = re.sub(r",\s*([\]\}])", r"\1", cleaned)
+        return json.loads(cleaned)
     except Exception:
         return None
 
@@ -2220,9 +2267,13 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 elif item["type"] == "pdf":
                     pdf_txt = ""
                     if HAS_FITZ:
-                        doc = fitz.open(stream=item["bytes"], filetype="pdf")
-                        pdf_txt = "\n".join(page.get_text() for page in doc)
-                        doc.close()
+                        try:
+                            doc = fitz.open(stream=item["bytes"], filetype="pdf")
+                            pdf_txt = "\n".join(page.get_text() for page in doc)
+                            doc.close()
+                        except Exception as pdf_read_err:
+                            print(f"Lỗi đọc text PDF: {pdf_read_err}")
+                            pdf_txt = ""
 
                     if pdf_txt.strip():
                         cands = build_candidates_for_items(pdf_txt, df_master)
@@ -2233,18 +2284,47 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                         )
                         response = generate_content_safe(prompt, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
                     else:
-                        pix = render_pdf_first_page_as_image(item["bytes"])
-                        if pix:
+                        # Scanned PDF hoặc PDF dạng ảnh scan
+                        pdf_imgs = render_pdf_pages_as_images(item["bytes"], max_pages=3)
+                        if pdf_imgs:
                             cands = build_candidates_for_items(item["name"], df_master)
                             parts = [
                                 f"CHỨNG TỪ QUÉT DẠNG ẢNH TỪ PDF '{item['name']}'.\n"
                                 f"ỨNG VIÊN KHO GẦN NHẤT:\n{cands}\n\n"
-                                f"Bóc tách danh mục vật tư, tên gọi, quy cách, ĐVT, số lượng và trả JSON đối chiếu.",
-                                {"mime_type": "image/png", "data": pix}
+                                f"Bóc tách danh mục vật tư, tên gọi, quy cách, ĐVT, số lượng và trả JSON đối chiếu."
                             ]
-                            response = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                            for p_img in pdf_imgs:
+                                parts.append({"mime_type": "image/png", "data": p_img})
+                            first_res = generate_content_safe(parts, preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                            ai_txt = first_res.text if hasattr(first_res, "text") else ""
+
+                            prelim_data = parse_json_from_response(ai_txt)
+                            cand_lines = []
+                            if prelim_data and isinstance(prelim_data, list):
+                                for p_row in prelim_data:
+                                    p_name = p_row.get("ten_trich_xuat", "") or ""
+                                    p_spec = p_row.get("quy_cach", "") or ""
+                                    p_full = f"{p_name} {p_spec}".strip()
+                                    cands_str = find_candidates(p_full, df_master, corpus, top_k=4)
+                                    if cands_str:
+                                        cand_lines.append(f"• Vật tư '{p_name}' (Quy cách: '{p_spec}'):\n{cands_str}")
+
+                            if cand_lines:
+                                followup_prompt = (
+                                    f"DANH SÁCH ỨNG VIÊN KHO GỐC (ĐÃ ĐỐI CHIẾU THÔNG MINH THEO CHỦNG LOẠI & QUY CÁCH KỸ THUẬT):\n"
+                                    + "\n\n".join(cand_lines)
+                                    + "\n\nQUY TẮC BẮT BUỘC KHI ĐỐI CHIẾU:\n"
+                                    "1. Quy đổi tương đương chuẩn công nghiệp áp dụng cho TẤT CẢ VẬT TƯ.\n"
+                                    "2. Khi danh sách ứng viên có mã kho cùng chủng loại và quy cách/thông số tương đương: "
+                                    "BẮT BUỘC KHỚP MÃ CŨ. TUYỆT ĐỐI KHÔNG sinh mã mới khi kho đã có sẵn!\n"
+                                    "3. Chỉ cấp mã MỚI (0x.xxxx) khi kho hoàn toàn không có vật tư cùng chủng loại và quy cách.\n"
+                                    "Hãy hoàn thiện bảng JSON đối chiếu chính xác nhất."
+                                )
+                                response = generate_content_safe(f"{ai_txt}\n\n{followup_prompt}", preferred_model=model_name, system_instruction=SYSTEM_PROMPT_RECONCILE)
+                            else:
+                                response = first_res
                         else:
-                            continue
+                            raise ValueError(f"Không thể đọc nội dung văn bản hoặc trích xuất ảnh từ file PDF '{item['name']}'.")
 
                 # ── HÌNH ẢNH ──
                 else:
@@ -2294,14 +2374,19 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                     else:
                         response = first_res
 
-                doc_results = parse_json_from_response(response.text)
-                if doc_results:
+                resp_text = response.text if hasattr(response, "text") else str(response)
+                doc_results = parse_json_from_response(resp_text)
+                if doc_results and isinstance(doc_results, list):
                     for row in doc_results:
                         row["chung_tu_goc"] = item["name"]
                         raw_collected_results.append(row)
+                else:
+                    task_state["error"] = f"Không trích xuất được bảng danh mục JSON từ file '{item['name']}'."
 
             except Exception as item_err:
-                pass
+                print(f"Lỗi xử lý file {item.get('name')}: {item_err}")
+                task_state["error"] = f"Lỗi phân tích file '{item.get('name', '')}': {str(item_err)}"
+
 
             time.sleep(0.5)
 
@@ -2405,6 +2490,12 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
             task_state["progress_val"] = 1.0
             task_state["status_msg"] = f"✓ Hoàn tất đối chiếu toàn bộ {total_items} chứng từ!"
             task_state["task_completed"] = True
+            task_state["error"] = None
+        else:
+            if not task_state.get("error"):
+                task_state["error"] = "Không tìm thấy hoặc không bóc tách được danh mục vật tư nào từ chứng từ đã nạp. Vui lòng kiểm tra lại chất lượng file hoặc hình ảnh!"
+            task_state["status_msg"] = "⚠️ Không trích xuất được vật tư."
+            task_state["task_completed"] = False
 
     except Exception as e:
         task_state["error"] = str(e)
@@ -2432,6 +2523,21 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
     # ═══════════════════════════════════════════════════════════════════════════
     with tab_scan:
         corpus = build_search_corpus(df_master)
+
+        # Đồng bộ kết quả từ tiến trình ngầm vào Session State của Agent 1 (Bắt buộc cho @st.fragment)
+        ts_live = st.session_state.get("ag1_task_state", {})
+        if ts_live.get("task_completed") and ts_live.get("results") and not st.session_state.get("ag1_reconciled_results"):
+            st.session_state["ag1_reconciled_results"] = ts_live.get("results")
+            st.session_state["ag1_reconciled_total_docs"] = ts_live.get("total_docs", 1)
+            st.session_state["ag1_reconciled_file_path"] = ts_live.get("file_path", "")
+            st.session_state["ag1_reconciled_file_name"] = ts_live.get("file_name", "")
+
+        # Hiển thị thông báo lỗi từ tiến trình ngầm nếu có
+        if ts_live.get("error") and not ts_live.get("is_running"):
+            st.error(f"⛔ {ts_live['error']}")
+            if st.button("🔄 Đóng thông báo & thử lại", key="btn_clear_ag1_err"):
+                ts_live["error"] = None
+                st.rerun(scope="fragment")
 
         # Khởi tạo danh sách ảnh dán clipboard trong Session State
         if "ag1_pasted_gallery" not in st.session_state:
@@ -2524,14 +2630,23 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         if active_uploads:
             for uf in active_uploads:
                 ext = uf.name.rsplit(".", 1)[-1].lower() if "." in uf.name else ""
-                file_bytes = uf.read() if hasattr(uf, "read") else uf.getvalue()
+                if hasattr(uf, "getvalue"):
+                    file_bytes = uf.getvalue()
+                elif hasattr(uf, "read"):
+                    if hasattr(uf, "seek"):
+                        uf.seek(0)
+                    file_bytes = uf.read()
+                else:
+                    file_bytes = bytes(uf)
+
                 ftype = "excel" if ext in ("xlsx", "xls", "csv") else ("pdf" if ext == "pdf" else "image")
-                all_queue.append({
-                    "name": uf.name,
-                    "bytes": file_bytes,
-                    "ext": ext,
-                    "type": ftype
-                })
+                if len(file_bytes) > 0:
+                    all_queue.append({
+                        "name": uf.name,
+                        "bytes": file_bytes,
+                        "ext": ext,
+                        "type": ftype
+                    })
 
         for p in st.session_state.get("ag1_pasted_gallery", []):
             all_queue.append({
