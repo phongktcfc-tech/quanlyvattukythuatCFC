@@ -62,8 +62,15 @@ PRODUCT_CATEGORY_GROUPS: List[List[str]] = [
     ["thép hộp", "thép vuông", "sắt hộp"],
     ["thép tấm", "tole tấm", "sắt tấm", "ton tam"],
     ["thép la", "lập là", "sat la"],
-    ["thép tròn", "thép láp", "thép láp tròn", "sắt phi", "láp tròn"],
+    ["thép tròn", "thép láp", "thép tròn đặc", "láp", "láp tròn", "thép láp tròn", "láp thép", "sắt phi"],
     ["tole", "tol", "tôn"],
+
+    # Lưới kim loại / Inox & Sàng rung
+    ["lưới inox", "lưới thép", "lưới đan", "lưới hàn", "lưới sàng", "tấm lưới", "lưới"],
+
+    # Thiết bị & Phụ tùng máy may bao
+    ["máy may bao", "máy may", "máy khâu bao"],
+    ["kim máy may", "kim may bao", "kim may", "kim may công nghiệp", "kim khâu", "pt may bao: kim"],
 
     # Vật tư Đường ống, Van & Khí nén
     ["van cầu", "van hơi", "van cầu hơi"],
@@ -100,12 +107,12 @@ PRODUCT_CATEGORY_GROUPS: List[List[str]] = [
 
 # 2. NHÓM CHẤT LIỆU & VẬT LIỆU (MATERIAL GROUPS - KHÔNG ĐƯỢC COI LÀ CHỦNG LOẠI THIẾT BỊ)
 MATERIAL_SYNONYM_GROUPS: List[List[str]] = [
-    ["inox", "thép không gỉ", "sus304", "sus 304", "sus201", "sus 201", "sus316", "sus 316"],
+    ["inox", "thép không gỉ", "sus304", "sus 304", "sus201", "sus 201", "sus316", "sus 316", "304", "316", "201", "430"],
     ["mạ kẽm", "kẽm", "nhúng kẽm"],
     ["gang"],
     ["đồng", "thau"],
     ["nhựa", "pvc", "upvc", "pe", "teflon"],
-    ["thép", "sắt"]
+    ["thép", "sắt", "ct45", "ct3", "c45", "s45c"]
 ]
 
 # Xây dựng từ điển tra cứu nhanh
@@ -309,12 +316,59 @@ def parse_structured_item(raw_name: str) -> Dict[str, Any]:
         if d not in primary_specs:
             primary_specs.append(d)
 
-    # 8. Mã số vòng bi / bạc đạn / gối đỡ (3 đến 5 chữ số: 6205, 22224, 22316, 30207, 207...)
-    bearing_matches = re.findall(r'\b((?:uc|ucp|ucf|ucfl|ucfc|nj|nu)?\s*(\d{3,5})\s*(?:zz|2rs|dduc3|eae4|ca/w33)?)\b', normalized)
+    # 7.1. Kích thước mắt lưới & Khổ lưới: "ô 1.5mm", "ô 1,5ly", "khổ 1m"
+    mesh_matches = re.findall(r'(?:o|ô|mat|mắt|lo|lỗ)\s*(?:vuong)?\s*(\d+(?:\.\d+)?)\s*(?:mm|ly)?\b', normalized)
+    for m_val in mesh_matches:
+        clean_m = str(float(m_val)) if "." in m_val else m_val
+        clean_code = f"o{clean_m}ly"
+        if clean_code not in primary_specs:
+            primary_specs.append(clean_code)
+
+    kho_matches = re.findall(r'kho\s*(\d+(?:\.\d+)?)\s*m\b', normalized)
+    for k_val in kho_matches:
+        clean_k = str(float(k_val)) if "." in k_val else k_val
+        clean_k_code = f"kho{clean_k}m"
+        if clean_k_code not in primary_specs:
+            primary_specs.append(clean_k_code)
+
+    # 7.2. Đường kính thép tròn / phi láp: "phi 115", "fi 115", "phi115", "lap 115", "láp 115"
+    lap_phi_matches = re.findall(r'(?:phi|fi|láp|lap|sat\s*phi|thép\s*tròn)\s*(\d+(?:\.\d+)?)\b', normalized)
+    for p_val in lap_phi_matches:
+        if p_val not in ["304", "316", "201", "430", "1475", "2000", "6000"]:
+            p_code = f"phi{p_val}"
+            if p_code not in primary_specs:
+                primary_specs.append(p_code)
+
+    # 7.3. Dây curoa (A/B/C/D/SPB/SPC/3V/5V/8V/FM + chiều dài số): c115, a35, b54, spb2000...
+    if any(c_kw in normalized for c_kw in ["curoa", "day curoa", "day dai", "đai", "curo"]):
+        curoa_matches = re.findall(r'\b([a-e]|sp[a-cz]|3v|5v|8v|fm)\s*[-_]?\s*(\d{2,4})\b', normalized)
+        for belt_type, belt_len in curoa_matches:
+            b_code = f"{belt_type.lower()}{belt_len}"
+            if b_code not in primary_specs:
+                primary_specs.append(b_code)
+            if b_code not in model_codes:
+                model_codes.append(b_code)
+
+    # 8. Mã số vòng bi / bạc đạn / gối đỡ (6205, 22224, 7205, UCP205...)
+    # Chỉ trích xuất khi có tiền tố/hậu tố vòng bi HOẶC trong ngữ cảnh vòng bi, bạc đạn, gối đỡ
+    is_bearing_context = any(b_kw in normalized for b_kw in ["vong bi", "bac dan", "goi do", "bearing", "o bi", "đỡ chặn"])
+    excluded_nums = {"304", "316", "201", "430", "110", "220", "380", "1475", "1500", "2000", "1000", "2400", "6000", "115"}
+
+    bearing_matches = re.findall(r'\b((?:uc|ucp|ucf|ucfl|ucfc|nj|nu)\s*(\d{3,5})|(?:6[0234]\d{2}|2[23]\d{3}|3[012]\d{3}|7[023]\d{2})\s*(?:zz|2rs|dduc3|eae4|ca/w33|c3|becbp)?)\b', normalized)
     for full_b, base_num in bearing_matches:
-        if base_num not in primary_specs:
-            primary_specs.append(base_num)
-        model_codes.append(re.sub(r'\s+', '', full_b))
+        digits = re.search(r'\d{3,5}', full_b)
+        if digits:
+            b_num = digits.group(0)
+            if b_num not in excluded_nums and b_num not in primary_specs:
+                primary_specs.append(b_num)
+                model_codes.append(re.sub(r'\s+', '', full_b))
+
+    if is_bearing_context:
+        generic_b_matches = re.findall(r'\b(\d{3,5})\b', normalized)
+        for base_num in generic_b_matches:
+            if base_num not in excluded_nums and base_num not in primary_specs:
+                primary_specs.append(base_num)
+                model_codes.append(base_num)
 
     # 9. Quy đổi đường kính ống & phụ kiện (DN <-> Phi <-> Inch)
     for item in PIPE_DN_CONVERSIONS:
@@ -369,6 +423,37 @@ def compute_sku_match_score(query_parsed: Dict[str, Any], cand_parsed: Dict[str,
     q_name = query_parsed["normalized_name"]
     c_name = cand_parsed["normalized_name"]
 
+    # ── 0. BỘ LỌC CHẶN XUNG ĐỘT DANH MỤC TUYỆT ĐỐI (CATEGORY CONFLICT GATE) ──
+    q_canonicals = set(query_parsed.get("category_canonicals", []))
+    c_canonicals = set(cand_parsed.get("category_canonicals", []))
+
+    # Nếu cả 2 đều đã xác định được danh mục nhưng HOÀN TOÀN KHÁC NHAU:
+    # (Ví dụ: van bi ≠ lưới inox, thép tròn ≠ dây curoa, kim máy may ≠ máy may bao...)
+    if q_canonicals and c_canonicals and not q_canonicals.intersection(c_canonicals):
+        return 0.0, [f"⚠️ Xung đột chủng loại: {list(q_canonicals)[0].title()} ≠ {list(c_canonicals)[0].title()}"], "SIMILAR_MISMATCH"
+
+    # Nếu ứng viên là thiết bị cơ - điện đặc thù mà câu truy vấn không hề chứa từ khóa của thiết bị đó:
+    exclusive_categories = {
+        "van bi": ["van", "valve"],
+        "van cầu": ["van", "valve"],
+        "van bướm": ["van", "valve"],
+        "van một chiều": ["van", "valve"],
+        "dây curoa": ["curoa", "đai", "belt"],
+        "vòng bi": ["bi", "bạc đạn", "bearing"],
+        "gối đỡ": ["gối đỡ", "ucp", "ucf", "ổ đỡ"],
+        "xy lanh": ["xy lanh", "xi lanh", "ben hơi"],
+        "máy may bao": ["máy may", "may bao", "máy khâu"],
+        "kim máy may": ["kim"],
+        "aptomat": ["cb", "mccb", "mcb", "aptomat", "cầu dao"],
+        "khởi động từ": ["contactor", "khởi động từ", "kđt"],
+        "rơ le nhiệt": ["rơ le", "rơle", "role", "relay"]
+    }
+    for ex_cat, ex_kws in exclusive_categories.items():
+        if ex_cat in c_canonicals and not any(kw in q_name for kw in ex_kws):
+            return 0.0, [f"⚠️ Sai chủng loại: Kho là '{ex_cat}' nhưng chứng từ không phải."], "SIMILAR_MISMATCH"
+        if ex_cat in q_canonicals and not any(kw in c_name for kw in ex_kws):
+            return 0.0, [f"⚠️ Sai chủng loại: Chứng từ là '{ex_cat}' nhưng kho không phải."], "SIMILAR_MISMATCH"
+
     # ── 1. ĐIỂM DANH MỤC THIẾT BỊ CHÍNH (TỐI ĐA 35 ĐIỂM) ──
     cat_score = 0.0
     shared_canonicals = set(query_parsed["category_canonicals"]).intersection(set(cand_parsed["category_canonicals"]))
@@ -403,14 +488,25 @@ def compute_sku_match_score(query_parsed: Dict[str, Any], cand_parsed: Dict[str,
     c_specs = set(cand_parsed["primary_specs"])
     shared_specs = q_specs.intersection(c_specs)
 
-    # TRƯỜNG HỢP A: Khớp chính xác 100% thông số chính (100A, 9-13A, 6205, 35x58x8, 16x100, DN25...)
-    if shared_specs:
+
+
+    # Bóc tách tên cốt lõi bỏ qua tiền tố phụ tùng (PT, Phụ tùng, May bao)
+    clean_q = re.sub(r'^(?:pt|phụ tùng)\s*(?:may\s*bao)?[:\s-]*', '', q_name).strip()
+    clean_c = re.sub(r'^(?:pt|phụ tùng)\s*(?:may\s*bao)?[:\s-]*', '', c_name).strip()
+
+    # TRƯỜNG HỢP A.1: Khớp 100% tên vật tư cốt lõi (ví dụ: 'kim máy may bao' == 'pt may bao: kim máy may bao')
+    if clean_q and clean_c and clean_q == clean_c:
+        spec_score = 45.0
+        reasons.append(f"Khớp chính xác tên vật tư: {clean_q}")
+
+    # TRƯỜNG HỢP A.2: Khớp chính xác 100% thông số chính
+    elif shared_specs:
         spec_score = 45.0
         reasons.append(f"Khớp thông số: {', '.join(list(shared_specs)[:2])}")
 
     # TRƯỜNG HỢP B: Kho lưu tên chung không ghi thông số (Generic Category Match)
     elif not c_specs and (c_name in q_name or all(w in q_name.split() for w in c_name.split() if len(w) > 1)):
-        spec_score = 30.0
+        spec_score = 25.0
         reasons.append("Khớp danh mục chung (Kho lưu tên chung)")
 
     # TRƯỜNG HỢP C: Cả 2 đều có thông số nhưng KHÁC NHAU

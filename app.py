@@ -223,7 +223,7 @@ def get_all_aliases() -> list[dict]:
     conn.close()
     return rows
 
-def match_from_alias_memory(raw_query: str, threshold: float = 88.0) -> dict | None:
+def match_from_alias_memory(raw_query: str, threshold: float = 85.0) -> dict | None:
     """Kiểm tra ưu tiên: Quét Từ điển Ánh xạ đã học trước khi gọi AI."""
     if not raw_query or not str(raw_query).strip():
         return None
@@ -231,19 +231,30 @@ def match_from_alias_memory(raw_query: str, threshold: float = 88.0) -> dict | N
     aliases = get_all_aliases()
     if not aliases:
         return None
-    
-    # 1. Khớp chính xác (exact match)
+
+    # 1. Khớp chính xác 100%
     for al in aliases:
         rn = unicodedata.normalize("NFC", str(al.get("raw_name", ""))).strip().lower()
         if rn == q_norm:
             return al
-            
-    # 2. Khớp tương đồng cao với token_set_ratio (xử lý tốt phụ từ như SKF, chính hãng...)
-    choices = [unicodedata.normalize("NFC", str(al.get("raw_name", ""))).strip().lower() for al in aliases]
-    best = rfprocess.extractOne(q_norm, choices, scorer=fuzz.token_set_ratio)
-    if best and best[1] >= threshold:
-        return aliases[best[2]]
-        
+
+    # 2. Khớp tương đồng cao: Phải cùng danh từ chính và có token_sort_ratio >= 85
+    q_words = [w for w in q_norm.split() if len(w) > 1]
+    q_head = q_words[0] if q_words else ""
+
+    for al in aliases:
+        rn = unicodedata.normalize("NFC", str(al.get("raw_name", ""))).strip().lower()
+        rn_words = [w for w in rn.split() if len(w) > 1]
+        rn_head = rn_words[0] if rn_words else ""
+
+        # Tuyệt đối không cho 'kim' khớp nhầm với 'máy'
+        if q_head and rn_head and q_head != rn_head:
+            continue
+
+        sort_score = fuzz.token_sort_ratio(q_norm, rn)
+        if sort_score >= threshold:
+            return al
+
     return None
 
 def append_material_to_master_excel(code: str, name_normalized: str, unit: str = "Cái", spec: str = ""):
@@ -2442,7 +2453,8 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                     sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})")
                 r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
-                if best and (best.get("tier") == "EXACT_MATCH" or best.get("score", 0) >= 75):
+                # CHỈ TỰ ĐỘNG KHỚP KHI ĐẠT EXACT_MATCH (ĐÚNG CHỦNG LOẠI & QUY CÁCH >= 75%)
+                if best and best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 75:
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
@@ -2456,20 +2468,17 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                             sign = "+" if diff > 0 else ""
                             r["canh_bao_gia"] = f"⚠️ Giá lệch {sign}{diff}% (Xuất: {in_price:,.0f}đ vs BQ: {best['don_gia_bq']:,.0f}đ)"
                             r["ghi_chu"] += f" | {r['canh_bao_gia']}"
-                elif best and (best.get("tier") == "GENERIC_MATCH" or best.get("score", 0) >= 60):
-                    r["trang_thai"] = "KHỚP"
-                    r["ma_vat_tu_cu"] = best["ma"]
-                    r["ten_trong_kho"] = best["ten"]
-                    r["ton_kho"] = best["ton"]
+                elif r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu") and str(r.get("ma_vat_tu_cu")).strip() not in ["null", "-", "None", ""]:
                     r["ma_de_xuat"] = "-"
-                    r["ghi_chu"] = f"✓ Khớp danh mục chung mã {best['ma']} ({best.get('ly_do', 'Kho lưu tên chung')})"
-                elif r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu"):
-                    r["ma_de_xuat"] = "-"
-                    old_code = r.get("ma_vat_tu_cu", "") or ""
+                    old_code = str(r.get("ma_vat_tu_cu")).strip()
                     if not r.get("ghi_chu"):
                         r["ghi_chu"] = f"✓ Khớp mã kho {old_code}"
-
                 else:
+                    # KHÔNG CÓ TRONG KHO HOẶC CHỈ LÀ GỢI Ý DANH MỤC CHUNG -> BẮT BUỘC ĐỀ XUẤT MÃ MỚI
+                    r["trang_thai"] = "MỚI"
+                    r["ma_vat_tu_cu"] = None
+                    r["ten_trong_kho"] = "-"
+                    r["ton_kho"] = 0
                     full_kw = (t_goc + " " + t_chuan + " " + q_cach).lower()
                     if any(w in full_kw for w in ["xi măng", "cát", "đá 1*", "đá 4*", "gạch", "vôi bột", "bê tông tươi"]):
                         r["ma_de_xuat"] = next_02_codes[idx_02]
@@ -2478,7 +2487,9 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                         r["ma_de_xuat"] = next_03_codes[idx_03]
                         idx_03 += 1
 
-                    if not r.get("ghi_chu"):
+                    if best and best.get("tier") == "GENERIC_MATCH":
+                        r["ghi_chu"] = f"Chưa có quy cách chính xác trong kho. Đề xuất mã mới {r['ma_de_xuat']} (Gợi ý tương tự: {best['ma']} - {best['ten']})"
+                    elif not r.get("ghi_chu"):
                         r["ghi_chu"] = f"Chưa có trong kho. Đề xuất cấp mã mới {r['ma_de_xuat']}"
 
                 consolidated_results.append(r)
