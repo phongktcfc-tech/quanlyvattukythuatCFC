@@ -1934,14 +1934,14 @@ def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name
         if st.button("⚠️ Tồn kho = 0?", key="pop_q4", use_container_width=True):
             quick_q = "Liệt kê các mã vật tư đang hết hàng (tồn bằng 0) cần chú ý bổ sung gấp?"
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    if "ag1_chat_history" not in st.session_state:
+        st.session_state.ag1_chat_history = []
 
     chat_container = st.container(height=340)
     with chat_container:
-        if not st.session_state.chat_history:
+        if not st.session_state.ag1_chat_history:
             st.caption("Chưa có tin nhắn. Nhập câu hỏi bên dưới hoặc bấm gợi ý nhanh.")
-        for msg in st.session_state.chat_history:
+        for msg in st.session_state.ag1_chat_history:
             with st.chat_message(msg["role"], avatar="👨‍🔧" if msg["role"] == "user" else "🤖"):
                 st.markdown(msg["content"])
 
@@ -1952,7 +1952,7 @@ def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name
         if not api_key:
             st.error("Chưa nhập Google AI Key tại sidebar!")
         else:
-            st.session_state.chat_history.append({"role": "user", "content": q})
+            st.session_state.ag1_chat_history.append({"role": "user", "content": q})
             with chat_container:
                 with st.chat_message("user", avatar="👨‍🔧"):
                     st.markdown(q)
@@ -1981,12 +1981,12 @@ TRÌNH BÀY DẠNG BẢNG VÀ THẺ THÔNG TIN MARKDOWN ĐẸP MẮT. TUYỆT Đ
                         except Exception as err:
                             ans = f"Lỗi: {err}"
                         st.markdown(ans)
-                        st.session_state.chat_history.append({"role": "assistant", "content": ans})
+                        st.session_state.ag1_chat_history.append({"role": "assistant", "content": ans})
             st.rerun()
 
-    if st.session_state.chat_history:
+    if st.session_state.ag1_chat_history:
         if st.button("🗑️ XÓA LỊCH SỬ CHAT", key="pop_clear_chat", use_container_width=True):
-            st.session_state.chat_history = []
+            st.session_state.ag1_chat_history = []
             st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2100,18 +2100,18 @@ MODE_AGENT2 = "⚡ AGENT 2: THEO DÕI KHO XƯỞNG (LIVE)"
 AGENT_OPTIONS = [MODE_AGENT1, MODE_AGENT2]
 
 # Khởi tạo trạng thái tiến trình ngầm cho Agent 1
-if "a1_is_running" not in st.session_state:
-    st.session_state.a1_is_running = False
-if "a1_task_completed" not in st.session_state:
-    st.session_state.a1_task_completed = False
-if "a1_results" not in st.session_state:
-    st.session_state.a1_results = None
-if "a1_progress_val" not in st.session_state:
-    st.session_state.a1_progress_val = 0.0
-if "a1_status_msg" not in st.session_state:
-    st.session_state.a1_status_msg = ""
-if "a1_task_state" not in st.session_state:
-    st.session_state["a1_task_state"] = {
+if "ag1_is_running" not in st.session_state:
+    st.session_state.ag1_is_running = False
+if "ag1_task_completed" not in st.session_state:
+    st.session_state.ag1_task_completed = False
+if "ag1_results" not in st.session_state:
+    st.session_state.ag1_results = None
+if "ag1_progress_val" not in st.session_state:
+    st.session_state.ag1_progress_val = 0.0
+if "ag1_status_msg" not in st.session_state:
+    st.session_state.ag1_status_msg = ""
+if "ag1_task_state" not in st.session_state:
+    st.session_state["ag1_task_state"] = {
         "is_running": False,
         "task_completed": False,
         "results": None,
@@ -2124,18 +2124,18 @@ if "a1_task_state" not in st.session_state:
     }
 
 # Đồng bộ trạng thái từ worker thread vào session state
-ts_now = st.session_state["a1_task_state"]
-st.session_state.a1_is_running = ts_now.get("is_running", False)
-st.session_state.a1_task_completed = ts_now.get("task_completed", False)
-st.session_state.a1_results = ts_now.get("results")
-st.session_state.a1_progress_val = ts_now.get("progress_val", 0.0)
-st.session_state.a1_status_msg = ts_now.get("status_msg", "")
+ts_now = st.session_state["ag1_task_state"]
+st.session_state.ag1_is_running = ts_now.get("is_running", False)
+st.session_state.ag1_task_completed = ts_now.get("task_completed", False)
+st.session_state.ag1_results = ts_now.get("results")
+st.session_state.ag1_progress_val = ts_now.get("progress_val", 0.0)
+st.session_state.ag1_status_msg = ts_now.get("status_msg", "")
 
-if st.session_state.a1_task_completed and st.session_state.a1_results and not st.session_state.get("reconciled_results"):
-    st.session_state["reconciled_results"] = st.session_state.a1_results
-    st.session_state["reconciled_total_docs"] = ts_now.get("total_docs", 1)
-    st.session_state["reconciled_file_path"] = ts_now.get("file_path", "")
-    st.session_state["reconciled_file_name"] = ts_now.get("file_name", "")
+if st.session_state.ag1_task_completed and st.session_state.ag1_results and not st.session_state.get("ag1_reconciled_results"):
+    st.session_state["ag1_reconciled_results"] = st.session_state.ag1_results
+    st.session_state["ag1_reconciled_total_docs"] = ts_now.get("total_docs", 1)
+    st.session_state["ag1_reconciled_file_path"] = ts_now.get("file_path", "")
+    st.session_state["ag1_reconciled_file_name"] = ts_now.get("file_name", "")
 
 # Hỗ trợ URL Query Parameters (?tab=agent1, ?tab=agent2)
 qp_tab = (st.query_params.get("tab") or st.query_params.get("agent") or "").strip().lower()
@@ -2154,16 +2154,21 @@ is_agent2_only = (current_agent_active == MODE_AGENT2)
 col_agent_bar, col_quick_links = st.columns([5.0, 2.0], vertical_alignment="center")
 
 with col_agent_bar:
-    selected_agent = st.segmented_control(
-        "LỰA CHỌN PHÂN HỆ ĐIỀU HÀNH:",
-        options=AGENT_OPTIONS,
-        default=current_agent_active,
-        key="main_agent_segmented_ui",
-        label_visibility="collapsed"
-    )
-    if selected_agent and selected_agent != st.session_state.get("current_main_agent"):
-        st.session_state["current_main_agent"] = selected_agent
-        st.rerun()
+    st.markdown("""
+    <div style="display:flex; align-items:center; gap:8px; padding:2px 0;">
+        <span style="font-size:0.75rem; background:#EFF6FF; color:#1E40AF; padding:4px 10px; border-radius:980px; font-weight:700; border:1px solid #BFDBFE;">
+            🤖 AGENT 1: KHO GỐC (1.410 MÃ)
+        </span>
+        <span style="font-size:0.75rem; color:#94A3B8;">•</span>
+        <span style="font-size:0.75rem; background:#ECFDF5; color:#065F46; padding:4px 10px; border-radius:980px; font-weight:700; border:1px solid #A7F3D0;">
+            ⚡ AGENT 2: KHO XƯỞNG LIVE (~488 MÃ)
+        </span>
+        <span style="font-size:0.75rem; color:#94A3B8;">•</span>
+        <span style="font-size:0.72rem; color:#64748B;">
+            Vận hành song song độc lập (Parallel Multi-Agent @st.fragment)
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col_quick_links:
     base_url = get_public_url()
@@ -2431,6 +2436,7 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
 # ═══════════════════════════════════════════════════════════════════════════
 # HÀM HIỂN THỊ PHÂN HỆ: AGENT 1 (ĐỐI CHIẾU CHỨNG TỪ & KHO MASTER)
 # ═══════════════════════════════════════════════════════════════════════════
+@st.fragment
 def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str = ""):
     # ═══════════════════════════════════════════════════════════════════════════
     # PHÂN HỆ: AGENT 1 — 3 SUB-TABS ĐIỀU HƯỚNG CHỨC NĂNG CON
@@ -2448,13 +2454,13 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         corpus = build_search_corpus(df_master)
 
         # Khởi tạo danh sách ảnh dán clipboard trong Session State
-        if "pasted_gallery" not in st.session_state:
-            st.session_state["pasted_gallery"] = []
-        if "last_pasted_hash" not in st.session_state:
-            st.session_state["last_pasted_hash"] = None
+        if "ag1_pasted_gallery" not in st.session_state:
+            st.session_state["ag1_pasted_gallery"] = []
+        if "ag1_last_pasted_hash" not in st.session_state:
+            st.session_state["ag1_last_pasted_hash"] = None
 
         # ── KHU VỰC NHẬP LIỆU: GOM DÁN ẢNH & TẢI FILE CÙNG 1 CHỖ (GỌN GÀNG, CHUYÊN NGHIỆP) ──
-        has_results = bool(st.session_state.get("reconciled_results"))
+        has_results = bool(st.session_state.get("ag1_reconciled_results"))
 
         def _render_intake_hub():
             uploaded_files = None
@@ -2485,14 +2491,14 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                         pasted_bytes = base64.b64decode(b64_part)
                         img_hash = hashlib.md5(pasted_bytes).hexdigest()
 
-                        if img_hash != st.session_state["last_pasted_hash"]:
-                            st.session_state["last_pasted_hash"] = img_hash
-                            st.session_state["pasted_gallery"].append({
+                        if img_hash != st.session_state["ag1_last_pasted_hash"]:
+                            st.session_state["ag1_last_pasted_hash"] = img_hash
+                            st.session_state["ag1_pasted_gallery"].append({
                                 "id": img_hash,
                                 "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['pasted_gallery'])+1}.png",
                                 "bytes": pasted_bytes,
                             })
-                            st.rerun()
+                            st.rerun(scope="fragment")
                     except Exception as e:
                         st.error(f"Lỗi đọc clipboard: {e}")
             else:
@@ -2505,29 +2511,29 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                 )
 
             # ── HIỂN THỊ HÀNG ĐỢI ẢNH CLIPBOARD (NẾU CÓ) ──
-            n_pasted = len(st.session_state["pasted_gallery"])
+            n_pasted = len(st.session_state["ag1_pasted_gallery"])
             if n_pasted > 0:
                 col_title, col_clear = st.columns([4, 1])
                 with col_title:
                     st.caption(f"📸 Hàng đợi ảnh Clipboard: **{n_pasted} ảnh** *(Nhấn Ctrl + V để dán thêm)*")
                 with col_clear:
                     if st.button("🗑️ Xóa ảnh dán", use_container_width=True, key="btn_clear_pastes_dock"):
-                        st.session_state["pasted_gallery"] = []
-                        st.session_state["last_pasted_hash"] = None
-                        st.rerun()
+                        st.session_state["ag1_pasted_gallery"] = []
+                        st.session_state["ag1_last_pasted_hash"] = None
+                        st.rerun(scope="fragment")
 
                 cols_per_row = 6
-                rows = [st.session_state["pasted_gallery"][i:i + cols_per_row] for i in range(0, n_pasted, cols_per_row)]
+                rows = [st.session_state["ag1_pasted_gallery"][i:i + cols_per_row] for i in range(0, n_pasted, cols_per_row)]
                 for r_idx, row_items in enumerate(rows):
                     thumb_cols = st.columns(cols_per_row)
                     for c_idx, item in enumerate(row_items):
                         with thumb_cols[c_idx]:
                             st.image(item["bytes"], caption=item["name"], use_container_width=True)
                             if st.button("❌", key=f"del_paste_{item['id']}"):
-                                st.session_state["pasted_gallery"] = [
-                                    x for x in st.session_state["pasted_gallery"] if x["id"] != item["id"]
+                                st.session_state["ag1_pasted_gallery"] = [
+                                    x for x in st.session_state["ag1_pasted_gallery"] if x["id"] != item["id"]
                                 ]
-                                st.rerun()
+                                st.rerun(scope="fragment")
 
             return uploaded_files
 
@@ -2540,7 +2546,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
         # ── TỔNG HỢP TẤT CẢ CHỨNG TỪ TRONG HÀNG ĐỢI ──
         all_queue = []
-        for p in st.session_state["pasted_gallery"]:
+        for p in st.session_state["ag1_pasted_gallery"]:
             all_queue.append({
                 "name": p["name"],
                 "bytes": p["bytes"],
@@ -2559,7 +2565,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     "type": "excel" if ext in ("xlsx", "xls") else ("pdf" if ext == "pdf" else "image")
                 })
 
-        n_pasted = len(st.session_state["pasted_gallery"])
+        n_pasted = len(st.session_state["ag1_pasted_gallery"])
 
         # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
         if all_queue:
@@ -2572,7 +2578,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             </div>
             """, unsafe_allow_html=True)
 
-            ts_live = st.session_state["a1_task_state"]
+            ts_live = st.session_state["ag1_task_state"]
             if ts_live.get("is_running", False):
                 st.markdown("""
                 <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:10px; padding:10px 14px; margin-bottom:10px;">
@@ -2585,7 +2591,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                 st.progress(ts_live.get("progress_val", 0.05))
                 st.caption(f"Trạng thái: **{ts_live.get('status_msg', 'Đang xử lý...')}**")
                 time.sleep(1)
-                st.rerun()
+                st.rerun(scope="fragment")
 
             elif st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ({len(all_queue)} CHỨNG TỪ)", type="primary", use_container_width=True):
                 if not api_key:
@@ -2597,7 +2603,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     ts_live["error"] = None
                     ts_live["progress_val"] = 0.05
                     ts_live["status_msg"] = f"Bắt đầu khởi động background worker cho {len(all_queue)} chứng từ..."
-                    st.session_state["reconciled_results"] = None
+                    st.session_state["ag1_reconciled_results"] = None
 
                     queue_copy = list(all_queue)
                     corpus = build_search_corpus(df_master)
@@ -2612,19 +2618,19 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                         except Exception:
                             pass
                     th.start()
-                    st.rerun()
+                    st.rerun(scope="fragment")
 
         # ═══════════════════════════════════════════════════════════════════════════
         # KHU VỰC HIỂN THỊ KẾT QUẢ ĐỐI CHIẾU TRỰC QUAN (TỐI ƯU CỤC BỘ @st.fragment)
         # ═══════════════════════════════════════════════════════════════════════════
         @st.fragment
         def render_reconciled_results_panel(corpus):
-            if not st.session_state.get("reconciled_results"):
+            if not st.session_state.get("ag1_reconciled_results"):
                 return
-            res_list = st.session_state["reconciled_results"]
-            total_docs = st.session_state.get("reconciled_total_docs", 1)
-            file_path = st.session_state.get("reconciled_file_path")
-            file_name = st.session_state.get("reconciled_file_name", "BaoCao_DoiChieu.xlsx")
+            res_list = st.session_state["ag1_reconciled_results"]
+            total_docs = st.session_state.get("ag1_reconciled_total_docs", 1)
+            file_path = st.session_state.get("ag1_reconciled_file_path")
+            file_name = st.session_state.get("ag1_reconciled_file_name", "BaoCao_DoiChieu.xlsx")
 
             n_khop = sum(1 for r in res_list if r.get("trang_thai") == "KHỚP")
             n_moi = sum(1 for r in res_list if r.get("trang_thai") == "MỚI")
@@ -2680,12 +2686,12 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                                     r["ghi_chu"] = f"✓ Đã duyệt & học vào bộ nhớ kho (Mã: {code})"
                                     approved_count += 1
                         if approved_count > 0:
-                            st.session_state["reconciled_results"] = res_list
+                            st.session_state["ag1_reconciled_results"] = res_list
                             batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                            st.session_state["reconciled_file_path"] = str(batch_file)
+                            st.session_state["ag1_reconciled_file_path"] = str(batch_file)
                             st.toast(f"✓ Đã phê duyệt và lưu {approved_count} mã mới vào kho vĩnh viễn!", icon="✅")
                             time.sleep(0.3)
-                            st.rerun()
+                            st.rerun(scope="fragment")
                 else:
                     st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#059669; font-size:0.82rem; border:1px solid #A7F3D0; border-radius:9999px; background:#ECFDF5;'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
             with c_tb4:
@@ -2703,9 +2709,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                             )
                 with c_del_btn:
                     if st.button("🗑️ Xóa", use_container_width=True, key="btn_clear_top", help="Xóa kết quả này"):
-                        st.session_state["reconciled_results"] = None
-                        st.session_state["reconciled_file_path"] = None
-                        st.rerun()
+                        st.session_state["ag1_reconciled_results"] = None
+                        st.session_state["ag1_reconciled_file_path"] = None
+                        st.rerun(scope="fragment")
 
             # Lọc danh sách
             filtered_items = res_list
@@ -2794,12 +2800,12 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                                     it["ton_kho"] = best_new["ton"]
                                     it["ma_de_xuat"] = "-"
                                     it["ghi_chu"] = f"✓ Khớp danh mục chung mã {best_new['ma']} ({best_new['ly_do']})"
-                            st.session_state["reconciled_results"] = res_list
+                            st.session_state["ag1_reconciled_results"] = res_list
                             batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                            st.session_state["reconciled_file_path"] = str(batch_file)
+                            st.session_state["ag1_reconciled_file_path"] = str(batch_file)
                             st.toast("✓ Đã quét lại toàn bộ danh sách bằng thuật toán mới!", icon="✅")
                             time.sleep(0.3)
-                            st.rerun()
+                            st.rerun(scope="fragment")
 
                     for item in filtered_items:
                         stt_num = item.get("stt", 1)
@@ -2875,14 +2881,14 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                                         notes=f"Kỹ sư chọn từ gợi ý tương đương: {new_ly_do}"
                                     )
 
-                                    st.session_state["reconciled_results"] = res_list
+                                    st.session_state["ag1_reconciled_results"] = res_list
                                     batch_file = save_batch_report_excel(res_list, f"{total_docs}_ChungTu")
-                                    st.session_state["reconciled_file_path"] = str(batch_file)
+                                    st.session_state["ag1_reconciled_file_path"] = str(batch_file)
                                     st.toast(f"✓ Đã gán mã {new_code} ({new_name}) và ghi nhớ vĩnh viễn!", icon="✅")
                                     time.sleep(0.3)
-                                    st.rerun()
+                                    st.rerun(scope="fragment")
 
-        if st.session_state.get("reconciled_results"):
+        if st.session_state.get("ag1_reconciled_results"):
             render_reconciled_results_panel(corpus)
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2973,7 +2979,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                             st.success(f"✓ {msg}")
                             st.toast(f"✓ {msg}", icon="✅")
                             time.sleep(0.5)
-                            st.rerun()
+                            st.rerun(scope="fragment")
                         else:
                             st.error(f"Thất bại: {msg}")
 
@@ -3022,7 +3028,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                                 pass
                         st.toast(f"✓ Đã xóa {del_cnt} báo cáo!", icon="🗑️")
                         time.sleep(0.3)
-                        st.rerun()
+                        st.rerun(scope="fragment")
 
             # Nhóm theo Cây phân cấp: Năm -> Tháng -> Ngày
             tree_reports = {}
@@ -3071,7 +3077,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                                                     rf.unlink()
                                                     st.toast(f"✓ Đã xóa thành công phiếu '{rf.name}'!", icon="🗑️")
                                                     time.sleep(0.3)
-                                                    st.rerun()
+                                                    st.rerun(scope="fragment")
                                                 except Exception as e:
                                                     st.error(f"Lỗi khi xóa: {e}")
 
@@ -3091,13 +3097,13 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ĐIỀU PHỐI THI HÀNH: AGENT 1 HOẶC AGENT 2 ĐỘC LẬP
+# ĐIỀU PHỐI THI HÀNH: ĐA PHÂN HỆ ĐỘC LẬP VỚI @st.fragment (ZERO-BLOCKING)
 # ═══════════════════════════════════════════════════════════════════════════
-active_agent_now = st.session_state.get("main_agent_segmented_ui") or st.session_state.get("current_main_agent", MODE_AGENT1)
+default_tab = MODE_AGENT2 if is_agent2_only else MODE_AGENT1
+tab_main_ag1, tab_main_ag2 = st.tabs([MODE_AGENT1, MODE_AGENT2], default=default_tab, key="main_hub_parallel_tabs")
 
-if "AGENT 2" in str(active_agent_now):
-    import importlib
-    importlib.reload(agent2_manager)
-    agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=False, nvidia_api_key=nvidia_api_key)
-else:
+with tab_main_ag1:
     render_agent1_ui(df_master, api_key, model_name)
+
+with tab_main_ag2:
+    agent2_manager.render_agent2_ui(api_key=api_key, model_name=model_name, is_split=False, nvidia_api_key=nvidia_api_key)

@@ -23,6 +23,7 @@ from email.mime.multipart import MIMEMultipart
 
 import pandas as pd
 import openpyxl
+import streamlit as st
 
 # ── THIẾT LẬP THƯ MỤC & ĐƯỜNG DẪN (TỰ ĐỘNG THÍCH ỨNG LOCAL & CLOUD) ──
 BASE_DIR = Path(__file__).resolve().parent
@@ -1139,6 +1140,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 # ═══════════════════════════════════════════════════════════════════════════
 # STREAMLIT UI: AGENT 2 — SINGLE-VIEWPORT INDUSTRIAL DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════
+@st.fragment
 def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is_split: bool = False, nvidia_api_key: str = ""):
     import streamlit as st
     import html as py_html
@@ -1519,15 +1521,15 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     """, unsafe_allow_html=True)
 
     # 0. TTL Check: Tự động xóa kết quả tư vấn AI sau 30 phút (1800s)
-    if "agent2_ai_response" in st.session_state:
+    if "ag2_ai_response" in st.session_state:
         ai_ts = st.session_state.get("ag2_ai_timestamp", 0)
         if ai_ts > 0 and (time.time() - ai_ts) > 1800:
-            st.session_state.pop("agent2_ai_response", None)
-            st.session_state.pop("agent2_ai_last_prompt", None)
+            st.session_state.pop("ag2_ai_response", None)
+            st.session_state.pop("ag2_ai_last_prompt", None)
             st.session_state.pop("ag2_ai_timestamp", None)
 
     # 1. Nạp dữ liệu có auto-refresh 1 giờ (@st.cache_data(ttl=3600))
-    force_sync = st.session_state.pop("force_sync_agent2", False)
+    force_sync = st.session_state.pop("ag2_force_sync", False)
     with st.spinner("Đang kết nối kho dữ liệu trực tiếp Google Sheet..."):
         df_th, df_nh, df_xt, last_sync_str = load_data_from_sheets(force_sync=force_sync)
 
@@ -1536,8 +1538,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     if df_th.empty:
         st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")
         if st.button("🔄 Đồng bộ ngay Google Sheet"):
-            st.session_state["force_sync_agent2"] = True
-            st.rerun()
+            st.session_state["ag2_force_sync"] = True
+            st.rerun(scope="fragment")
         return
 
     # 2. Header Bar (Apple Store Style)
@@ -1587,18 +1589,18 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         </div>
         """, unsafe_allow_html=True)
 
-        with st.form(key="agent2_form", clear_on_submit=False):
+        with st.form(key="ag2_form", clear_on_submit=False):
             user_ai_inquiry = st.text_input(
                 "Yêu cầu kỹ thuật / Gia công công trình (Gõ xong nhấn Enter):",
                 placeholder="VD: Sửa chữa mái nhà dột rộng 100m2, bệ đỡ động cơ...",
-                key="agent2_ai_inquiry_input",
+                key="ag2_ai_inquiry_input",
                 label_visibility="collapsed"
             )
 
             uploaded_doc = st.file_uploader(
                 "📷 Tải ảnh bản vẽ / tem nhãn kỹ thuật:",
                 type=["png", "jpg", "jpeg", "webp"],
-                key="agent2_ai_image_upload",
+                key="ag2_ai_image_upload",
                 help="Tải ảnh chụp bản vẽ gia công, tem nhãn động cơ, thông số thiết bị...",
                 label_visibility="collapsed"
             )
@@ -1610,10 +1612,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 submit_clr = st.form_submit_button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả")
 
         if submit_clr:
-            st.session_state.pop("agent2_ai_response", None)
-            st.session_state.pop("agent2_ai_last_prompt", None)
+            st.session_state.pop("ag2_ai_response", None)
+            st.session_state.pop("ag2_ai_last_prompt", None)
             st.session_state.pop("ag2_ai_timestamp", None)
-            st.rerun()
+            st.rerun(scope="fragment")
 
         if submit_ask:
             if user_ai_inquiry.strip() or uploaded_doc is not None:
@@ -1627,10 +1629,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                         uploaded_file=uploaded_doc,
                         nvidia_api_key=nvidia_api_key
                     )
-                    st.session_state["agent2_ai_response"] = ans
-                    st.session_state["agent2_ai_last_prompt"] = prompt_text
+                    st.session_state["ag2_ai_response"] = ans
+                    st.session_state["ag2_ai_last_prompt"] = prompt_text
                     st.session_state["ag2_ai_timestamp"] = time.time()
-                    st.rerun()
+                    st.rerun(scope="fragment")
             else:
                 st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
@@ -1639,7 +1641,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         search_query = st.text_input(
             "Tra cứu nhanh danh sách:",
             placeholder="🔍 Lọc nhanh bảng (tên, quy cách...)",
-            key="agent2_quick_search_input",
+            key="ag2_quick_search_input",
             label_visibility="collapsed"
         )
 
@@ -1648,10 +1650,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         c_sync, c_mail = st.columns(2)
         with c_sync:
             if st.button("🔄 Đồng bộ", use_container_width=True, help="Xóa cache và kéo bản mới nhất từ Google Sheet"):
-                st.session_state["force_sync_agent2"] = True
+                st.session_state["ag2_force_sync"] = True
                 st.toast("✓ Đang xóa cache và đồng bộ dữ liệu mới nhất từ Google Sheet!", icon="✅")
                 time.sleep(0.3)
-                st.rerun()
+                st.rerun(scope="fragment")
         with c_mail:
             if st.button("✉ Gửi Daily", use_container_width=True, type="primary", help="Gửi báo cáo cảnh báo tức thì về email"):
                 with st.spinner("Đang gửi email..."):
@@ -1686,13 +1688,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
 
     # ── CỘT PHẢI: 4 KPI CARDS (BẤM TRỰC TIẾP ĐỂ LỌC VÀ HIỂN THỊ DỮ LIỆU TẠI CHỖ) ──
     with col_right:
-        if "agent2_kpi_filter" not in st.session_state:
-            st.session_state["agent2_kpi_filter"] = "ALL"
-        if "agent2_active_view" not in st.session_state:
-            st.session_state["agent2_active_view"] = "INVENTORY"
+        if "ag2_kpi_filter" not in st.session_state:
+            st.session_state["ag2_kpi_filter"] = "ALL"
+        if "ag2_active_view" not in st.session_state:
+            st.session_state["ag2_active_view"] = "INVENTORY"
 
-        cur_kpi = st.session_state["agent2_kpi_filter"]
-        cur_view = st.session_state["agent2_active_view"]
+        cur_kpi = st.session_state["ag2_kpi_filter"]
+        cur_view = st.session_state["ag2_active_view"]
 
         # Hàng 1: 4 Thẻ KPI Tương tác - Bấm trực tiếp để lọc bảng dữ liệu tương ứng ngay tại chỗ
         col_k1, col_k2, col_k3, col_k4 = st.columns(4, gap="small")
@@ -1705,9 +1707,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
-                st.session_state["agent2_active_view"] = "INVENTORY"
-                st.session_state["agent2_kpi_filter"] = "ALL"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "INVENTORY"
+                st.session_state["ag2_kpi_filter"] = "ALL"
+                st.rerun(scope="fragment")
 
         with col_k2:
             is_sel = (cur_view == "INVENTORY" and cur_kpi == "SAFE")
@@ -1717,9 +1719,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
-                st.session_state["agent2_active_view"] = "INVENTORY"
-                st.session_state["agent2_kpi_filter"] = "SAFE"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "INVENTORY"
+                st.session_state["ag2_kpi_filter"] = "SAFE"
+                st.rerun(scope="fragment")
 
         with col_k3:
             is_sel = (cur_view == "INVENTORY" and cur_kpi == "WARNING")
@@ -1729,9 +1731,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
-                st.session_state["agent2_active_view"] = "INVENTORY"
-                st.session_state["agent2_kpi_filter"] = "WARNING"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "INVENTORY"
+                st.session_state["ag2_kpi_filter"] = "WARNING"
+                st.rerun(scope="fragment")
 
         with col_k4:
             is_sel = (cur_view == "INVENTORY" and cur_kpi == "OUT_OF_STOCK")
@@ -1741,29 +1743,29 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
-                st.session_state["agent2_active_view"] = "INVENTORY"
-                st.session_state["agent2_kpi_filter"] = "OUT_OF_STOCK"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "INVENTORY"
+                st.session_state["ag2_kpi_filter"] = "OUT_OF_STOCK"
+                st.rerun(scope="fragment")
 
         # Thanh chuyển nhanh sang các nghiệp vụ phụ khác (Nhật ký, Tiêu hao, Báo cáo)
         c_nav1, c_nav2, c_nav3 = st.columns(3, gap="small")
         with c_nav1:
             if st.button("📝 Nhật Ký Xuất Thiết Bị", use_container_width=True, type="primary" if cur_view == "HISTORY" else "secondary"):
-                st.session_state["agent2_active_view"] = "HISTORY"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "HISTORY"
+                st.rerun(scope="fragment")
         with c_nav2:
             if st.button("📊 Phân Tích Tiêu Hao", use_container_width=True, type="primary" if cur_view == "ANALYTICS" else "secondary"):
-                st.session_state["agent2_active_view"] = "ANALYTICS"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "ANALYTICS"
+                st.rerun(scope="fragment")
         with c_nav3:
             if st.button("⚙️ Báo Cáo & Cấu Hình", use_container_width=True, type="primary" if cur_view == "CONFIG" else "secondary"):
-                st.session_state["agent2_active_view"] = "CONFIG"
-                st.rerun()
+                st.session_state["ag2_active_view"] = "CONFIG"
+                st.rerun(scope="fragment")
 
         # ── HIỂN THỊ NỘI DUNG THEO VIEW HIỆN TẠI ──
         if cur_view == "INVENTORY":
             # 1. Khung hiển thị kết quả tư vấn AI kèm cơ chế TTL 30 phút và nút Xóa thủ công
-            if "agent2_ai_response" in st.session_state:
+            if "ag2_ai_response" in st.session_state:
                 ai_ts = st.session_state.get("ag2_ai_timestamp", 0)
                 elapsed_min = int((time.time() - ai_ts) / 60) if ai_ts > 0 else 0
                 remaining_min = max(0, 30 - elapsed_min)
@@ -1779,24 +1781,24 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                     )
                 with ai_hdr_col2:
                     if st.button("🗑️ Xóa kết quả", key="btn_clear_ai_result", use_container_width=True, help="Xóa ngay kết quả tư vấn để dọn sạch màn hình"):
-                        st.session_state.pop("agent2_ai_response", None)
-                        st.session_state.pop("agent2_ai_last_prompt", None)
+                        st.session_state.pop("ag2_ai_response", None)
+                        st.session_state.pop("ag2_ai_last_prompt", None)
                         st.session_state.pop("ag2_ai_timestamp", None)
-                        st.rerun()
+                        st.rerun(scope="fragment")
 
-                last_prompt = st.session_state.get('agent2_ai_last_prompt', '')
+                last_prompt = st.session_state.get('ag2_ai_last_prompt', '')
                 st.markdown(f"<div style='font-size:0.78rem; color:#475569; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
-                st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["agent2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["ag2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
 
                 # Đối chiếu trực tiếp Live Sheet (HOÀN TOÀN KHÔNG CÓ CỘT MÃ VT)
-                verified_df = extract_verified_items_from_response(st.session_state["agent2_ai_response"], df_th)
+                verified_df = extract_verified_items_from_response(st.session_state["ag2_ai_response"], df_th)
                 if not verified_df.empty:
                     st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
                     st.dataframe(verified_df, use_container_width=True, hide_index=True)
                 st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
             # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
-            cur_kpi = st.session_state.get("agent2_kpi_filter", "ALL")
+            cur_kpi = st.session_state.get("ag2_kpi_filter", "ALL")
             if cur_kpi == "OUT_OF_STOCK":
                 filtered_df = df_th[df_th['_status_code'] == 'OUT_OF_STOCK'].copy()
                 kpi_desc = "🔴 ĐÃ CẠN (HẾT HÀNG)"
