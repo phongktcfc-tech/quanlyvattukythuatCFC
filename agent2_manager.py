@@ -331,6 +331,15 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
                 })
 
     df_tonghop = process_inventory_dataframe(pd.DataFrame(tonghop_data))
+    if not df_tonghop.empty:
+        codes = []
+        for i, r in df_tonghop.iterrows():
+            stt_val = r.get("stt")
+            try:
+                codes.append(f"VT-{int(stt_val):03d}")
+            except Exception:
+                codes.append(f"VT-{i+1:03d}")
+        df_tonghop["ma_vt"] = codes
 
     # 2. Đọc các sheet tháng phát sinh
     nhap_data = []
@@ -766,22 +775,229 @@ if __name__ == "__main__":
 # ═══════════════════════════════════════════════════════════════════════════
 # KỸ SƯ TRƯỞNG AI CƠ - ĐIỆN CFC (GEMINI 4 ARGON / FLASH ENGINE)
 # ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+# BƯỚC 1: BỘ PHÂN TÍCH YÊU CẦU & CHẶN LỖI SAI BẢN CHẤT KỸ THUẬT (AGENT 2)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def classify_engineering_intent(user_prompt: str) -> dict:
+    """
+    Phân tích yêu cầu của kỹ sư, tự động sửa lỗi gõ dấu thực tế (sàng thao tác -> sàn thao tác)
+    và phân loại hạng mục kỹ thuật để kích hoạt Blacklist / Whitelist kho xưởng.
+    """
+    raw_text = str(user_prompt).strip()
+    norm_text = unicodedata.normalize("NFC", raw_text).lower()
+
+    # 1. Nhận diện lỗi gõ dấu phổ biến tại xưởng:
+    # "sàng thao tác", "sàng công tác", "sàng đứng", "sàng bảo trì" -> SÀN THAO TÁC TĨNH
+    is_typo_sang = bool(re.search(r'\bsàng\s+(thao\s*tác|công\s*tác|đứng|làm\s*việc|bảo\s*trì|người\s*đứng)\b', norm_text))
+    has_dimensions = bool(re.search(r'\d+\s*(?:m|mm|cm)?\s*[x\*×]\s*\d+', norm_text))
+
+    if is_typo_sang or (("sàng" in norm_text) and has_dimensions and any(k in norm_text for k in ["cao", "rộng", "dài", "khung", "chân", "lan can", "cầu thang"])):
+        cleaned_prompt = re.sub(r'\bsàng\s+thao\s*tác\b', 'sàn thao tác', raw_text, flags=re.IGNORECASE)
+        cleaned_prompt = re.sub(r'\bsàng\s+công\s*tác\b', 'sàn công tác', cleaned_prompt, flags=re.IGNORECASE)
+        cleaned_prompt = re.sub(r'\bsàng\s+đứng\b', 'sàn đứng', cleaned_prompt, flags=re.IGNORECASE)
+        category = "KET_CAU_TINH"
+        note = "Đã nhận diện & chuẩn hóa: 'Sàn thao tác' (Kết cấu khung sàn thép tĩnh cho người đứng làm việc, KHÔNG PHẢI máy sàng rung)."
+        return {
+            "category": category,
+            "cleaned_prompt": cleaned_prompt,
+            "engineering_note": note,
+            "has_wheels_requested": any(w in norm_text for w in ["di động", "bánh xe", "bánh đẩy", "xe đẩy"])
+        }
+
+    # 2. Phân loại theo hạng mục kỹ thuật
+    keywords_static = [
+        "sàn", "cầu thang", "lan can", "khung", "bệ đỡ", "giá đỡ", "kệ", "mái che",
+        "vách", "bồn chứa", "tuyến ống", "đường ống", "bản mã", "bệ máy tĩnh", "chân đế"
+    ]
+    if any(k in norm_text for k in keywords_static) and not any(k in norm_text for k in ["băng tải", "vít tải", "gầu tải", "máy nghiền", "máy sàng rung", "bơm"]):
+        return {
+            "category": "KET_CAU_TINH",
+            "cleaned_prompt": raw_text,
+            "engineering_note": "Hạng mục: Kết cấu tĩnh & Gia công cơ khí tĩnh (Khung thép, sàn, lan can, bệ đỡ).",
+            "has_wheels_requested": any(w in norm_text for w in ["di động", "bánh xe", "bánh đẩy", "xe đẩy"])
+        }
+
+    keywords_elec = [
+        "tủ điện", "chiếu sáng", "đèn", "cảm biến", "van điện từ", "ben hơi", "xy lanh khí nén",
+        "dây điện", "cáp điện", "aptomat", "mcb", "mccb", "contactor", "khởi động từ", "rơle", "inverter", "biến tần"
+    ]
+    if any(k in norm_text for k in keywords_elec) and not any(k in norm_text for k in ["khung", "sàn", "kết cấu", "thép hình"]):
+        return {
+            "category": "DIEN_TU_DONG_HOA",
+            "cleaned_prompt": raw_text,
+            "engineering_note": "Hạng mục: Lắp đặt & Sửa chữa Điện - Khí nén - Tự động hóa.",
+            "has_wheels_requested": False
+        }
+
+    return {
+        "category": "THIET_BI_DONG",
+        "cleaned_prompt": raw_text,
+        "engineering_note": "Hạng mục: Chế tạo & Sửa chữa Thiết bị cơ điện động (Máy móc có chuyển động).",
+        "has_wheels_requested": any(w in norm_text for w in ["di động", "bánh xe", "bánh đẩy", "xe đẩy"])
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BƯỚC 2: TRUYỀN DỮ LIỆU TỪ LIVE SHEET VÀO PROMPT (DYNAMIC SHEET GROUNDING)
+# ═══════════════════════════════════════════════════════════════════════════
+
+STATIC_BLACKLIST_KEYWORDS = [
+    "động cơ", "motor", "mô tơ", "hộp giảm tốc", "hgt", "biến tần", "inverter",
+    "dây curoa", "curoa", "puly", "buly", "nhông", "xích", "sên",
+    "vòng bi", "bạc đạn", "gối đỡ", "lưới sàng"
+]
+
+def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict) -> str:
+    """
+    Chuyển đổi toàn bộ DataFrame hiện tại của Agent 2 (Live Sheet ~475-488 mã)
+    thành bảng văn bản Markdown cấu trúc chuẩn, áp dụng Blacklist nếu là Kết cấu tĩnh.
+    """
+    if df_th is None or df_th.empty:
+        return "Hiện chưa có dữ liệu tồn kho xưởng từ Live Sheet."
+
+    category = intent_info.get("category", "THIET_BI_DONG")
+    has_wheels = intent_info.get("has_wheels_requested", False)
+
+    lines = [
+        "| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |",
+        "|:---|:---|:---|:---:|:---:|:---:|"
+    ]
+
+    for idx, r in df_th.iterrows():
+        stt_val = r.get("stt")
+        try:
+            stt_int = int(stt_val)
+            code = f"VT-{stt_int:03d}"
+        except Exception:
+            code = f"VT-{idx+1:03d}"
+
+        name = str(r.get("ten_vat_tu", "")).strip()
+        if not name or name == "nan":
+            continue
+
+        spec = str(r.get("quy_cach", "")).strip()
+        spec_clean = spec if spec and spec != "nan" else "-"
+        dvt = str(r.get("dvt", "")).strip() or "Cái"
+        
+        try:
+            stock = float(r.get("ton_thuc_te", 0) or 0)
+        except Exception:
+            stock = 0.0
+
+        status_str = str(r.get("trang_thai", "")).strip()
+        if not status_str or status_str == "nan":
+            if stock <= 0:
+                status_str = "Đã cạn (Tồn = 0)"
+            else:
+                status_str = "An toàn"
+        else:
+            if "CẠN" in status_str.upper() or "HẾT" in status_str.upper() or stock <= 0:
+                status_str = "Đã cạn (Tồn = 0)"
+            elif "SẮP" in status_str.upper() or "WARNING" in status_str.upper():
+                status_str = "Sắp hết"
+            else:
+                status_str = "An toàn"
+
+        # Kiểm tra Blacklist nếu là Kết cấu tĩnh
+        if category == "KET_CAU_TINH":
+            if str(r.get("nhom", "")).strip().lower() == "điện":
+                continue
+            combined_name = f"{name} {spec_clean}".lower()
+            if any(blk in combined_name for blk in STATIC_BLACKLIST_KEYWORDS):
+                continue
+            if not has_wheels and "bánh xe" in combined_name:
+                continue
+
+        stock_display = f"{stock:g}"
+        lines.append(f"| {code} | {name} | {spec_clean} | {dvt} | {stock_display} | {status_str} |")
+
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BƯỚC 4: ĐỒNG BỘ KIỂM TRA CHÉO DỮ LIỆU TỒN KHO THỰC TẾ (DATA VERIFICATION)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def extract_verified_items_from_response(ai_text: str, df_th: pd.DataFrame) -> pd.DataFrame:
+    """
+    Trích xuất danh sách các vật tư được Kỹ sư Trưởng AI đề xuất
+    để đối chiếu trực tiếp với DataFrame Live Sheet của Agent 2.
+    """
+    if not ai_text or df_th is None or df_th.empty:
+        return pd.DataFrame()
+
+    matched_codes = set(re.findall(r'VT[-_](\d{1,4})', ai_text, re.IGNORECASE))
+    target_codes = {f"VT-{int(c):03d}" for c in matched_codes}
+
+    if "ma_vt" not in df_th.columns:
+        codes = []
+        for i, r in df_th.iterrows():
+            stt_val = r.get("stt")
+            try:
+                codes.append(f"VT-{int(stt_val):03d}")
+            except Exception:
+                codes.append(f"VT-{i+1:03d}")
+        df_th["ma_vt"] = codes
+
+    matched_df = df_th[df_th["ma_vt"].isin(target_codes)].copy()
+    if matched_df.empty:
+        # Thử tìm theo tên vật tư nếu AI không ghi rõ mã VT
+        matched_indices = []
+        for idx, r in df_th.iterrows():
+            name = str(r.get("ten_vat_tu", "")).strip()
+            if len(name) >= 5 and name.lower() in ai_text.lower():
+                matched_indices.append(idx)
+        if matched_indices:
+            matched_df = df_th.loc[matched_indices].copy()
+
+    if matched_df.empty:
+        return pd.DataFrame()
+
+    out_df = pd.DataFrame({
+        "Mã VT": matched_df["ma_vt"],
+        "Tên vật tư trong kho xưởng": matched_df["ten_vat_tu"],
+        "Quy cách": matched_df["quy_cach"].fillna("-"),
+        "ĐVT": matched_df["dvt"],
+        "Tồn thực tế (Live Sheet)": matched_df["ton_thuc_te"],
+        "Trạng thái kho": matched_df.get("Trạng Thái Kho", matched_df.get("trang_thai", "An toàn"))
+    })
+    return out_df.reset_index(drop=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BƯỚC 3: MASTER SYSTEM PROMPT KỸ SƯ TRƯỞNG AGENT 2 (NVIDIA NIM AI)
+# ═══════════════════════════════════════════════════════════════════════════
+
 SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER = """
-Bạn là KỸ SƯ TRƯỞNG CƠ - ĐIỆN KIÊM CHUYÊN GIA BÓC TÁCH VẬT TƯ & QUẢN TRỊ KHO NHÀ MÁY (CFC).
-Bạn có chuyên môn sâu về cơ khí chế tạo máy, kết cấu hàn, đường ống áp lực, thiết bị trao đổi nhiệt, hệ thống điện phân phối, động cơ, khởi động từ, biến tần, tự động hóa và các tiêu chuẩn kỹ thuật (TCVN, ASTM, JIS, DIN, IEC).
+Bạn là KỸ SƯ TRƯỞNG CƠ - ĐIỆN của Công ty Cổ phần Phân bón và Hóa chất Cần Thơ (CFC).
+Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN.
 
-MỤC TIÊU CỐT LÕI:
-1. Giải đáp mọi thắc mắc chuyên sâu về quy cách kỹ thuật, thông số cơ - điện, tính toán chọn thiết bị thay thế tương đương.
-2. Khi người dùng đưa ra một bài toán kỹ thuật, một yêu cầu gia công (ví dụ: bệ đỡ động cơ 22kW, tuyến ống cấp nước DN50, tủ điện khởi động sao-tam giác, gia công mặt bích, bảo trì hệ thống chiếu sáng...):
-   - Bước 1: PHÂN TÍCH NHU CẦU & BÓC TÁCH DANH MỤC VẬT TƯ: Liệt kê chi tiết các thành phần cần thiết (thép hình, bulong đai ốc, que hàn, mặt bích, phụ kiện ống, contactor, MCB, cáp điện...).
-   - Bước 2: ĐỐI CHIẾU VỚI KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN CFC: So sánh trực tiếp với 475 mã vật tư trong kho xưởng được cung cấp.
-   - Bước 3: ĐỀ XUẤT TẬN DỤNG TỐI ĐA VẬT TƯ SẴN CÓ:
-     * Nêu cụ thể mã/tên vật tư có trong kho phù hợp hoặc tương đương kỹ thuật dùng được ngay (kèm tồn kho thực tế).
-     * MỤC TIÊU TỐI THƯỢNG: Tận dụng triệt để vật tư trong xưởng trước khi mua mới để tiết kiệm chi phí cho nhà máy.
-     * Chỉ rõ những vật tư nào kho chưa có hoặc đã cạn kiệt số lượng thì mới lập danh sách đề xuất mua ngoài.
-   - Bước 4: LƯU Ý KỸ THUẬT THI CÔNG & AN TOÀN.
+=== 4 NGUYÊN TẮC BẮT BUỘC KHI TƯ VẤN & BÓC TÁCH VẬT TƯ ===
 
-Phong cách phản hồi: Chuyên nghiệp, trực diện, mạch lạc, dùng bảng Markdown hoặc danh sách có gạch đầu dòng rõ ràng.
+1. HIỂU ĐÚNG BẢN CHẤT KỸ THUẬT - KHÔNG GỢI Ý THỪA:
+   - Trước khi chọn vật tư, phải xác định thiết bị người dùng yêu cầu là KẾT CẤU TĨNH (Sàn thao tác/sàng thao tác đứng làm việc, cầu thang, lan can, khung đỡ, kệ) hay THIẾT BỊ ĐỘNG (Máy sàng phân bón, băng tải, vít tải, quạt).
+   - Nếu là SÀN THAO TÁC (kể cả khi người dùng gõ nhầm là "sàng thao tác" kèm kích thước Dài x Rộng x Cao như 2m x 2m x 2m): Đây chỉ là sàn công tác tĩnh để người đi lại và đứng thao tác trên cao. Chỉ bóc tách:
+     + Khung cột chịu lực & dầm chính (Thép hình U, I, V hoặc Thép hộp).
+     + Mặt sàn đi lại (Tấm sàn grating, thép tấm chống trượt/thép tấm thường).
+     + Lan can bảo vệ an toàn & cầu thang lên xuống (Thép ống, thép V).
+     + Vật tư liên kết & hoàn thiện (Bản mã chân đế, bulong/tắc kê, que hàn, đá cắt/mài, sơn chống rỉ).
+   - TUYỆT ĐỐI KHÔNG đưa Động cơ, Hộp số, Dây curoa, Vòng bi, Lưới sàng hay Bánh xe vào Sàn thao tác tĩnh!
+
+2. BÁM SÁT 100% DỮ LIỆU KHO XƯỞNG CỦA AGENT 2 (<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>):
+   - Bạn CHỈ ĐƯỢC PHÉP lấy các vật tư có mặt trong thẻ `<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>` ở trên để đưa vào Bảng bóc tách vật tư có sẵn trong kho.
+   - Phải giữ nguyên chính xác 100% `Mã VT`, `Tên vật tư`, `ĐVT` và `Số lượng tồn thực tế` như trong bảng dữ liệu đã cấp. Tuyệt đối không tự sáng tác mã hàng hay sửa đổi tên hàng.
+   - Ưu tiên chọn các vật tư đang có trạng thái "An toàn" (Tồn kho > 0 và đủ số lượng gia công). Nếu một vật tư trong kho đã "Sắp hết" hoặc "Đã cạn (Tồn = 0)" hoặc chưa có trong danh mục của xưởng, hãy tách riêng xuống bảng phụ "Danh mục vật tư thiếu / Cần đề xuất mua bổ sung".
+
+3. TÍNH TOÁN KHỐI LƯỢNG HỢP LÝ THEO KÍCH THƯỚC:
+   - Dựa vào kích thước người dùng nhập (ví dụ 2m x 2m x 2m), hãy tính nhẩm chiều dài từng cấu kiện (4 trụ đứng 2m = 8m; khung dầm mặt sàn 2mx2m = 12m; lan can bảo vệ cao 1m quanh sàn = 16m; diện tích mặt sàn = 4m2) rồi quy đổi ra số Cây (thường 6m/cây), số Tấm, số Kg que hàn, số Bộ bulong cần xuất kho sao cho sát thực tế thi công nhất.
+
+4. CẤU TRÚC TRÌNH BÀY ĐẦU RA:
+   - **1. PHÂN TÍCH KẾT CẤU & PHƯƠNG ÁN THI CÔNG:** Nêu ngắn gọn kết cấu khung chịu lực, mặt sàn, lan can/cầu thang (không viết lan man).
+   - **2. BẢNG BÓC TÁCH VẬT TƯ TRONG KHO XƯỞNG CFC (ĐỐI CHIẾU LIVE SHEET):**
+     Trình bày dạng bảng Markdown gồm các cột:
+     | STT | Hạng mục công việc | Mã VT (Kho Xưởng) | Tên vật tư trong kho | ĐVT | Tồn thực tế | SL đề xuất xuất | Trạng thái kho |
+   - **3. VẬT TƯ THIẾU CẦN MUA BỔ SUNG / LƯU Ý AN TOÀN:** Chỉ liệt kê nếu trong kho xưởng thực sự thiếu hoặc tồn kho không đủ số lượng cần gia công.
 """
 
 
@@ -789,7 +1005,7 @@ def query_nvidia_nim_chief_engineer(
     full_prompt: str,
     system_instruction: str,
     nvidia_key: str = "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",
-    model: str = "google/diffusiongemma-26b-a4b-it"
+    model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
 ) -> str:
     """Gọi mô hình AI NVIDIA NIM chuyên gia bóc tách kỹ thuật tiếng Việt chuẩn 100% cho Agent 2."""
     import requests
@@ -800,9 +1016,10 @@ def query_nvidia_nim_chief_engineer(
     }
     candidate_models = [
         model,
-        "google/diffusiongemma-26b-a4b-it",
-        "google/gemma-3-12b-it",
-        "google/gemma-3-4b-it"
+        "nvidia/nemotron-3.5-lightning-30b-a3b",
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "deepseek-ai/deepseek-v4.1-flash",
+        "google/diffusiongemma-26b-a4b-it"
     ]
     models_to_try = []
     for m in candidate_models:
@@ -817,17 +1034,24 @@ def query_nvidia_nim_chief_engineer(
                 {"role": "user", "content": full_prompt}
             ],
             "temperature": 0.1,
-            "max_tokens": 1000
+            "max_tokens": 3000
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=35)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
                 data = resp.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
                 ans = msg.get("content")
-                # Bắt buộc nội dung trả về phải là kết quả tiếng Việt chính thức, không lấy reasoning tiếng Anh
-                if ans and len(ans.strip()) > 30:
-                    return ans.strip()
+                if ans and len(str(ans).strip()) > 30:
+                    return str(ans).strip()
+                # Dự phòng nếu model trả reasoning_content (lược bỏ suy nghĩ tiếng Anh nếu có)
+                reasoning = msg.get("reasoning_content")
+                if reasoning and len(str(reasoning).strip()) > 50:
+                    r_text = str(reasoning).strip()
+                    m_start = re.search(r'(?:\*\*|\#\#|\d+\.\s*\*\*)\s*(?:1\.\s*)?PHÂN TÍCH', r_text, re.IGNORECASE)
+                    if m_start:
+                        return r_text[m_start.start():].strip()
+                    return r_text
         except Exception:
             continue
     return ""
@@ -838,28 +1062,26 @@ def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str 
     import google.generativeai as genai
     from PIL import Image
 
-    # Trích xuất vật tư còn tồn kho thành context súc tích (tiết kiệm token, tăng tốc phản hồi gấp 2.5 lần)
-    inventory_lines = []
-    if df_th is not None and not df_th.empty:
-        for _, r in df_th.iterrows():
-            name = str(r.get("ten_vat_tu", "")).strip()
-            spec = str(r.get("quy_cach", "")).strip()
-            dvt = str(r.get("dvt", "")).strip()
-            stock = r.get("ton_thuc_te", 0)
-            if name and name != "nan" and stock > 0:
-                spec_str = f" ({spec})" if spec and spec != "nan" else ""
-                inventory_lines.append(f"- {name}{spec_str}: Tồn {stock} {dvt}")
-    inventory_context = "\n".join(inventory_lines)
+    # 1. Phân tích intent & Blacklist/Whitelist
+    intent_info = classify_engineering_intent(user_prompt)
+
+    # 2. Tạo bảng tồn kho Live Sheet có cấu trúc
+    inventory_table_str = build_agent2_dynamic_inventory_table(df_th, intent_info)
 
     full_prompt = f"""
-DANH MỤC 475 VẬT TƯ THỰC TẾ HIỆN CÓ TẠI KHO XƯỞNG CƠ - ĐIỆN CFC:
-{inventory_context}
+Dưới đây là toàn bộ DỮ LIỆU TỒN KHO THỰC TẾ TẠI XƯỞNG được đồng bộ trực tiếp từ Google Sheet của Agent 2:
+<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>
+{inventory_table_str}
+</DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>
 
 ---
-YÊU CẦU KỸ THUẬT / CÔNG TRÌNH / BẢN VẼ GIA CÔNG CỦA KỸ SƯ:
-{user_prompt}
+LƯU Ý PHÂN LOẠI KỸ THUẬT:
+{intent_info['engineering_note']}
 
-Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư (đọc kỹ thông số bản vẽ/hình ảnh đính kèm nếu có), đặc biệt ưu tiên TẬN DỤNG TỐI ĐA các vật tư có sẵn trong danh mục kho trên trước khi kiến nghị mua mới!
+YÊU CẦU KỸ THUẬT / GIA CÔNG CỦA KỸ SƯ:
+{intent_info['cleaned_prompt']}
+
+Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư theo đúng 4 nguyên tắc bắt buộc của Kỹ sư Trưởng Cơ - Điện!
 """
 
     # 1. ƯU TIÊN ĐẶC BIỆT: ĐỘNG CƠ NVIDIA NIM (Agent 2 chạy độc lập 100%, không nghẽn với Agent 1)
@@ -907,6 +1129,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
             continue
 
     return f"⚠️ Không thể kết nối với mô hình AI ({last_err}). Vui lòng kiểm tra lại API Key hoặc quota kết nối."
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1510,6 +1733,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             if "agent2_ai_response" in st.session_state:
                 with st.expander(f"💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI (Cho yêu cầu: \"{st.session_state.get('agent2_ai_last_prompt', '')}\")", expanded=True):
                     st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["agent2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
+                    # Bước 4: Kiểm tra chéo dữ liệu tồn kho thực tế từ Live Sheet
+                    verified_df = extract_verified_items_from_response(st.session_state["agent2_ai_response"], df_th)
+                    if not verified_df.empty:
+                        st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2:</div>", unsafe_allow_html=True)
+                        st.dataframe(verified_df, use_container_width=True, hide_index=True)
                     if st.button("✕ Thu gọn kết quả tư vấn", key="btn_close_ai_top"):
                         st.session_state.pop("agent2_ai_response", None)
                         st.rerun()
