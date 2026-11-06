@@ -2419,22 +2419,8 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 q_cach = r.get("quy_cach", "") or ""
                 search_str = f"{t_goc} {q_cach}".strip()
 
-                alias_match = match_from_alias_memory(t_goc)
-                if not alias_match and t_chuan:
-                    alias_match = match_from_alias_memory(t_chuan)
-
-                if alias_match:
-                    target_code = alias_match.get("target_code", "")
-                    target_name = alias_match.get("target_name", "")
-                    r["trang_thai"] = "KHỚP"
-                    r["ma_vat_tu_cu"] = target_code
-                    r["ten_trong_kho"] = target_name
-                    r["ton_kho"] = 0
-                    r["ma_de_xuat"] = "-"
-                    r["goi_y_tuong_duong"] = f"{target_code} ({target_name} — Trí nhớ đã học)"
-                    r["ghi_chu"] = f"✓ Khớp 100% từ Trí nhớ đã học (Mã: {target_code})"
-                    consolidated_results.append(r)
-                    continue
+                # ĐÃ LOẠI BỎ TOÀN BỘ TRÍ NHỚ ĐÃ HỌC (ALIAS_MEMORY) THEO BƯỚC 2 STRICT CATEGORY GATING
+                # Toàn bộ đối chiếu chạy trực tiếp qua 5-Stage Industrial SKU Resolution Pipeline
 
                 try:
                     in_price = float(r.get("don_gia", 0) or 0)
@@ -2454,7 +2440,7 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
                 # CHỈ TỰ ĐỘNG KHỚP KHI ĐẠT EXACT_MATCH (ĐÚNG CHỦNG LOẠI & QUY CÁCH >= 75%)
-                if best and best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 75:
+                if best and best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85:
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
