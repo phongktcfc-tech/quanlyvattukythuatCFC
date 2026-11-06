@@ -2463,59 +2463,53 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         has_results = bool(st.session_state.get("ag1_reconciled_results"))
 
         def _render_intake_hub():
-            uploaded_files = None
-            col_ih_title, col_ih_mode = st.columns([1.5, 3.5])
-            with col_ih_title:
-                st.markdown("""
-                <div style="font-weight: 700; color: #0F172A; font-size: 0.92rem; padding-top: 4px;">
-                    📥 NẠP CHỨNG TỪ ĐỐI CHIẾU
+            st.markdown("""
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <div style="font-size: 1.4rem; color: #2563EB; font-weight: 800; line-height: 1;">➕</div>
+                <div>
+                    <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem;">
+                        CỔNG NẠP CHỨNG TỪ ĐA NĂNG (HỖ TRỢ QUÉT & PHÂN TÍCH SONG SONG)
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748B;">
+                        Chọn hoặc kéo thả đồng thời nhiều file cùng lúc: <strong>Ảnh chụp</strong> (PNG, JPG, WEBP) & <strong>Tài liệu</strong> (PDF, XLSX, XLS, CSV)
+                    </div>
                 </div>
-                <div style="font-size: 0.74rem; color: #64748B;">
-                    Dán ảnh clipboard hoặc chọn file từ máy
-                </div>
-                """, unsafe_allow_html=True)
-            with col_ih_mode:
-                intake_mode = st.segmented_control(
-                    "Phương thức:",
-                    options=["📋 Dán ảnh nhanh (Ctrl + V)", "📁 Tải file từ máy tính (Excel, PDF, Ảnh)"],
-                    default="📋 Dán ảnh nhanh (Ctrl + V)",
-                    key="intake_mode_sel",
-                    label_visibility="collapsed"
-                )
+            </div>
+            """, unsafe_allow_html=True)
 
-            if intake_mode == "📋 Dán ảnh nhanh (Ctrl + V)":
-                raw_pasted_data = render_ctrl_v_box(key="ctrl_v_catcher")
-                if raw_pasted_data and isinstance(raw_pasted_data, str) and ";base64," in raw_pasted_data:
-                    try:
-                        _, b64_part = raw_pasted_data.split(";base64,")
-                        pasted_bytes = base64.b64decode(b64_part)
-                        img_hash = hashlib.md5(pasted_bytes).hexdigest()
+            uploaded_files = st.file_uploader(
+                "➕ Bấm để chọn nhiều file hoặc kéo thả vào đây (PDF, Excel, Ảnh, CSV):",
+                type=["pdf", "xlsx", "xls", "csv", "png", "jpg", "jpeg", "webp", "bmp"],
+                accept_multiple_files=True,
+                key="ag1_unified_file_uploader",
+                help="Chọn đồng thời tất cả các hóa đơn, phiếu xuất kho cần đối chiếu một lần"
+            )
 
-                        if img_hash != st.session_state["ag1_last_pasted_hash"]:
-                            st.session_state["ag1_last_pasted_hash"] = img_hash
-                            st.session_state["ag1_pasted_gallery"].append({
-                                "id": img_hash,
-                                "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['pasted_gallery'])+1}.png",
-                                "bytes": pasted_bytes,
-                            })
-                            st.rerun(scope="fragment")
-                    except Exception as e:
-                        st.error(f"Lỗi đọc clipboard: {e}")
-            else:
-                uploaded_files = st.file_uploader(
-                    "Upload files",
-                    type=["xlsx", "xls", "pdf", "jpg", "jpeg", "png", "bmp", "webp"],
-                    accept_multiple_files=True,
-                    label_visibility="collapsed",
-                    key="batch_file_uploader"
-                )
+            # Khung hỗ trợ dán ảnh nhanh tự động (Ctrl + V)
+            raw_pasted_data = render_ctrl_v_box(key="ctrl_v_catcher")
+            if raw_pasted_data and isinstance(raw_pasted_data, str) and ";base64," in raw_pasted_data:
+                try:
+                    _, b64_part = raw_pasted_data.split(";base64,")
+                    pasted_bytes = base64.b64decode(b64_part)
+                    img_hash = hashlib.md5(pasted_bytes).hexdigest()
 
-            # ── HIỂN THỊ HÀNG ĐỢI ẢNH CLIPBOARD (NẾU CÓ) ──
+                    if img_hash != st.session_state["ag1_last_pasted_hash"]:
+                        st.session_state["ag1_last_pasted_hash"] = img_hash
+                        st.session_state["ag1_pasted_gallery"].append({
+                            "id": img_hash,
+                            "name": f"Clip_{datetime.datetime.now().strftime('%H%M%S')}_{len(st.session_state['ag1_pasted_gallery'])+1}.png",
+                            "bytes": pasted_bytes,
+                        })
+                        st.rerun(scope="fragment")
+                except Exception as e:
+                    st.error(f"Lỗi đọc clipboard: {e}")
+
+            # Hiển thị ảnh dán từ Clipboard nếu có
             n_pasted = len(st.session_state["ag1_pasted_gallery"])
             if n_pasted > 0:
                 col_title, col_clear = st.columns([4, 1])
                 with col_title:
-                    st.caption(f"📸 Hàng đợi ảnh Clipboard: **{n_pasted} ảnh** *(Nhấn Ctrl + V để dán thêm)*")
+                    st.caption(f"📸 Đã dán từ Clipboard: **{n_pasted} ảnh** *(Sẽ được quét song song cùng các file trên)*")
                 with col_clear:
                     if st.button("🗑️ Xóa ảnh dán", use_container_width=True, key="btn_clear_pastes_dock"):
                         st.session_state["ag1_pasted_gallery"] = []
@@ -2538,32 +2532,34 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             return uploaded_files
 
         if has_results:
-            with st.expander("📥 NẠP THÊM CHỨNG TỪ / ĐỐI CHIẾU TIẾP (Dán ảnh hoặc Chọn file)", expanded=False):
+            with st.expander("➕ NẠP THÊM CHỨNG TỪ / TIẾP TỤC ĐỐI CHIẾU (QUÉT SONG SONG)", expanded=False):
                 uploaded_files = _render_intake_hub()
         else:
             with st.container(border=True):
                 uploaded_files = _render_intake_hub()
 
-        # ── TỔNG HỢP TẤT CẢ CHỨNG TỪ TRONG HÀNG ĐỢI ──
+        # ── TỔNG HỢP TẤT CẢ CHỨNG TỪ TRONG HÀNG ĐỢI (QUÉT SONG SONG) ──
         all_queue = []
-        for p in st.session_state["ag1_pasted_gallery"]:
+        active_uploads = uploaded_files if uploaded_files is not None else st.session_state.get("ag1_unified_file_uploader")
+        if active_uploads:
+            for uf in active_uploads:
+                ext = uf.name.rsplit(".", 1)[-1].lower() if "." in uf.name else ""
+                file_bytes = uf.read() if hasattr(uf, "read") else uf.getvalue()
+                ftype = "excel" if ext in ("xlsx", "xls", "csv") else ("pdf" if ext == "pdf" else "image")
+                all_queue.append({
+                    "name": uf.name,
+                    "bytes": file_bytes,
+                    "ext": ext,
+                    "type": ftype
+                })
+
+        for p in st.session_state.get("ag1_pasted_gallery", []):
             all_queue.append({
                 "name": p["name"],
                 "bytes": p["bytes"],
                 "ext": "png",
                 "type": "image"
             })
-
-        active_uploads = uploaded_files if uploaded_files is not None else st.session_state.get("batch_file_uploader")
-        if active_uploads:
-            for uf in active_uploads:
-                ext = uf.name.rsplit(".", 1)[-1].lower()
-                all_queue.append({
-                    "name": uf.name,
-                    "bytes": uf.read() if hasattr(uf, "read") else uf.getvalue(),
-                    "ext": ext,
-                    "type": "excel" if ext in ("xlsx", "xls") else ("pdf" if ext == "pdf" else "image")
-                })
 
         n_pasted = len(st.session_state["ag1_pasted_gallery"])
 
@@ -2593,7 +2589,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                 time.sleep(1)
                 st.rerun(scope="fragment")
 
-            elif st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ({len(all_queue)} CHỨNG TỪ)", type="primary", use_container_width=True):
+            elif st.button(f"🚀 BẮT ĐẦU ĐỐI CHIẾU SONG SONG ({len(all_queue)} CHỨNG TỪ ĐÃ NẠP)", type="primary", use_container_width=True):
                 if not api_key:
                     st.error("⛔ Vui lòng nhập Google AI Key tại sidebar bên trái!")
                 else:
