@@ -2151,38 +2151,18 @@ if current_agent_active not in AGENT_OPTIONS:
 
 is_agent2_only = (current_agent_active == MODE_AGENT2)
 
-col_agent_bar, col_quick_links = st.columns([5.0, 2.0], vertical_alignment="center")
-
-with col_agent_bar:
-    st.markdown("""
-    <div style="display:flex; align-items:center; gap:8px; padding:2px 0;">
-        <span style="font-size:0.75rem; background:#EFF6FF; color:#1E40AF; padding:4px 10px; border-radius:980px; font-weight:700; border:1px solid #BFDBFE;">
-            🤖 AGENT 1: KHO GỐC (1.410 MÃ)
-        </span>
-        <span style="font-size:0.75rem; color:#94A3B8;">•</span>
-        <span style="font-size:0.75rem; background:#ECFDF5; color:#065F46; padding:4px 10px; border-radius:980px; font-weight:700; border:1px solid #A7F3D0;">
-            ⚡ AGENT 2: KHO XƯỞNG LIVE (~488 MÃ)
-        </span>
-        <span style="font-size:0.75rem; color:#94A3B8;">•</span>
-        <span style="font-size:0.72rem; color:#64748B;">
-            Vận hành song song độc lập (Parallel Multi-Agent @st.fragment)
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col_quick_links:
-    base_url = get_public_url()
-    st.markdown(f"""
-    <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px;">
-        <span style="font-size:0.73rem; color:#64748B;">Mở độc lập:</span>
-        <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#EFF6FF; color:#0071E3; border:1px solid rgba(0,113,227,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
-            🤖 Agent 1 ↗
-        </a>
-        <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.73rem; background:#ECFDF5; color:#10B981; border:1px solid rgba(16,185,129,0.25); padding:3px 9px; border-radius:980px; font-weight:600;">
-            ⚡ Agent 2 ↗
-        </a>
-    </div>
-    """, unsafe_allow_html=True)
+base_url = get_public_url()
+st.markdown(f"""
+<div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin: 2px 0 6px 0;">
+    <span style="font-size:0.73rem; color:#64748B;">Mở tab mới:</span>
+    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:#EFF6FF; color:#0071E3; border:1px solid rgba(0,113,227,0.25); padding:2px 8px; border-radius:980px; font-weight:600;">
+        🤖 Agent 1 ↗
+    </a>
+    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:#ECFDF5; color:#10B981; border:1px solid rgba(16,185,129,0.25); padding:2px 8px; border-radius:980px; font-weight:600;">
+        ⚡ Agent 2 ↗
+    </a>
+</div>
+""", unsafe_allow_html=True)
 
 # Trợ lý Cơ-Điện popover (chỉ hiển thị tại Agent 1)
 if not is_agent2_only:
