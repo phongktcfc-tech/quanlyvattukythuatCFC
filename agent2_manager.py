@@ -331,15 +331,6 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
                 })
 
     df_tonghop = process_inventory_dataframe(pd.DataFrame(tonghop_data))
-    if not df_tonghop.empty:
-        codes = []
-        for i, r in df_tonghop.iterrows():
-            stt_val = r.get("stt")
-            try:
-                codes.append(f"VT-{int(stt_val):03d}")
-            except Exception:
-                codes.append(f"VT-{i+1:03d}")
-        df_tonghop["ma_vt"] = codes
 
     # 2. Đọc các sheet tháng phát sinh
     nhap_data = []
@@ -923,44 +914,58 @@ def extract_verified_items_from_response(ai_text: str, df_th: pd.DataFrame) -> p
     """
     Trích xuất danh sách các vật tư được Kỹ sư Trưởng AI đề xuất
     để đối chiếu trực tiếp với DataFrame Live Sheet của Agent 2.
+    Định danh hoàn toàn theo TÊN VẬT TƯ và QUY CÁCH KỸ THUẬT (Không dùng Mã VT).
     """
     if not ai_text or df_th is None or df_th.empty:
         return pd.DataFrame()
 
-    matched_codes = set(re.findall(r'VT[-_](\d{1,4})', ai_text, re.IGNORECASE))
-    target_codes = {f"VT-{int(c):03d}" for c in matched_codes}
+    ai_text_lower = ai_text.lower()
+    matched_indices = []
 
-    if "ma_vt" not in df_th.columns:
-        codes = []
-        for i, r in df_th.iterrows():
-            stt_val = r.get("stt")
-            try:
-                codes.append(f"VT-{int(stt_val):03d}")
-            except Exception:
-                codes.append(f"VT-{i+1:03d}")
-        df_th["ma_vt"] = codes
+    # Khớp theo Tên vật tư + Quy cách thực tế trong Live Sheet
+    for idx, r in df_th.iterrows():
+        name = str(r.get("ten_vat_tu", "")).strip().lower()
+        if len(name) < 3 or name in ["nan", "none"]:
+            continue
+        spec = str(r.get("quy_cach", "")).strip().lower()
+        if spec == "nan":
+            spec = ""
 
-    matched_df = df_th[df_th["ma_vt"].isin(target_codes)].copy()
-    if matched_df.empty:
-        # Thử tìm theo tên vật tư nếu AI không ghi rõ mã VT
-        matched_indices = []
-        for idx, r in df_th.iterrows():
-            name = str(r.get("ten_vat_tu", "")).strip()
-            if len(name) >= 5 and name.lower() in ai_text.lower():
-                matched_indices.append(idx)
-        if matched_indices:
-            matched_df = df_th.loc[matched_indices].copy()
+        # Kiểm tra khớp tên
+        if name in ai_text_lower:
+            # Nếu có quy cách kỹ thuật, ưu tiên kiểm tra khớp quy cách
+            if spec and len(spec) >= 2:
+                if spec in ai_text_lower:
+                    matched_indices.append(idx)
+                elif len(name) >= 6:
+                    matched_indices.append(idx)
+            else:
+                if len(name) >= 5:
+                    matched_indices.append(idx)
 
-    if matched_df.empty:
+    if not matched_indices:
         return pd.DataFrame()
 
+    # Khử trùng lặp và giữ nguyên thứ tự xuất hiện
+    seen = set()
+    unique_indices = [x for x in matched_indices if not (x in seen or seen.add(x))]
+    matched_df = df_th.loc[unique_indices].copy()
+
+    stt_col = []
+    for idx, r in matched_df.iterrows():
+        val = r.get("stt")
+        try:
+            stt_col.append(int(val))
+        except Exception:
+            stt_col.append(len(stt_col) + 1)
+
     out_df = pd.DataFrame({
-        "Mã VT": matched_df["ma_vt"],
+        "STT": stt_col,
         "Tên vật tư trong kho xưởng": matched_df["ten_vat_tu"],
-        "Quy cách": matched_df["quy_cach"].fillna("-"),
+        "Quy cách kỹ thuật": matched_df["quy_cach"].fillna("-"),
         "ĐVT": matched_df["dvt"],
         "Tồn thực tế (Live Sheet)": matched_df["ton_thuc_te"],
-        "Trạng thái kho": matched_df.get("Trạng Thái Kho", matched_df.get("trang_thai", "An toàn"))
+        "Trạng thái kho": matched_df.get("trang_thai_badge", matched_df.get("trang_thai", "An toàn"))
     })
     return out_df.reset_index(drop=True)
 
@@ -1031,27 +1036,26 @@ def query_nvidia_nim_chief_engineer(
             "model": m,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": full_prompt}
+                {"role": "user", "content": full_prompt + "\n\nQUAN TRỌNG: Trả lời HOÀN TOÀN bằng TIẾNG VIỆT, KHÔNG tạo mã vật tư giả, tuân thủ đúng bảng bóc tách không có cột Mã VT."}
             ],
             "temperature": 0.1,
-            "max_tokens": 3000
+            "max_tokens": 4096
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=45)
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
             if resp.status_code == 200:
                 data = resp.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
                 ans = msg.get("content")
                 if ans and len(str(ans).strip()) > 30:
                     return str(ans).strip()
-                # Dự phòng nếu model trả reasoning_content (lược bỏ suy nghĩ tiếng Anh nếu có)
+                # Chỉ lấy reasoning_content nếu có phần phân tích tiếng Việt
                 reasoning = msg.get("reasoning_content")
                 if reasoning and len(str(reasoning).strip()) > 50:
                     r_text = str(reasoning).strip()
                     m_start = re.search(r'(?:\*\*|\#\#|\d+\.\s*\*\*)\s*(?:1\.\s*)?PHÂN TÍCH', r_text, re.IGNORECASE)
                     if m_start:
                         return r_text[m_start.start():].strip()
-                    return r_text
         except Exception:
             continue
     return ""
@@ -1514,6 +1518,14 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     </style>
     """, unsafe_allow_html=True)
 
+    # 0. TTL Check: Tự động xóa kết quả tư vấn AI sau 30 phút (1800s)
+    if "agent2_ai_response" in st.session_state:
+        ai_ts = st.session_state.get("ag2_ai_timestamp", 0)
+        if ai_ts > 0 and (time.time() - ai_ts) > 1800:
+            st.session_state.pop("agent2_ai_response", None)
+            st.session_state.pop("agent2_ai_last_prompt", None)
+            st.session_state.pop("ag2_ai_timestamp", None)
+
     # 1. Nạp dữ liệu có auto-refresh 1 giờ (@st.cache_data(ttl=3600))
     force_sync = st.session_state.pop("force_sync_agent2", False)
     with st.spinner("Đang kết nối kho dữ liệu trực tiếp Google Sheet..."):
@@ -1607,6 +1619,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                         )
                         st.session_state["agent2_ai_response"] = ans
                         st.session_state["agent2_ai_last_prompt"] = prompt_text
+                        st.session_state["ag2_ai_timestamp"] = time.time()
                         st.rerun()
                 else:
                     st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
@@ -1666,81 +1679,120 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         </div>
         """, unsafe_allow_html=True)
 
-    # ── CỘT PHẢI: 5 HIGHLIGHTED HORIZONTAL KPI CARDS (BẤM ĐỂ LỌC) + TABS ──
+    # ── CỘT PHẢI: 4 KPI CARDS (BẤM TRỰC TIẾP ĐỂ LỌC VÀ HIỂN THỊ DỮ LIỆU TẠI CHỖ) ──
     with col_right:
-        # Hàng 1: 5 Interactive KPI Metric Cards (Đóng vai trò nút lọc danh sách theo thẻ được bấm)
         if "agent2_kpi_filter" not in st.session_state:
             st.session_state["agent2_kpi_filter"] = "ALL"
+        if "agent2_active_view" not in st.session_state:
+            st.session_state["agent2_active_view"] = "INVENTORY"
 
         cur_kpi = st.session_state["agent2_kpi_filter"]
+        cur_view = st.session_state["agent2_active_view"]
+
+        # Hàng 1: 4 Thẻ KPI Tương tác - Bấm trực tiếp để lọc bảng dữ liệu tương ứng ngay tại chỗ
         col_k1, col_k2, col_k3, col_k4 = st.columns(4, gap="small")
 
         with col_k1:
-            is_sel = (cur_kpi == "ALL")
+            is_sel = (cur_view == "INVENTORY" and cur_kpi == "ALL")
             if st.button(
-                f"📦 TỔNG VẬT TƯ\n\n{kpis['total_items']:,} mã",
+                f"📦 TỔNG VẬT TƯ\n\n{kpis['total_items']:,} mặt hàng",
                 key="btn_filter_all",
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
+                st.session_state["agent2_active_view"] = "INVENTORY"
                 st.session_state["agent2_kpi_filter"] = "ALL"
                 st.rerun()
 
         with col_k2:
-            is_sel = (cur_kpi == "SAFE")
+            is_sel = (cur_view == "INVENTORY" and cur_kpi == "SAFE")
             if st.button(
-                f"🟢 AN TOÀN\n\n{kpis['safe']:,} mã",
+                f"🟢 AN TOÀN\n\n{kpis['safe']:,} mặt hàng",
                 key="btn_filter_safe",
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
+                st.session_state["agent2_active_view"] = "INVENTORY"
                 st.session_state["agent2_kpi_filter"] = "SAFE"
                 st.rerun()
 
         with col_k3:
-            is_sel = (cur_kpi == "WARNING")
+            is_sel = (cur_view == "INVENTORY" and cur_kpi == "WARNING")
             if st.button(
-                f"🟡 SẮP HẾT ĐỊNH MỨC\n\n{kpis['warning']:,} mã",
+                f"🟡 SẮP HẾT ĐỊNH MỨC\n\n{kpis['warning']:,} mặt hàng",
                 key="btn_filter_warning",
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
+                st.session_state["agent2_active_view"] = "INVENTORY"
                 st.session_state["agent2_kpi_filter"] = "WARNING"
                 st.rerun()
 
         with col_k4:
-            is_sel = (cur_kpi == "OUT_OF_STOCK")
+            is_sel = (cur_view == "INVENTORY" and cur_kpi == "OUT_OF_STOCK")
             if st.button(
-                f"🔴 ĐÃ CẠN (HẾT HÀNG)\n\n{kpis['out_of_stock']:,} mã",
+                f"🔴 ĐÃ CẠN (HẾT HÀNG)\n\n{kpis['out_of_stock']:,} mặt hàng",
                 key="btn_filter_out",
                 use_container_width=True,
                 type="primary" if is_sel else "secondary"
             ):
+                st.session_state["agent2_active_view"] = "INVENTORY"
                 st.session_state["agent2_kpi_filter"] = "OUT_OF_STOCK"
                 st.rerun()
 
-        # Hàng 2: Segmented Tabs (Zero-scroll)
-        tab_inv, tab_history, tab_analytics, tab_config = st.tabs([
-            "📋 TỒN KHO THỰC TẾ",
-            "📝 NHẬT KÝ XUẤT THIẾT BỊ",
-            "📊 PHÂN TÍCH TIÊU HAO THIẾT BỊ",
-            "⚙️ BÁO CÁO & TỰ ĐỘNG HÓA"
-        ])
+        # Thanh chuyển nhanh sang các nghiệp vụ phụ khác (Nhật ký, Tiêu hao, Báo cáo)
+        c_nav1, c_nav2, c_nav3, c_nav4 = st.columns([1.5, 1.4, 1.4, 1.3], gap="small")
+        with c_nav1:
+            if st.button("📋 Bảng Tồn Kho Xưởng", use_container_width=True, type="primary" if cur_view == "INVENTORY" else "secondary"):
+                st.session_state["agent2_active_view"] = "INVENTORY"
+                st.rerun()
+        with c_nav2:
+            if st.button("📝 Nhật Ký Xuất Thiết Bị", use_container_width=True, type="primary" if cur_view == "HISTORY" else "secondary"):
+                st.session_state["agent2_active_view"] = "HISTORY"
+                st.rerun()
+        with c_nav3:
+            if st.button("📊 Phân Tích Tiêu Hao", use_container_width=True, type="primary" if cur_view == "ANALYTICS" else "secondary"):
+                st.session_state["agent2_active_view"] = "ANALYTICS"
+                st.rerun()
+        with c_nav4:
+            if st.button("⚙️ Báo Cáo & Cấu Hình", use_container_width=True, type="primary" if cur_view == "CONFIG" else "secondary"):
+                st.session_state["agent2_active_view"] = "CONFIG"
+                st.rerun()
 
-        # TAB 1: TỒN KHO THỰC TẾ
-        with tab_inv:
-            # 1. Banner kết quả bóc tách từ Kỹ sư Trưởng AI (nếu có)
+        # ── HIỂN THỊ NỘI DUNG THEO VIEW HIỆN TẠI ──
+        if cur_view == "INVENTORY":
+            # 1. Khung hiển thị kết quả tư vấn AI kèm cơ chế TTL 30 phút và nút Xóa thủ công
             if "agent2_ai_response" in st.session_state:
-                with st.expander(f"💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI (Cho yêu cầu: \"{st.session_state.get('agent2_ai_last_prompt', '')}\")", expanded=True):
-                    st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["agent2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
-                    # Bước 4: Kiểm tra chéo dữ liệu tồn kho thực tế từ Live Sheet
-                    verified_df = extract_verified_items_from_response(st.session_state["agent2_ai_response"], df_th)
-                    if not verified_df.empty:
-                        st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2:</div>", unsafe_allow_html=True)
-                        st.dataframe(verified_df, use_container_width=True, hide_index=True)
-                    if st.button("✕ Thu gọn kết quả tư vấn", key="btn_close_ai_top"):
+                ai_ts = st.session_state.get("ag2_ai_timestamp", 0)
+                elapsed_min = int((time.time() - ai_ts) / 60) if ai_ts > 0 else 0
+                remaining_min = max(0, 30 - elapsed_min)
+
+                ai_hdr_col1, ai_hdr_col2 = st.columns([7.8, 2.2], vertical_alignment="center")
+                with ai_hdr_col1:
+                    st.markdown(
+                        f"<div style='font-size:0.88rem; font-weight:700; color:#0F172A; display:flex; align-items:center; gap:8px;'>"
+                        f"<span>💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI</span>"
+                        f"<span style='font-size:0.72rem; color:#64748B; background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 8px; border-radius:12px; font-weight:500;'>⏱️ Tự xóa sau {remaining_min} phút</span>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                with ai_hdr_col2:
+                    if st.button("🗑️ Xóa kết quả", key="btn_clear_ai_result", use_container_width=True, help="Xóa ngay kết quả tư vấn để dọn sạch màn hình"):
                         st.session_state.pop("agent2_ai_response", None)
+                        st.session_state.pop("agent2_ai_last_prompt", None)
+                        st.session_state.pop("ag2_ai_timestamp", None)
                         st.rerun()
+
+                last_prompt = st.session_state.get('agent2_ai_last_prompt', '')
+                st.markdown(f"<div style='font-size:0.78rem; color:#475569; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
+                st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["agent2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
+
+                # Đối chiếu trực tiếp Live Sheet (HOÀN TOÀN KHÔNG CÓ CỘT MÃ VT)
+                verified_df = extract_verified_items_from_response(st.session_state["agent2_ai_response"], df_th)
+                if not verified_df.empty:
+                    st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
+                    st.dataframe(verified_df, use_container_width=True, hide_index=True)
+                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
             # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
             cur_kpi = st.session_state.get("agent2_kpi_filter", "ALL")
@@ -1808,8 +1860,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 }
             )
 
-        # TAB 2: NHẬT KÝ XUẤT THIẾT BỊ (SẮP XẾP TỪ NGÀY GẦN NHẤT ĐẾN XA NHẤT)
-        with tab_history:
+        # ── VIEW 2: NHẬT KÝ XUẤT THIẾT BỊ (SẮP XẾP TỪ MỚI NHẤT ĐẾN CŨ NHẤT) ──
+        elif cur_view == "HISTORY":
             st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:4px;'>Nhật ký chi tiết các lần xuất vật tư phục vụ bảo trì thiết bị ({len(df_xt):,} lượt xuất - <strong>Sắp xếp từ mới nhất đến cũ nhất</strong>):</div>", unsafe_allow_html=True)
             if not df_xt.empty:
                 def parse_xt_date(val, sheet_name=""):
@@ -1845,8 +1897,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             else:
                 st.info("Chưa có dữ liệu xuất trong các sheet tháng.")
 
-        # TAB 3: PHÂN TÍCH TIÊU HAO THIẾT BỊ (THEO THÁNG & DRILL-DOWN CÂY)
-        with tab_analytics:
+        # ── VIEW 3: PHÂN TÍCH TIÊU HAO THIẾT BỊ ──
+        elif cur_view == "ANALYTICS":
             # 1. Month-Based Dynamic Filter
             available_months = []
             if not df_xt.empty and "thang" in df_xt.columns:
@@ -2008,8 +2060,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 else:
                     st.info(f"Chưa có phát sinh dữ liệu thiết bị trong {selected_month}.")
 
-        # TAB 4: BÁO CÁO & TỰ ĐỘNG HÓA
-        with tab_config:
+        # ── VIEW 4: BÁO CÁO & CẤU HÌNH TỰ ĐỘNG HÓA ──
+        elif cur_view == "CONFIG":
             col_cfg1, col_cfg2 = st.columns([1.5, 2.5])
             with col_cfg1:
                 st.markdown("""
