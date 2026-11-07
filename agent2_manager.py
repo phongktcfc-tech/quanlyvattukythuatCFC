@@ -1227,12 +1227,12 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         }
 
         .cfc-kpi-card {
-            background: rgba(14, 33, 24, 0.75) !important;
+            background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
             backdrop-filter: blur(12px) !important;
-            border: 1px solid rgba(46, 204, 113, 0.2) !important;
-            border-radius: 14px !important;
-            padding: 14px 18px !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+            border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
+            border-radius: 22px !important;
+            padding: 16px 20px !important;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             display: flex;
             flex-direction: column;
@@ -1287,11 +1287,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         div.st-key-btn_filter_warning > button,
         div.st-key-btn_filter_out > button,
         div.st-key-btn_filter_issues > button {
-            background: rgba(18, 42, 30, 0.85) !important;
-            border: 1px solid rgba(62, 142, 99, 0.3) !important;
-            border-radius: 14px !important;
+            background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
+            border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
+            border-radius: 20px !important;
             padding: 10px 14px !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             height: 74px !important;
             display: flex !important;
@@ -1430,30 +1430,48 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         }
 
         /* 9. Rounded Pills & Tabs */
+        .stTabs [data-baseweb="tab-highlight"],
+        .stTabs [data-baseweb="tab-border"] {
+            display: none !important;
+        }
         .stTabs [data-baseweb="tab-list"] {
-            gap: 6px;
-            background: rgba(14, 33, 24, 0.75) !important;
-            backdrop-filter: blur(12px) !important;
-            padding: 4px;
-            border-radius: 14px;
-            border: 1px solid rgba(46, 204, 113, 0.2) !important;
+            gap: 10px !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 4px 0 !important;
+            margin-bottom: 0.75rem !important;
         }
 
         .stTabs [data-baseweb="tab"] {
-            border-radius: 10px;
-            padding: 6px 16px;
-            color: #8FA89B;
-            font-weight: 500;
-            font-size: 13px;
-            border-bottom: none !important;
+            height: 42px !important;
+            padding: 8px 20px !important;
+            border-radius: 999px !important;
+            margin-right: 10px !important;
+            background: rgba(18, 40, 29, 0.6) !important;
+            border: 1px solid rgba(76, 217, 100, 0.15) !important;
+            color: #8FA89B !important;
+            font-weight: 600 !important;
+            font-size: 0.88rem !important;
+            transition: all 0.2s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #E2EFE8 !important;
+            border-color: rgba(76, 217, 100, 0.4) !important;
+            background: rgba(24, 54, 38, 0.75) !important;
+        }
+
+        .stTabs [data-baseweb="tab"][aria-selected="true"],
         .stTabs [aria-selected="true"] {
-            background: rgba(46, 204, 113, 0.15) !important;
-            color: #4CD964 !important;
+            background: linear-gradient(135deg, rgba(38, 92, 62, 0.95) 0%, rgba(24, 62, 42, 0.95)) !important;
+            border: 1.5px solid #4CD964 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 0 15px rgba(76, 217, 100, 0.25) !important;
             font-weight: 600 !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-            border-bottom: 2px solid #2ECC71 !important;
         }
     </style>
     """, unsafe_allow_html=True)

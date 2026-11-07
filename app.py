@@ -652,7 +652,7 @@ st.markdown("""
        DARK EMERALD GLASSMORPHISM: NỀN TỔNG THỂ & KHUNG VIEWPORT
        ═══════════════════════════════════════════════════════════════ */
     .stApp, [data-testid="stAppViewContainer"] {
-        background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
+        background: #050C08 !important;
         color: #FFFFFF !important;
     }
     
@@ -675,21 +675,21 @@ st.markdown("""
        ═══════════════════════════════════════════════════════════════ */
     .hud-header {
         width: 100% !important;
-        background: rgba(14, 33, 24, 0.75) !important;
+        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(46, 204, 113, 0.2) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-        padding: 0.75rem 1.4rem;
-        margin-bottom: 0.65rem;
+        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
+        border-radius: 22px !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        padding: 16px 24px !important;
+        margin-bottom: 0.85rem !important;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
     .hud-title {
-        font-size: 1.18rem;
-        font-weight: 700;
+        font-size: 1.22rem !important;
+        font-weight: 800 !important;
         letter-spacing: -0.2px;
         color: #FFFFFF !important;
         display: flex;
@@ -697,7 +697,8 @@ st.markdown("""
         gap: 10px;
     }
     .hud-title span {
-        color: #4CD964 !important;
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
         background: none !important;
         -webkit-text-fill-color: initial !important;
     }
@@ -767,66 +768,76 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       HỆ THỐNG TABS (st.tabs: AGENT 1, AGENT 2, ĐỐI CHIẾU...)
+       HỆ THỐNG TABS DẠNG VIÊN THUỐC (PILL TABS)
        ═══════════════════════════════════════════════════════════════ */
+    .stTabs [data-baseweb="tab-highlight"],
+    .stTabs [data-baseweb="tab-border"] {
+        display: none !important;
+    }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: rgba(14, 33, 24, 0.75) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        padding: 5px 8px !important;
-        border: 1px solid rgba(46, 204, 113, 0.2) !important;
-        border-radius: 14px !important;
-        margin-bottom: 0.65rem;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+        gap: 10px !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 4px 0 !important;
+        margin-bottom: 0.75rem !important;
     }
     .stTabs [data-baseweb="tab"] {
-        padding: 6px 16px !important;
+        height: 42px !important;
+        padding: 8px 20px !important;
+        border-radius: 999px !important;
+        margin-right: 10px !important;
+        background: rgba(18, 40, 29, 0.6) !important;
+        border: 1px solid rgba(76, 217, 100, 0.15) !important;
+        color: #8FA89B !important;
         font-weight: 600 !important;
         font-size: 0.88rem !important;
-        color: #8FA89B !important;
-        border-radius: 10px !important;
-        border: none !important;
-        background: transparent !important;
         transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     .stTabs [data-baseweb="tab"]:hover {
         color: #E2EFE8 !important;
+        border-color: rgba(76, 217, 100, 0.4) !important;
+        background: rgba(24, 54, 38, 0.75) !important;
     }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: rgba(46, 204, 113, 0.15) !important;
-        color: #4CD964 !important;
-        border-bottom: 2px solid #2ECC71 !important;
-        font-weight: 700 !important;
-    }
-    .stTabs [data-baseweb="tab-highlight"] {
-        background-color: #2ECC71 !important;
+    .stTabs [data-baseweb="tab"][aria-selected="true"],
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(38, 92, 62, 0.95) 0%, rgba(24, 62, 42, 0.95)) !important;
+        border: 1.5px solid #4CD964 !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 0 15px rgba(76, 217, 100, 0.25) !important;
+        font-weight: 600 !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       CONTAINER CARDS & EXPANDERS (KHỐI KÍNH MỜ TỐI)
+       CONTAINER CARDS & EXPANDERS (KHỐI KÍNH MỜ TỐI NỔI KHỐI 3D)
        ═══════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(14, 33, 24, 0.75) !important;
+        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(46, 204, 113, 0.2) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-        padding: 14px !important;
+        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
+        border-radius: 22px !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        padding: 20px 24px !important;
         color: #FFFFFF !important;
     }
     div[data-testid="stExpander"] {
-        background: rgba(14, 33, 24, 0.75) !important;
+        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(46, 204, 113, 0.2) !important;
-        border-radius: 14px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-        margin-bottom: 8px !important;
+        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
+        border-radius: 22px !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        margin-bottom: 12px !important;
+        overflow: hidden !important;
     }
     div[data-testid="stExpander"] summary {
         color: #E2EFE8 !important;
+        font-weight: 600 !important;
+        padding: 12px 18px !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -890,10 +901,11 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2) !important;
     }
 
-    [data-testid="stFileUploader"], section[data-testid="stFileUploadDropzone"] {
-        background: #0A1A12 !important;
-        border: 1px solid #1E3F2E !important;
-        border-radius: 14px !important;
+    [data-testid="stFileUploader"] section, section[data-testid="stFileUploadDropzone"] {
+        background-color: #091710 !important;
+        border: 1.5px solid rgba(76, 217, 100, 0.22) !important;
+        border-radius: 16px !important;
+        padding: 16px !important;
         color: #E2EFE8 !important;
     }
     [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
@@ -901,8 +913,9 @@ st.markdown("""
     [data-testid="stFileUploader"] small {
         color: #8FA89B !important;
     }
-    section[data-testid="stFileUploadDropzone"]:hover {
-        border-color: #2ECC71 !important;
+    [data-testid="stFileUploader"] section:hover, section[data-testid="stFileUploadDropzone"]:hover {
+        border-color: #4CD964 !important;
+        box-shadow: 0 0 16px rgba(76, 217, 100, 0.25) !important;
     }
 
     /* Segmented Control Pill styling */
@@ -2150,9 +2163,9 @@ with st.sidebar:
         status_label = "🤖 Agent 1: Đối chiếu & Cấp mã"
 
     st.markdown(f"""
-    <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; margin-bottom:8px;">
-        <div style="font-size:0.75rem; color:#64748B; font-weight:600;">ĐANG ĐIỀU HÀNH:</div>
-        <div style="font-size:0.86rem; font-weight:700; color:{status_color}; margin-top:2px;">
+    <div style="background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%); border: 1.5px solid rgba(76, 217, 100, 0.28); border-radius: 22px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);">
+        <div style="font-size:0.75rem; color:#8FA89B; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">ĐANG ĐIỀU HÀNH:</div>
+        <div style="font-size:0.92rem; font-weight:700; color:{status_color}; margin-top:4px;">
             {status_label}
         </div>
     </div>
