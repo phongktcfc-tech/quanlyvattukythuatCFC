@@ -648,35 +648,39 @@ st.markdown("""
         font-family: 'JetBrains Mono', monospace !important;
     }
     
-    /* Light Modern Background */
-    .stApp {
-        background-color: #F8FAFC !important;
-        background-image: none !important;
-        color: #0F172A !important;
+    /* ═══════════════════════════════════════════════════════════════
+       DARK EMERALD GLASSMORPHISM: NỀN TỔNG THỂ & KHUNG VIEWPORT
+       ═══════════════════════════════════════════════════════════════ */
+    .stApp, [data-testid="stAppViewContainer"] {
+        background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
+        color: #FFFFFF !important;
     }
     
-    /* ═══════════════════════════════════════════════════════════════
-       QUY CHUẨN SINGLE-VIEWPORT (ZERO-SCROLL): GỌN TRONG 1 MÀN HÌNH
-       ═══════════════════════════════════════════════════════════════ */
+    /* Ẩn header mặc định của Streamlit */
     header[data-testid="stHeader"] {
         background: transparent !important;
-        height: 1.5rem !important;
+        display: none !important;
     }
+    
     .block-container {
-        padding-top: 1.4rem !important;
+        padding-top: 1.2rem !important;
         padding-bottom: 0.35rem !important;
         padding-left: 1.2rem !important;
         padding-right: 1.2rem !important;
         max-width: 100% !important;
     }
     
-    /* Top Bar HUD / Clean White Navbar */
+    /* ═══════════════════════════════════════════════════════════════
+       KHUNG HEADER CONSOLE HUD ("HỆ THỐNG AI QUẢN TRỊ...")
+       ═══════════════════════════════════════════════════════════════ */
     .hud-header {
         width: 100% !important;
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
-        border-radius: 14px !important;
+        background: rgba(14, 33, 24, 0.75) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(46, 204, 113, 0.2) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
         padding: 0.75rem 1.4rem;
         margin-bottom: 0.65rem;
         display: flex;
@@ -687,19 +691,19 @@ st.markdown("""
         font-size: 1.18rem;
         font-weight: 700;
         letter-spacing: -0.2px;
-        color: #0F172A;
+        color: #FFFFFF !important;
         display: flex;
         align-items: center;
         gap: 10px;
     }
     .hud-title span {
-        color: #2563EB !important;
+        color: #4CD964 !important;
         background: none !important;
         -webkit-text-fill-color: initial !important;
     }
     .hud-subtitle {
         font-size: 0.76rem;
-        color: #64748B;
+        color: #8FA89B !important;
         letter-spacing: 0.5px;
         text-transform: uppercase;
         font-weight: 600;
@@ -710,6 +714,10 @@ st.markdown("""
         gap: 8px;
         align-items: center;
     }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       CÁC BADGE TRẠNG THÁI (READY, KHO, LAN, CLOUD)
+       ═══════════════════════════════════════════════════════════════ */
     .hud-badge {
         padding: 5px 12px;
         border-radius: 9999px;
@@ -719,177 +727,257 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        border: 1px solid #E2E8F0;
-        background: #F1F5F9;
-        color: #334155;
+        border: 1px solid rgba(143, 168, 155, 0.3) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #E2EFE8 !important;
         text-decoration: none;
         transition: all 0.2s ease;
     }
-    .badge-cyan   { border-color: #BFDBFE !important; color: #2563EB !important; background: #EFF6FF !important; }
-    .badge-green  { border-color: #A7F3D0 !important; color: #059669 !important; background: #ECFDF5 !important; }
+    .badge-cyan {
+        border-color: rgba(143, 168, 155, 0.3) !important;
+        color: #E2EFE8 !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+    }
+    .badge-green {
+        border-color: #2ECC71 !important;
+        color: #4CD964 !important;
+        background: rgba(22, 56, 40, 0.8) !important;
+        box-shadow: 0 0 10px rgba(46, 204, 113, 0.2) !important;
+    }
     .badge-public {
-        border-color: #FDE68A !important;
-        color: #D97706 !important;
-        background: #FEF3C7 !important;
-        box-shadow: none !important;
+        border-color: #F5B041 !important;
+        color: #F5B041 !important;
+        background: rgba(245, 176, 65, 0.15) !important;
+        box-shadow: 0 0 10px rgba(245, 176, 65, 0.15) !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
     @keyframes pulse-ring {
-        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
     }
     .status-dot-pulse {
         width: 7px;
         height: 7px;
-        background-color: #10B981;
+        background-color: #2ECC71 !important;
         border-radius: 50%;
         display: inline-block;
         animation: pulse-ring 1.8s infinite ease-in-out;
     }
     
-    /* Sub-tabs modern styling */
+    /* ═══════════════════════════════════════════════════════════════
+       HỆ THỐNG TABS (st.tabs: AGENT 1, AGENT 2, ĐỐI CHIẾU...)
+       ═══════════════════════════════════════════════════════════════ */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: #FFFFFF !important;
-        padding: 4px 8px !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 12px !important;
+        background: rgba(14, 33, 24, 0.75) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        padding: 5px 8px !important;
+        border: 1px solid rgba(46, 204, 113, 0.2) !important;
+        border-radius: 14px !important;
         margin-bottom: 0.65rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
     }
     .stTabs [data-baseweb="tab"] {
         padding: 6px 16px !important;
         font-weight: 600 !important;
         font-size: 0.88rem !important;
-        color: #64748B !important;
-        border-radius: 8px !important;
+        color: #8FA89B !important;
+        border-radius: 10px !important;
         border: none !important;
+        background: transparent !important;
         transition: all 0.2s ease !important;
     }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #E2EFE8 !important;
+    }
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: #EFF6FF !important;
-        color: #2563EB !important;
+        background: rgba(46, 204, 113, 0.15) !important;
+        color: #4CD964 !important;
+        border-bottom: 2px solid #2ECC71 !important;
         font-weight: 700 !important;
     }
     .stTabs [data-baseweb="tab-highlight"] {
-        background-color: #2563EB !important;
+        background-color: #2ECC71 !important;
     }
 
-    /* Container Card styling */
+    /* ═══════════════════════════════════════════════════════════════
+       CONTAINER CARDS & EXPANDERS (KHỐI KÍNH MỜ TỐI)
+       ═══════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 14px !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        background: rgba(14, 33, 24, 0.75) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(46, 204, 113, 0.2) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
         padding: 14px !important;
+        color: #FFFFFF !important;
     }
     div[data-testid="stExpander"] {
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 12px !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+        background: rgba(14, 33, 24, 0.75) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(46, 204, 113, 0.2) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
         margin-bottom: 8px !important;
     }
+    div[data-testid="stExpander"] summary {
+        color: #E2EFE8 !important;
+    }
 
-    /* Modern Buttons */
-    button[kind="primary"] {
-        background: #2563EB !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        border-radius: 9999px !important;
+    /* ═══════════════════════════════════════════════════════════════
+       NÚT BẤM (BUTTONS: PRIMARY & SECONDARY)
+       ═══════════════════════════════════════════════════════════════ */
+    button[kind="primary"], .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
+        border: 1px solid #2ECC71 !important;
+        color: #4CD964 !important;
         font-weight: 600 !important;
+        border-radius: 12px !important;
         padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important;
+        box-shadow: 0 4px 16px rgba(46, 204, 113, 0.25) !important;
         transition: all 0.2s ease !important;
     }
-    button[kind="primary"]:hover {
-        background: #1D4ED8 !important;
-        box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3) !important;
+    button[kind="primary"]:hover, .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #246844 0%, #184A30 100%) !important;
+        border-color: #4CD964 !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
         transform: translateY(-1px);
     }
-    button[kind="secondary"] {
-        background: #FFFFFF !important;
-        color: #1E293B !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 9999px !important;
+    button[kind="secondary"], .stButton > button:not([kind="primary"]) {
+        background: rgba(18, 42, 30, 0.85) !important;
+        border: 1px solid rgba(62, 142, 99, 0.3) !important;
+        color: #E2EFE8 !important;
+        border-radius: 12px !important;
         font-weight: 500 !important;
         padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
         transition: all 0.2s ease !important;
     }
-    button[kind="secondary"]:hover {
-        background: #F8FAFC !important;
-        border-color: #CBD5E1 !important;
-        color: #0F172A !important;
+    button[kind="secondary"]:hover, .stButton > button:not([kind="primary"]):hover {
+        background: #163828 !important;
+        border-color: #2ECC71 !important;
+        color: #FFFFFF !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2) !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Ô NHẬP LIỆU & FILE UPLOADER
+       ═══════════════════════════════════════════════════════════════ */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    input[type="text"], input[type="password"] {
+        background: #08150F !important;
+        border: 1px solid #1E3F2E !important;
+        color: #FFFFFF !important;
+        border-radius: 12px !important;
+        font-size: 13.5px !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTextInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {
+        color: #5C7A6B !important;
+    }
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #2ECC71 !important;
+        box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2) !important;
+    }
+
+    [data-testid="stFileUploader"], section[data-testid="stFileUploadDropzone"] {
+        background: #0A1A12 !important;
+        border: 1px solid #1E3F2E !important;
+        border-radius: 14px !important;
+        color: #E2EFE8 !important;
+    }
+    [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stFileUploader"] span,
+    [data-testid="stFileUploader"] small {
+        color: #8FA89B !important;
+    }
+    section[data-testid="stFileUploadDropzone"]:hover {
+        border-color: #2ECC71 !important;
     }
 
     /* Segmented Control Pill styling */
     [data-testid="stSegmentedControl"] {
-        background: #F1F5F9 !important;
+        background: rgba(14, 33, 24, 0.75) !important;
         border-radius: 9999px !important;
         padding: 3px !important;
-        border: 1px solid #E2E8F0 !important;
+        border: 1px solid rgba(46, 204, 113, 0.2) !important;
     }
     [data-testid="stSegmentedControl"] button {
         border-radius: 9999px !important;
         border: none !important;
-        color: #64748B !important;
+        color: #8FA89B !important;
         font-weight: 600 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-selected="true"] {
-        background: #FFFFFF !important;
-        color: #2563EB !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+        background: rgba(46, 204, 113, 0.2) !important;
+        color: #4CD964 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       BẢNG KỸ THUẬT GỌN GÀNG — SÁNG SỦA, TINH TẾ, CHUẨN THIẾT KẾ
+       BẢNG KỸ THUẬT GỌN GÀNG (SCADA COMPACT TABLE & DATAFRAME)
        ═══════════════════════════════════════════════════════════════ */
     .scada-compact-table-wrap {
         width: 100% !important;
         max-width: 100% !important;
-        border-radius: 12px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        border-radius: 14px;
+        border: 1px solid #183325 !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         overflow: hidden;
         margin: 8px 0 12px 0;
-        background: #FFFFFF;
+        background: #0A1912 !important;
     }
     .scada-compact-table {
         width: 100% !important;
         border-collapse: collapse;
         font-family: 'Inter', -apple-system, sans-serif;
         font-size: 0.84rem;
-        color: #1E293B;
+        color: #FFFFFF !important;
         table-layout: fixed;
-        background: #FFFFFF;
+        background: #0A1912 !important;
     }
     .scada-compact-table th {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #F8FAFC !important;
-        color: #475569 !important;
+        background: #112A1E !important;
+        color: #8FA89B !important;
         font-weight: 700;
         padding: 10px 8px;
-        border-bottom: 2px solid #E2E8F0 !important;
+        border-bottom: 2px solid #183325 !important;
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     .scada-compact-table td {
         padding: 10px 8px;
-        border-bottom: 1px solid #F1F5F9;
+        border-bottom: 1px solid #183325 !important;
         vertical-align: top;
         white-space: normal !important;
         word-break: break-word !important;
         line-height: 1.4;
-        color: #1E293B;
+        color: #FFFFFF !important;
     }
     .scada-compact-table tr:hover {
-        background: #F8FAFC !important;
+        background: rgba(46, 204, 113, 0.08) !important;
+    }
+
+    [data-testid="stDataFrame"] {
+        border: 1px solid #183325 !important;
+        border-radius: 14px !important;
+        background: #0A1912 !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        overflow: hidden !important;
     }
 
     /* Custom 4px Slim Scrollbar (Zero-Scroll Standard) */
@@ -898,14 +986,14 @@ st.markdown("""
         height: 5px;
     }
     ::-webkit-scrollbar-track {
-        background: #F1F5F9;
+        background: #07130D;
     }
     ::-webkit-scrollbar-thumb {
-        background: #CBD5E1;
+        background: #1E3F2E;
         border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: #94A3B8;
+        background: #2ECC71;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1797,45 +1885,45 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
         if "KHỚP" in cat or old_code_str:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; margin-bottom:3px;">🟢 KHỚP KHO</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#059669; font-size:0.88rem;">{old_code_str}</div>'
-                f'<div style="font-size:0.72rem; color:#64748B;">Tồn: <strong style="color:#0F172A;">{ton} {unit}</strong></div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(46, 204, 113, 0.15); color:#4CD964; border:1px solid #2ECC71; margin-bottom:3px;">🟢 KHỚP KHO</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.88rem;">{old_code_str}</div>'
+                f'<div style="font-size:0.72rem; color:#8FA89B;">Tồn: <strong style="color:#FFFFFF;">{ton} {unit}</strong></div>'
                 f'</div>'
             )
         else:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF3C7; color:#D97706; border:1px solid #FDE68A; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#D97706; font-size:0.88rem;">{new_code_str}</div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(245, 176, 65, 0.15); color:#F5B041; border:1px solid #F5B041; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#F5B041; font-size:0.88rem;">{new_code_str}</div>'
                 f'</div>'
             )
 
         doc_tag = f'<div style="color:#94a3b8; font-size:0.7rem; font-family:JetBrains Mono, monospace; margin-top:2px;">📄 {doc}</div>' if doc and doc != '-' else ''
 
         row_html = (
-            f'<tr style="border-bottom: 1px solid #F1F5F9;">'
-            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#2563EB; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
+            f'<tr style="border-bottom: 1px solid #183325;">'
+            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
             f'<td style="padding:8px 8px; word-break:break-word;">'
-            f'<div style="font-weight:700; color:#0F172A; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
-            f'<div style="color:#64748B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
+            f'<div style="font-weight:700; color:#FFFFFF; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
+            f'<div style="color:#8FA89B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
             f'{doc_tag}'
             f'</td>'
-            f'<td style="padding:8px 8px; color:#2563EB; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
+            f'<td style="padding:8px 8px; color:#2ECC71; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
             f'<td style="text-align:center; padding:8px 4px; white-space:nowrap;">'
-            f'<div style="font-size:0.95rem; font-weight:700; color:#0F172A;">{qty}</div>'
+            f'<div style="font-size:0.95rem; font-weight:700; color:#FFFFFF;">{qty}</div>'
             f'<div style="font-size:0.72rem; color:#64748B; font-weight:600;">{unit}</div>'
             f'</td>'
             f'<td style="padding:8px 4px;">{badge_html}</td>'
-            f'<td style="padding:8px 8px; color:#475569; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
+            f'<td style="padding:8px 8px; color:#8FA89B; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
             f'</tr>'
         )
         rows.append(row_html)
 
     table_html = (
-        f'<div style="width:100%; border:1px solid #E2E8F0; border-radius:12px; overflow:hidden; background:#FFFFFF; margin-top:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">'
+        f'<div style="width:100%; border:1px solid #183325; border-radius:12px; overflow:hidden; background:#0A1912; margin-top:6px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">'
         f'<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:0.82rem; text-align:left;">'
         f'<thead>'
-        f'<tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0; color:#475569; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
+        f'<tr style="background:#112A1E; border-bottom:2px solid #183325; color:#8FA89B; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
         f'<th style="width:5%; text-align:center; padding:8px 4px;">STT</th>'
         f'<th style="width:28%; padding:8px 8px;">Vật tư (Chuẩn & Gốc)</th>'
         f'<th style="width:25%; padding:8px 8px;">Quy cách kỹ thuật</th>'
@@ -1878,7 +1966,7 @@ def render_compact_table_html(items: list) -> str:
             formatted_bullets = []
             for b in raw_bullets[:3]:
                 b_clean = b.lstrip("•").strip()
-                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#334155; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
+                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#E2EFE8; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
             goi_y_html = "".join(formatted_bullets) if formatted_bullets else "<span style='color:#94a3b8;'>-</span>"
         else:
             goi_y_html = "<span style='color:#94a3b8;'>-</span>"
@@ -1889,15 +1977,15 @@ def render_compact_table_html(items: list) -> str:
         stock_alert_html = "".join([f"<span style='display:inline-block; margin-top:2px; font-size:0.68rem; padding:1px 5px; border-radius:4px; background:#FEE2E2; color:#DC2626; font-weight:600;'>{html.escape(a)}</span>" for a in alert_tags])
 
         if trang_thai == "KHỚP":
-            badge_bg = "#EEF2FF" if is_generic else "#ECFDF5"
-            badge_color = "#4338CA" if is_generic else "#059669"
-            badge_border = "#C7D2FE" if is_generic else "#A7F3D0"
+            badge_bg = "rgba(59, 130, 246, 0.15)" if is_generic else "rgba(46, 204, 113, 0.15)"
+            badge_color = "#60A5FA" if is_generic else "#4CD964"
+            badge_border = "#3B82F6" if is_generic else "#2ECC71"
             badge_text = "🔵 KHỚP MÃ CHUNG" if is_generic else "🟢 KHỚP KHO"
             status_col = (
                 f"<div style='text-align:center;'>"
                 f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:{badge_bg}; color:{badge_color}; border:1px solid {badge_border}; margin-bottom:4px;'>{badge_text}</span>"
                 f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:{badge_color}; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
-                f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#0F172A;'>{ton_kho} {don_vi}</strong></div>"
+                f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#FFFFFF;'>{ton_kho} {don_vi}</strong></div>"
                 f"{stock_alert_html}"
                 f"{price_alert_html}"
                 f"</div>"
@@ -1905,7 +1993,7 @@ def render_compact_table_html(items: list) -> str:
         elif trang_thai == "MỚI":
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF3C7; color:#D97706; border:1px solid #FDE68A; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(245, 176, 65, 0.15); color:#F5B041; border:1px solid #F5B041; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
                 f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#D97706; font-size:0.95rem;'>{ma_de_xuat}</div>"
                 f"<div style='font-size:0.72rem; color:#B45309;'>(Mã số mới 0x.xxxx)</div>"
                 f"</div>"
@@ -1913,30 +2001,30 @@ def render_compact_table_html(items: list) -> str:
         else:
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; margin-bottom:4px;'>🔴 CẦN XÁC NHẬN</span>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(239, 68, 68, 0.15); color:#EF4444; border:1px solid #EF4444; margin-bottom:4px;'>🔴 CẦN XÁC NHẬN</span>"
                 f"<div style='font-size:0.75rem; color:#DC2626;'>Thiếu quy cách</div>"
                 f"</div>"
             )
 
         row = (
             f"<tr>"
-            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#2563EB; font-size:0.88rem;'>#{stt}</td>"
+            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.88rem;'>#{stt}</td>"
             f"<td>"
-            f"<div style='font-weight:700; color:#0F172A; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
-            f"<div style='color:#64748B; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
+            f"<div style='font-weight:700; color:#FFFFFF; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
+            f"<div style='color:#8FA89B; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
             f"<div style='color:#94a3b8; font-size:0.72rem; font-family:JetBrains Mono, monospace; margin-top:2px;'>📄 {chung_tu_goc}</div>"
             f"</td>"
             f"<td>"
-            f"<div style='color:#2563EB; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
+            f"<div style='color:#2ECC71; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
             f"</td>"
             f"<td style='text-align:center;'>"
-            f"<div style='font-size:1.05rem; font-weight:700; color:#0F172A;'>{so_luong}</div>"
-            f"<div style='font-size:0.75rem; color:#64748B; font-weight:600;'>{don_vi}</div>"
+            f"<div style='font-size:1.05rem; font-weight:700; color:#FFFFFF;'>{so_luong}</div>"
+            f"<div style='font-size:0.75rem; color:#8FA89B; font-weight:600;'>{don_vi}</div>"
             f"</td>"
             f"<td>{status_col}</td>"
             f"<td>{goi_y_html}</td>"
             f"<td>"
-            f"<div style='font-size:0.8rem; color:#475569; line-height:1.4;'>💡 {ghi_chu}</div>"
+            f"<div style='font-size:0.8rem; color:#8FA89B; line-height:1.4;'>💡 {ghi_chu}</div>"
             f"</td>"
             f"</tr>"
         )
@@ -1971,7 +2059,7 @@ def render_compact_table_html(items: list) -> str:
 @st.fragment
 def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name: str):
     st.markdown("""
-    <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem; margin-bottom: 2px;">
+    <div style="font-weight: 700; color: #FFFFFF; font-size: 0.95rem; margin-bottom: 2px;">
         👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN
     </div>
     <div style="font-size: 0.76rem; color: #64748B; margin-bottom: 8px;">
@@ -2212,11 +2300,11 @@ is_agent2_only = (current_agent_active == MODE_AGENT2)
 base_url = get_public_url()
 st.markdown(f"""
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin: 2px 0 6px 0;">
-    <span style="font-size:0.73rem; color:#64748B;">Mở tab mới:</span>
-    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:#EFF6FF; color:#0071E3; border:1px solid rgba(0,113,227,0.25); padding:2px 8px; border-radius:980px; font-weight:600;">
+    <span style="font-size:0.73rem; color:#8FA89B;">Mở tab mới:</span>
+    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:rgba(46, 204, 113, 0.15); color:#4CD964; border:1px solid #2ECC71; padding:2px 8px; border-radius:980px; font-weight:600;">
         🤖 Agent 1 ↗
     </a>
-    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:#ECFDF5; color:#10B981; border:1px solid rgba(16,185,129,0.25); padding:2px 8px; border-radius:980px; font-weight:600;">
+    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:rgba(22, 56, 40, 0.8); color:#2ECC71; border:1px solid #2ECC71; padding:2px 8px; border-radius:980px; font-weight:600;">
         ⚡ Agent 2 ↗
     </a>
 </div>
@@ -2549,12 +2637,12 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         def _render_intake_hub():
             st.markdown("""
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <div style="font-size: 1.4rem; color: #2563EB; font-weight: 800; line-height: 1;">➕</div>
+                <div style="font-size: 1.4rem; color: #4CD964; font-weight: 800; line-height: 1;">➕</div>
                 <div>
-                    <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem;">
+                    <div style="font-weight: 700; color: #FFFFFF; font-size: 0.95rem;">
                         CỔNG NẠP CHỨNG TỪ ĐA NĂNG (HỖ TRỢ QUÉT & PHÂN TÍCH SONG SONG)
                     </div>
-                    <div style="font-size: 0.75rem; color: #64748B;">
+                    <div style="font-size: 0.75rem; color: #8FA89B;">
                         Chọn hoặc kéo thả đồng thời nhiều file cùng lúc: <strong>Ảnh chụp</strong> (PNG, JPG, WEBP) & <strong>Tài liệu</strong> (PDF, XLSX, XLS, CSV)
                     </div>
                 </div>
@@ -2659,9 +2747,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
         if all_queue:
             st.markdown(f"""
-            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 12px 18px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.05);">
-                <div style="font-weight: 700; color: #1E40AF; font-size: 0.98rem;">
-                    ⚡ ĐÃ SẴN SÀNG: <span style="color: #2563EB;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
+            <div style="background: rgba(22, 56, 40, 0.5); border: 1px solid rgba(46, 204, 113, 0.3); border-radius: 12px; padding: 12px 18px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+                <div style="font-weight: 700; color: #4CD964; font-size: 0.98rem;">
+                    ⚡ ĐÃ SẴN SÀNG: <span style="color: #2ECC71;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
                 </div>
                 <div style="color: #64748B; font-size: 0.82rem;">Sẽ tổng hợp thành 01 Báo cáo thống nhất</div>
             </div>
@@ -2670,9 +2758,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             ts_live = st.session_state["ag1_task_state"]
             if ts_live.get("is_running", False):
                 st.markdown("""
-                <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:10px; padding:10px 14px; margin-bottom:10px;">
-                    <div style="font-size:0.85rem; font-weight:700; color:#1E40AF;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
-                    <div style="font-size:0.75rem; color:#3B82F6; margin-top:2px;">
+                <div style="background:rgba(22, 56, 40, 0.5); border:1px solid rgba(46, 204, 113, 0.3); border-radius:10px; padding:10px 14px; margin-bottom:10px;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#4CD964;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
+                    <div style="font-size:0.75rem; color:#8FA89B; margin-top:2px;">
                         Tiến trình được bảo vệ độc lập trong background worker. Bạn có thể tự do chuyển sang Agent 2 hoặc các chức năng khác mà không lo bị gián đoạn!
                     </div>
                 </div>
@@ -2782,7 +2870,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                             time.sleep(0.3)
                             st.rerun(scope="fragment")
                 else:
-                    st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#059669; font-size:0.82rem; border:1px solid #A7F3D0; border-radius:9999px; background:#ECFDF5;'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='text-align:center; padding: 7px 0; font-weight:700; color:#059669; font-size:0.82rem; border:1px solid #2ECC71; border-radius:9999px; background:rgba(22, 56, 40, 0.8);'>✓ ĐÃ CHUẨN HÓA 100%</div>", unsafe_allow_html=True)
             with c_tb4:
                 c_dl_btn, c_del_btn = st.columns([1.2, 1], gap="small")
                 with c_dl_btn:
@@ -2834,7 +2922,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
                 else:
                     st.markdown(
-                        f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #E2E8F0; border-radius: 12px; margin-top: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);'>"
+                        f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #183325; border-radius: 12px; margin-top: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);'>"
                         f"{render_compact_table_html(filtered_items)}"
                         f"</div>",
                         unsafe_allow_html=True

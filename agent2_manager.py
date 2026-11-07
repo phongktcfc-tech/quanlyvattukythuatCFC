@@ -1150,7 +1150,6 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     target_email = "linhb1702638@gmail.com"
 
     viewport_lock = """
-        /* 1. Re-enable standard viewport scrolling */
         html, body {
             overflow-x: hidden !important;
             overflow-y: auto !important;
@@ -1161,9 +1160,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             overflow-y: auto !important;
             height: auto !important;
             min-height: 100vh !important;
-            background-color: #FAFAFB !important;
+            background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
         }
 
         [data-testid="stMainBlockContainer"], section.main {
@@ -1180,62 +1179,60 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             overflow: visible !important;
         }
 
-        /* 2. Scrollable Container for AI Consultation Results */
         .ai-result-scrollbox {
             max-height: 70vh;
             overflow-y: auto !important;
             overflow-x: hidden;
             padding: 16px 20px;
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
+            background: rgba(14, 33, 24, 0.85) !important;
+            backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(46, 204, 113, 0.25) !important;
             border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            color: #FFFFFF !important;
         }
 
-        /* Custom Sleek Scrollbar */
         .ai-result-scrollbox::-webkit-scrollbar {
             width: 6px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-track {
-            background: #F1F5F9;
+            background: #07130D;
             border-radius: 8px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-thumb {
-            background: #CBD5E1;
+            background: #1E3F2E;
             border-radius: 8px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-thumb:hover {
-            background: #94A3B8;
+            background: #2ECC71;
         }
     """ if not is_split else """
         [data-testid="stAppViewContainer"], .main {
-            background-color: #FAFAFB !important;
+            background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
         }
     """
 
     st.markdown("<style>" + viewport_lock + """
-        /* 1. Canvas & Global Typography */
         [data-testid="stHeader"] {
             display: none !important;
         }
 
-        /* 2. Apple Headings & Section Titles */
         h1, h2, h3, h4, .section-header {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
             font-weight: 700 !important;
             letter-spacing: -0.02em !important;
         }
 
-        /* 3. Refined Apple Metric Card System */
         .cfc-kpi-card {
-            background: #FFFFFF !important;
-            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            background: rgba(14, 33, 24, 0.75) !important;
+            backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(46, 204, 113, 0.2) !important;
             border-radius: 14px !important;
             padding: 14px 18px !important;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             display: flex;
             flex-direction: column;
@@ -1246,18 +1243,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             position: relative;
         }
 
-        /* Smooth Card Lift Hover Effect */
         .cfc-kpi-card:hover {
             transform: translateY(-4px) !important;
-            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.03) !important;
-            border-color: #CBD5E1 !important;
+            box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(46, 204, 113, 0.15) !important;
+            border-color: #2ECC71 !important;
         }
 
-        /* Card Typography Hierarchy */
         .cfc-kpi-title {
             font-size: 11.5px !important;
             font-weight: 600 !important;
-            color: #64748B !important;
+            color: #8FA89B !important;
             text-transform: uppercase !important;
             letter-spacing: 0.04em !important;
             display: flex;
@@ -1275,7 +1270,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         .cfc-kpi-number {
             font-size: 26px !important;
             font-weight: 700 !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1;
         }
@@ -1283,53 +1278,20 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         .cfc-kpi-unit {
             font-size: 12px !important;
             font-weight: 500 !important;
-            color: #94A3B8 !important;
+            color: #8FA89B !important;
         }
 
-        /* Status Variations on Active / Hover */
-        .cfc-kpi-card.status-safe:hover, .cfc-kpi-card.status-safe.active {
-            border-color: #10B981 !important;
-        }
-        .cfc-kpi-card.status-safe.active {
-            box-shadow: 0 0 0 2px #10B981, 0 8px 16px rgba(16, 185, 129, 0.12) !important;
-            background: #F0FDF4 !important;
-        }
-
-        .cfc-kpi-card.status-warning:hover, .cfc-kpi-card.status-warning.active {
-            border-color: #F59E0B !important;
-        }
-        .cfc-kpi-card.status-warning.active {
-            box-shadow: 0 0 0 2px #F59E0B, 0 8px 16px rgba(245, 158, 11, 0.12) !important;
-            background: #FFFBEB !important;
-        }
-
-        .cfc-kpi-card.status-danger:hover, .cfc-kpi-card.status-danger.active {
-            border-color: #EF4444 !important;
-        }
-        .cfc-kpi-card.status-danger.active {
-            box-shadow: 0 0 0 2px #EF4444, 0 8px 16px rgba(239, 68, 68, 0.12) !important;
-            background: #FEF2F2 !important;
-        }
-
-        .cfc-kpi-card.status-all:hover, .cfc-kpi-card.status-all.active {
-            border-color: #0071E3 !important;
-        }
-        .cfc-kpi-card.status-all.active {
-            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
-            background: #EFF6FF !important;
-        }
-
-        /* 4. Streamlit Interactive 5 KPI Buttons (Synced with .cfc-kpi-card) */
+        /* 4. Streamlit Interactive 5 KPI Buttons */
         div.st-key-btn_filter_all > button,
         div.st-key-btn_filter_safe > button,
         div.st-key-btn_filter_warning > button,
         div.st-key-btn_filter_out > button,
         div.st-key-btn_filter_issues > button {
-            background: #FFFFFF !important;
-            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            background: rgba(18, 42, 30, 0.85) !important;
+            border: 1px solid rgba(62, 142, 99, 0.3) !important;
             border-radius: 14px !important;
             padding: 10px 14px !important;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             height: 74px !important;
             display: flex !important;
@@ -1339,6 +1301,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             text-align: left !important;
             white-space: pre-line !important;
             cursor: pointer !important;
+            color: #E2EFE8 !important;
         }
 
         div.st-key-btn_filter_all > button:hover,
@@ -1347,8 +1310,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         div.st-key-btn_filter_out > button:hover,
         div.st-key-btn_filter_issues > button:hover {
             transform: translateY(-4px) !important;
-            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.03) !important;
-            border-color: #CBD5E1 !important;
+            box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(46, 204, 113, 0.2) !important;
+            border-color: #2ECC71 !important;
+            background: #163828 !important;
         }
 
         div[class*="st-key-btn_filter_"] > button p {
@@ -1360,116 +1324,89 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             font-weight: 600 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.04em !important;
-            color: #64748B !important;
+            color: #8FA89B !important;
         }
         div[class*="st-key-btn_filter_"] > button p:last-child {
             font-size: 26px !important;
             font-weight: 700 !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1 !important;
         }
 
-        /* Specific Status Hover Variations for KPI Buttons */
-        div.st-key-btn_filter_all > button:hover {
-            border-color: #0071E3 !important;
-        }
-        div.st-key-btn_filter_safe > button:hover {
-            border-color: #10B981 !important;
-        }
-        div.st-key-btn_filter_warning > button:hover {
-            border-color: #F59E0B !important;
-        }
-        div.st-key-btn_filter_out > button:hover {
-            border-color: #EF4444 !important;
-        }
-
-
         /* Specific Status Active Variations for KPI Buttons */
-        div.st-key-btn_filter_all > button[kind="primary"] {
-            border-color: #0071E3 !important;
-            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
-            background: #EFF6FF !important;
-            transform: translateY(-2px) !important;
-        }
-        div.st-key-btn_filter_safe > button[kind="primary"] {
-            border-color: #10B981 !important;
-            box-shadow: 0 0 0 2px #10B981, 0 8px 16px rgba(16, 185, 129, 0.12) !important;
-            background: #F0FDF4 !important;
-            transform: translateY(-2px) !important;
-        }
-        div.st-key-btn_filter_warning > button[kind="primary"] {
-            border-color: #F59E0B !important;
-            box-shadow: 0 0 0 2px #F59E0B, 0 8px 16px rgba(245, 158, 11, 0.12) !important;
-            background: #FFFBEB !important;
-            transform: translateY(-2px) !important;
-        }
-        div.st-key-btn_filter_out > button[kind="primary"] {
-            border-color: #EF4444 !important;
-            box-shadow: 0 0 0 2px #EF4444, 0 8px 16px rgba(239, 68, 68, 0.12) !important;
-            background: #FEF2F2 !important;
-            transform: translateY(-2px) !important;
-        }
+        div.st-key-btn_filter_all > button[kind="primary"],
+        div.st-key-btn_filter_safe > button[kind="primary"],
+        div.st-key-btn_filter_warning > button[kind="primary"],
+        div.st-key-btn_filter_out > button[kind="primary"],
         div.st-key-btn_filter_issues > button[kind="primary"] {
-            border-color: #0071E3 !important;
-            box-shadow: 0 0 0 2px #0071E3, 0 8px 16px rgba(0, 113, 227, 0.12) !important;
-            background: #EFF6FF !important;
+            border-color: #2ECC71 !important;
+            box-shadow: 0 0 0 2px #2ECC71, 0 8px 20px rgba(46, 204, 113, 0.3) !important;
+            background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
             transform: translateY(-2px) !important;
+        }
+        div[class*="st-key-btn_filter_"] > button[kind="primary"] p:last-child {
+            color: #4CD964 !important;
         }
 
         /* 5. Streamlit Interactive Buttons & Inputs */
         .stButton > button {
-            border-radius: 10px !important;
+            border-radius: 12px !important;
             font-weight: 600 !important;
-            border: 1px solid #E2E8F0 !important;
-            background: #FFFFFF !important;
-            color: #1E293B !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+            border: 1px solid rgba(62, 142, 99, 0.3) !important;
+            background: rgba(18, 42, 30, 0.85) !important;
+            color: #E2EFE8 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
             transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
         }
 
         .stButton > button:hover {
             transform: translateY(-2px) !important;
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
-            border-color: #CBD5E1 !important;
+            box-shadow: 0 4px 16px rgba(46, 204, 113, 0.2) !important;
+            border-color: #2ECC71 !important;
+            background: #163828 !important;
+            color: #FFFFFF !important;
         }
 
         .stButton > button[kind="primary"] {
-            background: #0071E3 !important;
-            color: #FFFFFF !important;
-            border: none !important;
+            background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
+            color: #4CD964 !important;
+            border: 1px solid #2ECC71 !important;
+            box-shadow: 0 4px 16px rgba(46, 204, 113, 0.25) !important;
         }
 
         .stButton > button[kind="primary"]:hover {
-            background: #0077ED !important;
-            box-shadow: 0 6px 16px rgba(0, 113, 227, 0.25) !important;
+            background: linear-gradient(135deg, #246844 0%, #184A30 100%) !important;
+            border-color: #4CD964 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
         }
 
         /* 6. Clean Table / DataFrame Container */
         [data-testid="stDataFrame"] {
-            border: 1px solid #E2E8F0 !important;
+            border: 1px solid #183325 !important;
             border-radius: 14px !important;
-            background: #FFFFFF !important;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+            background: #0A1912 !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
             overflow: hidden !important;
         }
 
-        /* 7. Apple Input & Text Area */
+        /* 7. Input & Text Area */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
             border-radius: 12px !important;
-            border: 1px solid rgba(226, 232, 240, 0.9) !important;
-            background: #FFFFFF !important;
+            border: 1px solid #1E3F2E !important;
+            background: #08150F !important;
             padding: 10px 14px !important;
             font-size: 13.5px !important;
-            color: #0F172A !important;
+            color: #FFFFFF !important;
             transition: all 0.2s ease !important;
         }
 
         .stTextInput > div > div > input:focus,
         .stTextArea > div > div > textarea:focus {
-            border-color: #0071E3 !important;
-            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18) !important;
+            border-color: #2ECC71 !important;
+            box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2) !important;
         }
 
         /* 8. Custom 5px Scrollbar */
@@ -1480,42 +1417,43 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
         }
         .agent2-scroll::-webkit-scrollbar-track,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-track {
-            background: #FAFAFB;
+            background: #07130D;
         }
         .agent2-scroll::-webkit-scrollbar-thumb,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb {
-            background: #CBD5E1;
+            background: #1E3F2E;
             border-radius: 980px;
         }
         .agent2-scroll::-webkit-scrollbar-thumb:hover,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb:hover {
-            background: #94A3B8;
+            background: #2ECC71;
         }
 
         /* 9. Rounded Pills & Tabs */
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px;
-            background-color: rgba(0, 0, 0, 0.05);
+            background: rgba(14, 33, 24, 0.75) !important;
+            backdrop-filter: blur(12px) !important;
             padding: 4px;
             border-radius: 14px;
-            border-bottom: none !important;
+            border: 1px solid rgba(46, 204, 113, 0.2) !important;
         }
 
         .stTabs [data-baseweb="tab"] {
             border-radius: 10px;
             padding: 6px 16px;
-            color: #64748B;
+            color: #8FA89B;
             font-weight: 500;
             font-size: 13px;
             border-bottom: none !important;
         }
 
         .stTabs [aria-selected="true"] {
-            background-color: #FFFFFF !important;
-            color: #0F172A !important;
+            background: rgba(46, 204, 113, 0.15) !important;
+            color: #4CD964 !important;
             font-weight: 600 !important;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
-            border-bottom: none !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            border-bottom: 2px solid #2ECC71 !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -1546,13 +1484,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 18px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+        <div style="display:flex; align-items:center; gap:12px; background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:10px 18px; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="font-size:1.35rem;">⚡</div>
             <div>
-                <div style="font-size:1.02rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">
+                <div style="font-size:1.02rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
                     AGENT 2: GIÁM SÁT TỒN KHO
                 </div>
-                <div style="font-size:0.75rem; color:#64748B; margin-top:1px;">
+                <div style="font-size:0.75rem; color:#8FA89B; margin-top:1px;">
                     Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{target_email}</strong> lúc <strong>16:00</strong>
                 </div>
             </div>
@@ -1561,10 +1499,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     with col_h2:
         st.markdown(f"""
         <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-            <span style="font-size:0.73rem; color:#34c759; background:#ecfdf5; border:1px solid rgba(52,199,89,0.25); padding:5px 12px; border-radius:980px; font-weight:600; box-shadow:0 2px 6px rgba(52,199,89,0.08);">
+            <span style="font-size:0.73rem; color:#4CD964; background:rgba(22, 56, 40, 0.8); border:1px solid #2ECC71; padding:5px 12px; border-radius:980px; font-weight:600; box-shadow:0 0 10px rgba(46,204,113,0.2);">
                 ● LIVE SHEET ({last_sync_str})
             </span>
-            <span style="font-size:0.73rem; color:#0071e3; background:#eff6ff; border:1px solid rgba(0,113,227,0.25); padding:5px 12px; border-radius:980px; font-weight:600; box-shadow:0 2px 6px rgba(0,113,227,0.08);">
+            <span style="font-size:0.73rem; color:#E2EFE8; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(143,168,155,0.3); padding:5px 12px; border-radius:980px; font-weight:600;">
                 ⏰ CRON: 16:00
             </span>
         </div>
@@ -1578,12 +1516,12 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
     # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
         st.markdown("""
-        <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:12px 14px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+        <div style="background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:12px 14px; margin-bottom:8px; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
+                <span style="font-size:0.86rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
                 <span style="font-size:0.65rem; background:#10B981; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM AI</span>
             </div>
-            <div style="font-size:0.73rem; color:#64748B; margin-top:3px; line-height:1.35;">
+            <div style="font-size:0.73rem; color:#8FA89B; margin-top:3px; line-height:1.35;">
                 Tư vấn kỹ thuật • Bóc tách bản vẽ / công trình • Tận dụng kho sẵn có
             </div>
         </div>
@@ -1636,7 +1574,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             else:
                 st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
-        st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #183325;'>", unsafe_allow_html=True)
 
         search_query = st.text_input(
             "Tra cứu nhanh danh sách:",
@@ -1645,7 +1583,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             label_visibility="collapsed"
         )
 
-        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#1E293B; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#E2EFE8; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
 
         c_sync, c_mail = st.columns(2)
         with c_sync:
@@ -1678,8 +1616,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 if ok: st.toast("✓ Đã gửi báo cáo thanh lý!", icon="📧")
 
         st.markdown(f"""
-        <div style="background:#FFFFFF; border:1px solid rgba(226,232,240,0.9); border-radius:14px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#64748B; box-shadow:0 2px 6px rgba(15,23,42,0.02);">
-            <div>📌 <strong style="color:#0F172A;">Cấu hình tự động:</strong></div>
+        <div style="background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#8FA89B; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <div>📌 <strong style="color:#FFFFFF;">Cấu hình tự động:</strong></div>
             <div>• Điểm đích: <code>{target_email}</code></div>
             <div>• Tự động quét: <strong>Mỗi 60 phút</strong></div>
             <div>• Giờ gửi Daily: <strong>16:00 mỗi ngày</strong></div>
@@ -1773,9 +1711,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                 ai_hdr_col1, ai_hdr_col2 = st.columns([7.8, 2.2], vertical_alignment="center")
                 with ai_hdr_col1:
                     st.markdown(
-                        f"<div style='font-size:0.88rem; font-weight:700; color:#0F172A; display:flex; align-items:center; gap:8px;'>"
+                        f"<div style='font-size:0.88rem; font-weight:700; color:#FFFFFF; display:flex; align-items:center; gap:8px;'>"
                         f"<span>💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI</span>"
-                        f"<span style='font-size:0.72rem; color:#64748B; background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 8px; border-radius:12px; font-weight:500;'>⏱️ Tự xóa sau {remaining_min} phút</span>"
+                        f"<span style='font-size:0.72rem; color:#8FA89B; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(143, 168, 155, 0.3); padding:2px 8px; border-radius:12px; font-weight:500;'>⏱️ Tự xóa sau {remaining_min} phút</span>"
                         f"</div>",
                         unsafe_allow_html=True
                     )
@@ -1787,15 +1725,15 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
                         st.rerun(scope="fragment")
 
                 last_prompt = st.session_state.get('ag2_ai_last_prompt', '')
-                st.markdown(f"<div style='font-size:0.78rem; color:#475569; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:0.78rem; color:#8FA89B; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
                 st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["ag2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
 
                 # Đối chiếu trực tiếp Live Sheet (HOÀN TOÀN KHÔNG CÓ CỘT MÃ VT)
                 verified_df = extract_verified_items_from_response(st.session_state["ag2_ai_response"], df_th)
                 if not verified_df.empty:
-                    st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#4CD964; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
                     st.dataframe(verified_df, use_container_width=True, hide_index=True)
-                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #183325;'>", unsafe_allow_html=True)
 
             # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
             cur_kpi = st.session_state.get("ag2_kpi_filter", "ALL")
@@ -1825,8 +1763,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is
             # Thông tin chỉ báo bộ lọc
             st.markdown(
                 f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
-                f"<span style='font-size:0.82rem; font-weight:600; color:#0F172A;'>Đang lọc theo thẻ: <span style='color:#0071E3; font-weight:700;'>{kpi_desc}</span></span>"
-                f"<span style='font-size:0.78rem; color:#64748B;'>Hiển thị: <strong style='color:#0F172A;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
+                f"<span style='font-size:0.82rem; font-weight:600; color:#FFFFFF;'>Đang lọc theo thẻ: <span style='color:#4CD964; font-weight:700;'>{kpi_desc}</span></span>"
+                f"<span style='font-size:0.78rem; color:#8FA89B;'>Hiển thị: <strong style='color:#FFFFFF;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
