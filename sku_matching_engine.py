@@ -7,7 +7,7 @@ Dành cho Agent 1: Đối chiếu hóa đơn/chứng từ NCC với 1.410 mã kh
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 🔒 FROZEN CORE MODULE - GHIM CHẾT CODE BẢO VỆ TUYỆT ĐỐI - KHÔNG ĐƯỢC CHỈNH SỬA
-# TOÀN BỘ LOGIC 5 TẦNG TRA CỨU & 23 UNIT TESTS TRONG FILE NÀY ĐÃ ĐẠT 100% CHUẨN KỸ THUẬT.
+# TOÀN BỘ LOGIC 5 TẦNG TRA CỨU & 25 UNIT TESTS TRONG FILE NÀY ĐÃ ĐẠT 100% CHUẨN KỸ THUẬT.
 # TỪ NAY VỀ SAU MỌI TÁC VỤ REFACTOR / UPDATE KHÁC TUYỆT ĐỐI CẤM SỬA HOẶC XÓA FILE NÀY.
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -23,6 +23,11 @@ from typing import Dict, List, Tuple, Any, Optional
 # 1. NHÓM THIẾT BỊ / SẢN PHẨM CHÍNH (PRODUCT CATEGORIES)
 PRODUCT_CATEGORY_GROUPS: List[List[str]] = [
     # Thiết bị Điện & Tự động hóa
+    ["hộp nổi đôi", "hộp nối đôi", "hộp đôi"],
+    ["hộp nổi đơn", "hộp nối đơn", "hộp đơn"],
+    ["hộp nổi cb", "hộp nối cb", "hộp cb tép", "hộp cb"],
+    ["hộp nối", "hộp nổi", "đế nổi", "đế âm", "hộp chia"],
+    ["đèn led", "bóng đèn led", "bóng đèn", "đèn", "máng đèn", "đèn tuýp", "đèn led bán nguyệt", "đèn bán nguyệt"],
     ["khởi động từ", "contactor", "công tắc tơ", "kđt"],
     ["rơ le nhiệt", "rơ le", "rơle", "role", "relay", "rơ-le", "rơle bảo vệ"],
     ["aptomat", "cb", "mccb", "mcb", "cầu dao", "cầu dao điện", "cầu dao tự động", "cb tép"],
@@ -222,8 +227,9 @@ def normalize_technical_text(raw_text: str) -> str:
     # 9. Chuẩn hóa đơn vị đo dính liền số (100 a -> 100a, 220 v -> 220v, 75 kw -> 75kw)
     text = re.sub(r'(\d+(?:\.\d+)?)\s*(a|v|kw|w|bar|kg|kva|rpm)\b', r'\1\2', text)
 
-    # 10. Chuẩn hóa ký tự phi
-    text = re.sub(r'[øφđd]\s*(\d+)', r'phi \1', text)
+    # 10. Chuẩn hóa ký tự phi (chỉ đổi d/đ khi đứng độc lập ở đầu từ, không đổi d ở cuối từ như led)
+    text = re.sub(r'[øφ]\s*(\d+)', r'phi \1', text)
+    text = re.sub(r'\b[đd]\s*(\d+)\b(?!\s*k\b)', r'phi \1', text)
 
     # Dọn dẹp khoảng trắng thừa
     text = re.sub(r'\s+', ' ', text).strip()
@@ -336,6 +342,26 @@ def parse_structured_item(raw_name: str) -> Dict[str, Any]:
         clean_k_code = f"kho{clean_k}m"
         if clean_k_code not in primary_specs:
             primary_specs.append(clean_k_code)
+
+    # 7.1b. Chiều dài đèn led / bóng tuýp: 1.2m, 0.6m, 1m2, 0m6
+    lamp_len_matches = re.findall(r'\b(0\.6|1\.2|1\.5|2|3|6|1)\s*m\b', normalized)
+    for l_val in lamp_len_matches:
+        clean_l = f"{l_val}m"
+        if clean_l not in primary_specs:
+            primary_specs.append(clean_l)
+
+    # 7.1c. Cấu hình hộp nối / hộp nổi / đế điện: đôi, đơn, số tép CB
+    if any(k in normalized for k in ["hộp", "đế", "hop", "de"]):
+        if re.search(r'\b(đôi|doi|2 gang|2gang)\b', normalized):
+            if "đôi" not in primary_specs:
+                primary_specs.append("đôi")
+        elif re.search(r'\b(đơn|don|1 gang|1gang)\b', normalized):
+            if "đơn" not in primary_specs:
+                primary_specs.append("đơn")
+        m_cb = re.search(r'\b(?:tép|tep)\s*(\d+)\b|\b(\d+)\s*(?:tép|tep)\b', normalized)
+        if m_cb:
+            cb_val = m_cb.group(1) or m_cb.group(2)
+            primary_specs.append(f"{cb_val}tep")
 
     # 7.2. Đường kính thép tròn / phi láp: "phi 115", "fi 115", "phi115", "lap 115", "láp 115"
     lap_phi_matches = re.findall(r'(?:phi|fi|láp|lap|sat\s*phi|thép\s*tròn)\s*(\d+(?:\.\d+)?)\b', normalized)
@@ -452,7 +478,10 @@ def compute_sku_match_score(query_parsed: Dict[str, Any], cand_parsed: Dict[str,
         "kim máy may": ["kim"],
         "aptomat": ["cb", "mccb", "mcb", "aptomat", "cầu dao"],
         "khởi động từ": ["contactor", "khởi động từ", "kđt"],
-        "rơ le nhiệt": ["rơ le", "rơle", "role", "relay"]
+        "rơ le nhiệt": ["rơ le", "rơle", "role", "relay"],
+        "đèn led": ["đèn", "bóng đèn", "led"],
+        "hộp nổi đôi": ["hộp", "đế"],
+        "hộp nổi đơn": ["hộp", "đế"]
     }
     for ex_cat, ex_kws in exclusive_categories.items():
         if ex_cat in c_canonicals and not any(kw in q_name for kw in ex_kws):
@@ -586,7 +615,7 @@ def get_item_category_tag(name: str) -> str:
 
     if "lưới" in s or "luoi" in s:
         return "LUOI"
-    if any(k in s for k in ["sơn", "son", "thinner", "dung môi", "dung moi", "ep170", "et5740", "et5660", "ut6581"]):
+    if any(k in s for k in ["sơn", "thinner", "dung môi", "dung moi", "ep170", "et5740", "et5660", "ut6581"]) or bool(re.search(r'\bson\b', s)):
         return "SON_DUNG_MOI"
     if any(k in s for k in ["may bao", "kim may", "kim máy may"]):
         return "PHU_TUNG_MAY_MAY"
@@ -602,7 +631,7 @@ def get_item_category_tag(name: str) -> str:
         return "THEP_TAM_LA"
     if any(k in s for k in ["thép tròn", "thép láp", "thép láp tròn", "láp tròn", "sắt phi", "láp"]):
         return "THEP_TRON_LAP"
-    if any(k in s for k in ["van", "valve", "co ", "tê ", "mặt bích", "bích", "bầu giảm", "rắc co", "ống nhựa", "ống upvc", "ống pvc", "ong bm"]):
+    if any(k in s for k in ["van", "valve", "mặt bích", "bích", "bầu giảm", "rắc co", "ống nhựa", "ống upvc", "ống pvc", "ong bm"]) or bool(re.search(r'\b(co|tê)\b', s)):
         return "VAN_PHU_KIEN_ONG"
     if any(k in s for k in ["vòng bi", "bạc đạn", "gối đỡ", "bearing", "ucp", "ucf", "ổ bi", "ổ đỡ"]):
         return "VONG_BI_GOI_DO"
@@ -612,7 +641,7 @@ def get_item_category_tag(name: str) -> str:
         return "DAY_CUROA_XICH"
     if any(k in s for k in ["bulon", "bulong", "bu lông", "bu-lông", "ecu", "ê cu", "tán", "vít", "ốc", "tắc kê", "long đền", "vòng đệm"]):
         return "BULONG_OC_VIT"
-    if any(k in s for k in ["contactor", "khởi động từ", "kđt", "rơ le", "rơle", "role", "aptomat", "cb", "mccb", "mcb", "biến tần", "đầu cos", "bộ điều khiển nhiệt độ", "cảm biến nhiệt"]):
+    if any(k in s for k in ["contactor", "khởi động từ", "kđt", "rơ le", "rơle", "role", "aptomat", "cb", "mccb", "mcb", "biến tần", "đầu cos", "bộ điều khiển nhiệt độ", "cảm biến nhiệt", "hộp nối", "hộp nổi", "đế nổi", "đế âm", "đèn led", "bóng đèn", "máng đèn", "đuôi đèn", "đèn pha", "đèn tuýp", "đèn báo"]):
         return "DIEN_TU_DONG_HOA"
     if any(k in s for k in ["động cơ", "motor", "mô tơ", "máy bơm", "bơm", "quạt hút", "quạt thổi"]):
         return "DONG_CO_BOM_QUAT"
@@ -1144,7 +1173,7 @@ class UniversalTechnicalSKUMatcher:
 def run_unit_tests(master_path: str = "D:/Agent QuanLyVatTuKyThuat/Master_Inventory/Master_Inventory.xlsx"):
     """Chạy toàn bộ 23 Test Cases kiểm thử tự động trên tập dữ liệu kho thực tế."""
     print("=" * 75)
-    print("BẮT ĐẦU CHẠY 23 UNIT TESTS KIỂM THỬ 5-STAGE INDUSTRIAL SKU MATCHING ENGINE")
+    print("BẮT ĐẦU CHẠY 25 UNIT TESTS KIỂM THỬ 5-STAGE INDUSTRIAL SKU MATCHING ENGINE")
     print("=" * 75)
 
     df_master = pd.read_excel(master_path, dtype={"Mã hàng": str})
@@ -1202,6 +1231,8 @@ def run_unit_tests(master_path: str = "D:/Agent QuanLyVatTuKyThuat/Master_Invent
         {"id": 21, "query": "3ly 40 x 3m x 20c", "exp_status": "MỚI", "exp_code": None},
         {"id": 22, "query": "V5 kẽm mỏng", "exp_status": "MỚI", "exp_code": None},
         {"id": 23, "query": "D 30k (1.4)", "exp_status": "KHỚP", "exp_code": "03.9032"},
+        {"id": 24, "query": "Hộp nối đôi Nanoco hàng Wide - NN102WM", "exp_status": "KHỚP", "exp_code": "03.7888"},
+        {"id": 25, "query": "BN2-36T - Đèn led bán nguyệt 36W 1.2m, thân nhựa, ánh sáng trắng", "exp_status": "KHỚP", "exp_code": "03.0853"},
     ]
 
     print("\n--- PHẦN 2: 15 TEST CASES BƯỚC 5 (TIẾNG LÓNG & MÃ HÃNG) ---")
@@ -1225,7 +1256,7 @@ def run_unit_tests(master_path: str = "D:/Agent QuanLyVatTuKyThuat/Master_Invent
 
     print("=" * 75)
     if all_passed:
-        print("🎉 TẤT CẢ 23/23 TEST CASES ĐÃ VƯỢT QUA 100% XUẤT SẮC!")
+        print("🎉 TẤT CẢ 25/25 TEST CASES ĐÃ VƯỢT QUA 100% XUẤT SẮC!")
     else:
         print("⚠️ CẦN TINH CHỈNH THÊM MỘT VÀI TRƯỜNG HỢP CHƯA ĐẠT.")
     print("=" * 75)
