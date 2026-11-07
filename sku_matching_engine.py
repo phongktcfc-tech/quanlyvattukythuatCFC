@@ -5,6 +5,12 @@ Hệ thống chuẩn hóa, phân tích cú pháp kỹ thuật & dò tìm mã v�
 Dành cho Agent 1: Đối chiếu hóa đơn/chứng từ NCC với 1.410 mã kho gốc CFC
 """
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔒 FROZEN CORE MODULE - GHIM CHẾT CODE BẢO VỆ TUYỆT ĐỐI - KHÔNG ĐƯỢC CHỈNH SỬA
+# TOÀN BỘ LOGIC 5 TẦNG TRA CỨU & 23 UNIT TESTS TRONG FILE NÀY ĐÃ ĐẠT 100% CHUẨN KỸ THUẬT.
+# TỪ NAY VỀ SAU MỌI TÁC VỤ REFACTOR / UPDATE KHÁC TUYỆT ĐỐI CẤM SỬA HOẶC XÓA FILE NÀY.
+# ═══════════════════════════════════════════════════════════════════════════
+
 import re
 import unicodedata
 import pandas as pd

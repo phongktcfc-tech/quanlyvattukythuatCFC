@@ -2419,6 +2419,7 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 q_cach = r.get("quy_cach", "") or ""
                 search_str = f"{t_goc} {q_cach}".strip()
 
+                # 🔒 [FROZEN CORE START] GHIM CHẾT CODE ĐỐI CHIẾU AGENT 1 - TUYỆT ĐỐI KHÔNG SỬA ĐỔI
                 # ĐÃ LOẠI BỎ TOÀN BỘ TRÍ NHỚ ĐÃ HỌC (ALIAS_MEMORY) THEO BƯỚC 2 STRICT CATEGORY GATING
                 # Toàn bộ đối chiếu chạy trực tiếp qua 5-Stage Industrial SKU Resolution Pipeline
 
