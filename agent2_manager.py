@@ -1261,16 +1261,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         h1, h2, h3, h4, .section-header {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
             color: #0F172A !important;
-            font-weight: 700 !important;
+            font-weight: 800 !important;
             letter-spacing: -0.02em !important;
         }
 
         .cfc-kpi-card {
             background: #FFFFFF !important;
             border: 1px solid #E2E8F0 !important;
-            border-radius: 16px !important;
-            padding: 16px 20px !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+            border-radius: 20px !important;
+            padding: 18px 22px !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             display: flex;
             flex-direction: column;
@@ -1289,10 +1289,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         .cfc-kpi-title {
             font-size: 11.5px !important;
-            font-weight: 600 !important;
+            font-weight: 700 !important;
             color: #64748B !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.04em !important;
+            letter-spacing: 0.05em !important;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -1307,7 +1307,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         .cfc-kpi-number {
             font-size: 26px !important;
-            font-weight: 700 !important;
+            font-weight: 800 !important;
             color: #0F172A !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1;
@@ -1315,7 +1315,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         .cfc-kpi-unit {
             font-size: 12px !important;
-            font-weight: 500 !important;
+            font-weight: 600 !important;
             color: #64748B !important;
         }
 
@@ -1327,11 +1327,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_issues > button {
             background: #FFFFFF !important;
             border: 1px solid #E2E8F0 !important;
-            border-radius: 14px !important;
-            padding: 10px 14px !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+            border-radius: 18px !important;
+            padding: 12px 16px !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
-            height: 74px !important;
+            height: 76px !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-start !important;
@@ -1348,7 +1348,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_out > button:hover,
         div.st-key-btn_filter_issues > button:hover {
             transform: translateY(-2px) !important;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
             border-color: #2563EB !important;
             background: #F8FAFC !important;
         }
@@ -1358,15 +1358,15 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             line-height: 1.25 !important;
         }
         div[class*="st-key-btn_filter_"] > button p:first-child {
-            font-size: 11.5px !important;
-            font-weight: 600 !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.04em !important;
+            letter-spacing: 0.05em !important;
             color: #64748B !important;
         }
         div[class*="st-key-btn_filter_"] > button p:last-child {
             font-size: 26px !important;
-            font-weight: 700 !important;
+            font-weight: 800 !important;
             color: #0F172A !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1 !important;
@@ -1378,22 +1378,22 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_warning > button[kind="primary"],
         div.st-key-btn_filter_out > button[kind="primary"],
         div.st-key-btn_filter_issues > button[kind="primary"] {
-            border-color: #2563EB !important;
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2), 0 4px 12px rgba(37, 99, 235, 0.15) !important;
-            background: #EFF6FF !important;
+            border-color: #0F172A !important;
+            box-shadow: 0 0 0 2px #0F172A, 0 6px 18px rgba(15, 23, 42, 0.15) !important;
+            background: #FFFFFF !important;
             transform: translateY(-1px) !important;
         }
         div[class*="st-key-btn_filter_"] > button[kind="primary"] p:last-child {
-            color: #2563EB !important;
+            color: #0F172A !important;
         }
 
         /* 5. Streamlit Interactive Buttons & Inputs */
         .stButton > button {
-            border-radius: 12px !important;
+            border-radius: 9999px !important;
             font-weight: 600 !important;
-            border: 1px solid #CBD5E1 !important;
+            border: 1px solid #E2E8F0 !important;
             background: #FFFFFF !important;
-            color: #1E293B !important;
+            color: #334155 !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
             transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
         }
@@ -1401,50 +1401,57 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .stButton > button:hover {
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-            border-color: #2563EB !important;
+            border-color: #CBD5E1 !important;
             background: #F8FAFC !important;
             color: #0F172A !important;
         }
 
         .stButton > button[kind="primary"] {
-            background: #2563EB !important;
+            background: #0F172A !important;
             color: #FFFFFF !important;
-            border: 1px solid #2563EB !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
+            border: 1px solid #0F172A !important;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
         }
 
         .stButton > button[kind="primary"]:hover {
-            background: #1D4ED8 !important;
-            border-color: #1D4ED8 !important;
+            background: #2563EB !important;
+            border-color: #2563EB !important;
             color: #FFFFFF !important;
-            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3) !important;
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25) !important;
         }
 
         /* 6. Clean Table / DataFrame Container */
         [data-testid="stDataFrame"] {
             border: 1px solid #E2E8F0 !important;
-            border-radius: 14px !important;
+            border-radius: 18px !important;
             background: #FFFFFF !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
             overflow: hidden !important;
         }
 
         /* 7. Input & Text Area */
-        .stTextInput > div > div > input,
-        .stTextArea > div > div > textarea {
-            border-radius: 12px !important;
-            border: 1px solid #CBD5E1 !important;
+        .stTextInput > div > div > input {
+            border-radius: 9999px !important;
+            border: 1.5px solid #E2E8F0 !important;
             background: #FFFFFF !important;
-            padding: 10px 14px !important;
-            font-size: 13.5px !important;
+            padding: 10px 18px !important;
+            font-size: 14px !important;
             color: #0F172A !important;
             transition: all 0.2s ease !important;
+        }
+        .stTextArea > div > div > textarea {
+            border-radius: 16px !important;
+            border: 1.5px solid #E2E8F0 !important;
+            background: #FFFFFF !important;
+            padding: 12px 18px !important;
+            font-size: 14px !important;
+            color: #0F172A !important;
         }
 
         .stTextInput > div > div > input:focus,
         .stTextArea > div > div > textarea:focus {
             border-color: #2563EB !important;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
         }
 
         /* 8. Custom 5px Scrollbar */
@@ -1460,7 +1467,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .agent2-scroll::-webkit-scrollbar-thumb,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb {
             background: #CBD5E1;
-            border-radius: 980px;
+            border-radius: 9999px;
         }
         .agent2-scroll::-webkit-scrollbar-thumb:hover,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb:hover {
@@ -1478,24 +1485,24 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             border: none !important;
             box-shadow: none !important;
             padding: 4px 0 !important;
-            margin-bottom: 0.75rem !important;
+            margin-bottom: 0.85rem !important;
         }
 
         .stTabs [data-baseweb="tab"] {
-            height: 42px !important;
-            padding: 8px 20px !important;
-            border-radius: 999px !important;
-            margin-right: 10px !important;
+            height: 44px !important;
+            padding: 8px 24px !important;
+            border-radius: 9999px !important;
+            margin-right: 8px !important;
             background: #FFFFFF !important;
             border: 1px solid #E2E8F0 !important;
-            color: #475569 !important;
+            color: #64748B !important;
             font-weight: 600 !important;
-            font-size: 0.88rem !important;
+            font-size: 0.9rem !important;
             transition: all 0.2s ease !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
         }
 
         .stTabs [data-baseweb="tab"]:hover {
@@ -1506,11 +1513,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         .stTabs [data-baseweb="tab"][aria-selected="true"],
         .stTabs [aria-selected="true"] {
-            background: #2563EB !important;
-            border: 1.5px solid #2563EB !important;
+            background: #0F172A !important;
+            border: 1.5px solid #0F172A !important;
             color: #FFFFFF !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
-            font-weight: 600 !important;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+            font-weight: 700 !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -1541,7 +1548,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:10px 18px; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
+        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:14px 20px; border-radius:20px; box-shadow:0 4px 20px rgba(0,0,0,0.04);">
             <div style="font-size:1.35rem;">⚡</div>
             <div>
                 <div style="font-size:1.02rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">
@@ -1573,7 +1580,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
     # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
         st.markdown("""
-        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:12px 14px; margin-bottom:8px; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
+        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:14px 18px; border-radius:20px; margin-bottom:10px; box-shadow:0 4px 20px rgba(0,0,0,0.04);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
                 <span style="font-size:0.65rem; background:#10B981; color:#0F172A; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM AI</span>
@@ -1673,7 +1680,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 if ok: st.toast("✓ Đã gửi báo cáo thanh lý!", icon="📧")
 
         st.markdown(f"""
-        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#64748B; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
+        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:12px 16px; border-radius:18px; margin-top:10px; font-size:0.75rem; color:#64748B; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
             <div>📌 <strong style="color:#0F172A;">Cấu hình tự động:</strong></div>
             <div>• Điểm đích: <code>{target_email}</code></div>
             <div>• Tự động quét: <strong>Mỗi 60 phút</strong></div>

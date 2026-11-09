@@ -649,10 +649,10 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       LIGHT TECHNICAL THEME: NỀN TRẮNG SÁNG & KHUNG VIEWPORT CHUẨN KỸ THUẬT
+       SAMPLE UI/UX DESIGN SYSTEM: CLEAN SAAS PILL & CARD THEME
        ═══════════════════════════════════════════════════════════════ */
     .stApp, [data-testid="stAppViewContainer"] {
-        background: #F8FAFC !important;
+        background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
         color: #0F172A !important;
     }
     
@@ -664,49 +664,47 @@ st.markdown("""
     
     .block-container {
         padding-top: 1.2rem !important;
-        padding-bottom: 0.35rem !important;
-        padding-left: 1.2rem !important;
-        padding-right: 1.2rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
         max-width: 100% !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       KHUNG HEADER CONSOLE HUD ("HỆ THỐNG AI QUẢN TRỊ...")
+       KHUNG HEADER CONSOLE HUD (CHUẨN GIAO DIỆN THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     .hud-header {
         width: 100% !important;
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 16px !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
-        padding: 16px 24px !important;
-        margin-bottom: 0.85rem !important;
+        border-radius: 20px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        padding: 18px 26px !important;
+        margin-bottom: 0.95rem !important;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
     .hud-title {
-        font-size: 1.22rem !important;
+        font-size: 1.25rem !important;
         font-weight: 800 !important;
-        letter-spacing: -0.2px;
+        letter-spacing: -0.3px;
         color: #0F172A !important;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
     .hud-title span {
-        color: #2563EB !important;
+        color: #0F172A !important;
         font-weight: 800 !important;
-        background: none !important;
-        -webkit-text-fill-color: initial !important;
     }
     .hud-subtitle {
         font-size: 0.76rem;
         color: #64748B !important;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        font-weight: 600;
-        margin-top: 2px;
+        font-weight: 700;
+        margin-top: 3px;
     }
     .hud-chips {
         display: flex;
@@ -715,10 +713,10 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       CÁC BADGE TRẠNG THÁI (READY, KHO, LAN, CLOUD)
+       CÁC PILL BADGES BO TRÒN SÂU (CHUẨN PILL THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     .hud-badge {
-        padding: 5px 12px;
+        padding: 6px 14px;
         border-radius: 9999px;
         font-size: 0.75rem;
         font-family: 'JetBrains Mono', monospace;
@@ -726,28 +724,35 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        border: 1px solid #CBD5E1 !important;
-        background: #F1F5F9 !important;
+        border: 1px solid #E2E8F0 !important;
+        background: #F8FAFC !important;
         color: #334155 !important;
         text-decoration: none;
         transition: all 0.2s ease;
     }
     .badge-cyan {
-        border-color: #CBD5E1 !important;
-        color: #334155 !important;
-        background: #F1F5F9 !important;
+        border-color: #BFDBFE !important;
+        color: #2563EB !important;
+        background: #EFF6FF !important;
+        font-weight: 700 !important;
     }
     .badge-green {
-        border-color: #10B981 !important;
+        border-color: #A7F3D0 !important;
         color: #059669 !important;
         background: #ECFDF5 !important;
-        box-shadow: none !important;
+        font-weight: 700 !important;
     }
     .badge-public {
-        border-color: #F59E0B !important;
-        color: #D97706 !important;
-        background: #FFFBEB !important;
-        box-shadow: none !important;
+        border-color: #E2E8F0 !important;
+        color: #0F172A !important;
+        background: #FFFFFF !important;
+        font-weight: 700 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    }
+    .badge-public:hover {
+        background: #0F172A !important;
+        color: #FFFFFF !important;
+        border-color: #0F172A !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
@@ -757,8 +762,8 @@ st.markdown("""
         100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .status-dot-pulse {
-        width: 7px;
-        height: 7px;
+        width: 8px;
+        height: 8px;
         background-color: #10B981 !important;
         border-radius: 50%;
         display: inline-block;
@@ -766,7 +771,7 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       HỆ THỐNG TABS DẠNG VIÊN THUỐC (PILL TABS)
+       HỆ THỐNG TABS DẠNG VIÊN THUỐC (PILL TABS THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     .stTabs [data-baseweb="tab-highlight"],
     .stTabs [data-baseweb="tab-border"] {
@@ -778,23 +783,23 @@ st.markdown("""
         border: none !important;
         box-shadow: none !important;
         padding: 4px 0 !important;
-        margin-bottom: 0.75rem !important;
+        margin-bottom: 0.85rem !important;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 42px !important;
-        padding: 8px 20px !important;
-        border-radius: 999px !important;
-        margin-right: 10px !important;
+        height: 44px !important;
+        padding: 8px 24px !important;
+        border-radius: 9999px !important;
+        margin-right: 8px !important;
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        color: #475569 !important;
+        color: #64748B !important;
         font-weight: 600 !important;
-        font-size: 0.88rem !important;
+        font-size: 0.9rem !important;
         transition: all 0.2s ease !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
     }
     .stTabs [data-baseweb="tab"]:hover {
         color: #0F172A !important;
@@ -803,88 +808,97 @@ st.markdown("""
     }
     .stTabs [data-baseweb="tab"][aria-selected="true"],
     .stTabs [aria-selected="true"] {
-        background: #2563EB !important;
-        border: 1.5px solid #2563EB !important;
+        background: #0F172A !important;
+        border: 1.5px solid #0F172A !important;
         color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
-        font-weight: 600 !important;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+        font-weight: 700 !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       CONTAINER CARDS & EXPANDERS (THẺ TRẮNG NỀN NỔI KHỐI ĐẸP MẮT)
+       CONTAINER CARDS (BO TRÒN SÂU 20PX THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 16px !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
-        padding: 18px 22px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        padding: 22px 26px !important;
         color: #0F172A !important;
     }
     div[data-testid="stExpander"] {
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 14px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
         margin-bottom: 12px !important;
         overflow: hidden !important;
     }
     div[data-testid="stExpander"] summary {
-        color: #1E293B !important;
-        font-weight: 600 !important;
-        padding: 12px 18px !important;
+        color: #0F172A !important;
+        font-weight: 700 !important;
+        padding: 14px 20px !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       NÚT BẤM (BUTTONS: PRIMARY & SECONDARY)
+       NÚT BẤM DẠNG PILL BO TRÒN HOÀN TOÀN (9999PX THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     button[kind="primary"], .stButton > button[kind="primary"] {
-        background: #2563EB !important;
-        border: 1px solid #2563EB !important;
+        background: #0F172A !important;
+        border: 1px solid #0F172A !important;
         color: #FFFFFF !important;
-        font-weight: 600 !important;
-        border-radius: 12px !important;
-        padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
+        font-weight: 700 !important;
+        border-radius: 9999px !important;
+        padding: 0.5rem 1.6rem !important;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
         transition: all 0.2s ease !important;
     }
     button[kind="primary"]:hover, .stButton > button[kind="primary"]:hover {
-        background: #1D4ED8 !important;
-        border-color: #1D4ED8 !important;
+        background: #2563EB !important;
+        border-color: #2563EB !important;
         color: #FFFFFF !important;
-        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3) !important;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25) !important;
         transform: translateY(-1px);
     }
     button[kind="secondary"], .stButton > button:not([kind="primary"]) {
         background: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        color: #1E293B !important;
-        border-radius: 12px !important;
-        font-weight: 500 !important;
-        padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #334155 !important;
+        border-radius: 9999px !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1.4rem !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
         transition: all 0.2s ease !important;
     }
     button[kind="secondary"]:hover, .stButton > button:not([kind="primary"]):hover {
-        background: #F1F5F9 !important;
-        border-color: #94A3B8 !important;
+        background: #F8FAFC !important;
+        border-color: #CBD5E1 !important;
         color: #0F172A !important;
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Ô NHẬP LIỆU & FILE UPLOADER
+       Ô NHẬP LIỆU DẠNG PILL (BO TRÒN THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
     input[type="text"], input[type="password"] {
         background: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
+        border: 1.5px solid #E2E8F0 !important;
         color: #0F172A !important;
-        border-radius: 12px !important;
-        font-size: 13.5px !important;
+        border-radius: 9999px !important;
+        padding: 11px 20px !important;
+        font-size: 14px !important;
         transition: all 0.2s ease !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    }
+    .stTextArea > div > div > textarea {
+        background: #FFFFFF !important;
+        border: 1.5px solid #E2E8F0 !important;
+        color: #0F172A !important;
+        border-radius: 16px !important;
+        padding: 12px 18px !important;
+        font-size: 14px !important;
     }
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {
@@ -893,15 +907,16 @@ st.markdown("""
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus {
         border-color: #2563EB !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
     }
 
     [data-testid="stFileUploader"] section, section[data-testid="stFileUploadDropzone"] {
         background-color: #F8FAFC !important;
-        border: 1.5px dashed #CBD5E1 !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
+        border: 2px dashed #CBD5E1 !important;
+        border-radius: 20px !important;
+        padding: 20px !important;
         color: #1E293B !important;
+        transition: all 0.2s ease !important;
     }
     [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
     [data-testid="stFileUploader"] span,
@@ -910,14 +925,15 @@ st.markdown("""
     }
     [data-testid="stFileUploader"] section:hover, section[data-testid="stFileUploadDropzone"]:hover {
         border-color: #2563EB !important;
-        box-shadow: 0 0 12px rgba(37, 99, 235, 0.15) !important;
+        background-color: #F0F7FF !important;
+        box-shadow: 0 0 16px rgba(37, 99, 235, 0.12) !important;
     }
 
     /* Segmented Control Pill styling */
     [data-testid="stSegmentedControl"] {
         background: #F1F5F9 !important;
         border-radius: 9999px !important;
-        padding: 3px !important;
+        padding: 4px !important;
         border: 1px solid #E2E8F0 !important;
     }
     [data-testid="stSegmentedControl"] button {
@@ -927,9 +943,9 @@ st.markdown("""
         font-weight: 600 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-selected="true"] {
-        background: #2563EB !important;
+        background: #0F172A !important;
         color: #FFFFFF !important;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -938,18 +954,18 @@ st.markdown("""
     .scada-compact-table-wrap {
         width: 100% !important;
         max-width: 100% !important;
-        border-radius: 14px;
+        border-radius: 18px;
         border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         overflow: hidden;
-        margin: 8px 0 12px 0;
+        margin: 10px 0 14px 0;
         background: #FFFFFF !important;
     }
     .scada-compact-table {
         width: 100% !important;
         border-collapse: collapse;
         font-family: 'Inter', -apple-system, sans-serif;
-        font-size: 0.84rem;
+        font-size: 0.85rem;
         color: #0F172A !important;
         table-layout: fixed;
         background: #FFFFFF !important;
@@ -961,34 +977,34 @@ st.markdown("""
         background: #F8FAFC !important;
         color: #475569 !important;
         font-weight: 700;
-        padding: 10px 8px;
+        padding: 12px 10px;
         border-bottom: 2px solid #E2E8F0 !important;
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     .scada-compact-table td {
-        padding: 10px 8px;
+        padding: 12px 10px;
         border-bottom: 1px solid #F1F5F9 !important;
         vertical-align: top;
         white-space: normal !important;
         word-break: break-word !important;
-        line-height: 1.4;
+        line-height: 1.45;
         color: #0F172A !important;
     }
     .scada-compact-table tr:hover {
-        background: #F1F5F9 !important;
+        background: #F8FAFC !important;
     }
 
     [data-testid="stDataFrame"] {
         border: 1px solid #E2E8F0 !important;
-        border-radius: 14px !important;
+        border-radius: 18px !important;
         background: #FFFFFF !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
         overflow: hidden !important;
     }
 
-    /* Custom 4px Slim Scrollbar (Zero-Scroll Standard) */
+    /* Custom 5px Slim Scrollbar (Zero-Scroll Standard) */
     ::-webkit-scrollbar {
         width: 5px;
         height: 5px;
@@ -998,7 +1014,7 @@ st.markdown("""
     }
     ::-webkit-scrollbar-thumb {
         background: #CBD5E1;
-        border-radius: 4px;
+        border-radius: 9999px;
     }
     ::-webkit-scrollbar-thumb:hover {
         background: #94A3B8;
@@ -2760,9 +2776,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         # ── KHI CÓ CHỨNG TỪ: NÚT BẮT ĐẦU ĐỐI CHIẾU HÀNG LOẠT ──
         if all_queue:
             st.markdown(f"""
-            <div style="background: rgba(22, 56, 40, 0.5); border: 1px solid rgba(46, 204, 113, 0.3); border-radius: 12px; padding: 12px 18px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-                <div style="font-weight: 700; color: #4CD964; font-size: 0.98rem;">
-                    ⚡ ĐÃ SẴN SÀNG: <span style="color: #2ECC71;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
+            <div style="background: #F0FDF4; border: 1px solid #DCFCE7; border-radius: 16px; padding: 14px 20px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);">
+                <div style="font-weight: 700; color: #166534; font-size: 0.98rem;">
+                    ⚡ ĐÃ SẴN SÀNG: <span style="color: #059669;">{len(all_queue)} CHỨNG TỪ</span> ({n_pasted} ảnh dán + {len(uploaded_files or [])} file đính kèm)
                 </div>
                 <div style="color: #64748B; font-size: 0.82rem;">Sẽ tổng hợp thành 01 Báo cáo thống nhất</div>
             </div>
@@ -2771,8 +2787,8 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             ts_live = st.session_state["ag1_task_state"]
             if ts_live.get("is_running", False):
                 st.markdown("""
-                <div style="background:rgba(22, 56, 40, 0.5); border:1px solid rgba(46, 204, 113, 0.3); border-radius:10px; padding:10px 14px; margin-bottom:10px;">
-                    <div style="font-size:0.85rem; font-weight:700; color:#4CD964;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
+                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:16px; padding:14px 18px; margin-bottom:12px; box-shadow:0 2px 10px rgba(37,99,235,0.04);">
+                    <div style="font-size:0.85rem; font-weight:700; color:#1D4ED8;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
                     <div style="font-size:0.75rem; color:#8FA89B; margin-top:2px;">
                         Tiến trình được bảo vệ độc lập trong background worker. Bạn có thể tự do chuyển sang Agent 2 hoặc các chức năng khác mà không lo bị gián đoạn!
                     </div>
