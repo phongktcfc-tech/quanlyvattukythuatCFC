@@ -1,0 +1,20 @@
+name: 24/7 Keep Streamlit Cloud Awake
+
+on:
+  schedule:
+    # Chay dinh ky moi 4 gio (0h, 4h, 8h, 12h, 16h, 20h UTC) de Streamlit Cloud khong bao gio bi sleep
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # Cho phep bam "Run workflow" thu cong tren GitHub
+
+jobs:
+  keep-alive:
+    name: Wake & Keep Alive Streamlit App
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Keep Streamlit App Awake
+        uses: gpenessot/streamlit-keep-alive@v1
+        with:
+          app-urls: |
+            https://quanlyvattucfc.streamlit.app
