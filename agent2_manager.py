@@ -1219,15 +1219,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             overflow: visible !important;
         }
 
-        .ai-result-scrollbox {
-            max-height: 70vh;
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-            padding: 18px 22px;
-            background: #FFFFFF !important;
-            border: 1.5px solid #E2E8F0 !important;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        .ai-result-scrollbox,
+        [data-testid="stMarkdownContainer"] {
             color: #0F172A !important;
             line-height: 1.6 !important;
         }
@@ -1235,7 +1228,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .ai-result-scrollbox p,
         .ai-result-scrollbox li,
         .ai-result-scrollbox span,
-        .ai-result-scrollbox div {
+        .ai-result-scrollbox div,
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] li,
+        [data-testid="stMarkdownContainer"] span {
             color: #1E293B !important;
             font-size: 0.9rem !important;
         }
@@ -1244,39 +1240,48 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .ai-result-scrollbox h2,
         .ai-result-scrollbox h3,
         .ai-result-scrollbox h4,
-        .ai-result-scrollbox strong {
+        .ai-result-scrollbox strong,
+        [data-testid="stMarkdownContainer"] h1,
+        [data-testid="stMarkdownContainer"] h2,
+        [data-testid="stMarkdownContainer"] h3,
+        [data-testid="stMarkdownContainer"] h4,
+        [data-testid="stMarkdownContainer"] strong {
             color: #0F172A !important;
             font-weight: 700 !important;
         }
 
-        .ai-result-scrollbox table {
+        .ai-result-scrollbox table,
+        [data-testid="stMarkdownContainer"] table {
             width: 100% !important;
             border-collapse: collapse !important;
             margin: 14px 0 !important;
             font-size: 0.85rem !important;
             background: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
+            border: 1px solid #CBD5E1 !important;
             border-radius: 10px !important;
             overflow: hidden !important;
         }
 
-        .ai-result-scrollbox th {
+        .ai-result-scrollbox th,
+        [data-testid="stMarkdownContainer"] th {
             background: #F1F5F9 !important;
             color: #0F172A !important;
             font-weight: 700 !important;
-            padding: 9px 12px !important;
-            border: 1px solid #E2E8F0 !important;
+            padding: 10px 14px !important;
+            border: 1px solid #CBD5E1 !important;
             text-align: left !important;
         }
 
-        .ai-result-scrollbox td {
-            padding: 8px 12px !important;
+        .ai-result-scrollbox td,
+        [data-testid="stMarkdownContainer"] td {
+            padding: 9px 14px !important;
             border: 1px solid #E2E8F0 !important;
-            color: #334155 !important;
+            color: #1E293B !important;
             background: #FFFFFF !important;
         }
 
-        .ai-result-scrollbox tr:nth-child(even) td {
+        .ai-result-scrollbox tr:nth-child(even) td,
+        [data-testid="stMarkdownContainer"] tr:nth-child(even) td {
             background: #F8FAFC !important;
         }
 
@@ -1839,15 +1844,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                         st.rerun(scope="fragment")
 
                 last_prompt = st.session_state.get('ag2_ai_last_prompt', '')
-                st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
-                st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["ag2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"<div style='font-size:0.82rem; color:#64748B; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #F1F5F9;'>Yêu cầu: <strong style='color:#0F172A;'>'{last_prompt}'</strong></div>", unsafe_allow_html=True)
+                    st.markdown(st.session_state["ag2_ai_response"])
 
                 # Đối chiếu trực tiếp Live Sheet (HOÀN TOÀN KHÔNG CÓ CỘT MÃ VT)
                 verified_df = extract_verified_items_from_response(st.session_state["ag2_ai_response"], df_th)
                 if not verified_df.empty:
-                    st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#4CD964; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#059669; margin-top:14px; margin-bottom:6px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
                     st.dataframe(verified_df, use_container_width=True, hide_index=True)
-                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin:12px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
             # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
             cur_kpi = st.session_state.get("ag2_kpi_filter", "ALL")

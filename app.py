@@ -674,6 +674,58 @@ st.markdown("""
         color: #0F172A !important;
     }
 
+    /* Markdown typography & tables in White Technical Theme */
+    .stMarkdown,
+    [data-testid="stMarkdownContainer"] {
+        color: #0F172A !important;
+        line-height: 1.6 !important;
+    }
+    .stMarkdown p,
+    .stMarkdown li,
+    .stMarkdown span,
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] span {
+        color: #1E293B !important;
+    }
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown strong,
+    [data-testid="stMarkdownContainer"] h1, [data-testid="stMarkdownContainer"] h2,
+    [data-testid="stMarkdownContainer"] h3, [data-testid="stMarkdownContainer"] h4,
+    [data-testid="stMarkdownContainer"] strong {
+        color: #0F172A !important;
+        font-weight: 700 !important;
+    }
+    .stMarkdown table,
+    [data-testid="stMarkdownContainer"] table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 14px 0 !important;
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+    }
+    .stMarkdown th,
+    [data-testid="stMarkdownContainer"] th {
+        background: #F1F5F9 !important;
+        color: #0F172A !important;
+        font-weight: 700 !important;
+        padding: 10px 14px !important;
+        border: 1px solid #CBD5E1 !important;
+        text-align: left !important;
+    }
+    .stMarkdown td,
+    [data-testid="stMarkdownContainer"] td {
+        padding: 9px 14px !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #1E293B !important;
+        background: #FFFFFF !important;
+    }
+    .stMarkdown tr:nth-child(even) td,
+    [data-testid="stMarkdownContainer"] tr:nth-child(even) td {
+        background: #F8FAFC !important;
+    }
+
     /* Force tab list and tab styling with ultra high specificity */
     div[data-testid="stTabs"] [data-baseweb="tab-list"],
     .stTabs [data-baseweb="tab-list"],
