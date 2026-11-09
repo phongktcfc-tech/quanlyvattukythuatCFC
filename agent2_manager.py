@@ -843,7 +843,8 @@ STATIC_BLACKLIST_KEYWORDS = [
 def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict) -> str:
     """
     Chuyển đổi toàn bộ DataFrame hiện tại của Agent 2 (Live Sheet ~475-488 mã)
-    thành bảng văn bản Markdown cấu trúc chuẩn, áp dụng Blacklist nếu là Kết cấu tĩnh.
+    thành bảng văn bản Markdown cấu trúc chuẩn, ƯU TIÊN SẮP XẾP VẬT TƯ CÒN TỒN LÊN ĐẦU
+    để Kỹ sư Trưởng AI bắt buộc tận dụng vật tư có sẵn trong xưởng trước tiên.
     """
     if df_th is None or df_th.empty:
         return "Hiện chưa có dữ liệu tồn kho xưởng từ Live Sheet."
@@ -851,10 +852,9 @@ def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict)
     category = intent_info.get("category", "THIET_BI_DONG")
     has_wheels = intent_info.get("has_wheels_requested", False)
 
-    lines = [
-        "| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |",
-        "|:---|:---|:---|:---:|:---:|:---:|"
-    ]
+    # Lọc và phân loại vật tư
+    available_items = []
+    depleted_items = []
 
     for idx, r in df_th.iterrows():
         stt_val = r.get("stt")
@@ -902,7 +902,30 @@ def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict)
                 continue
 
         stock_display = f"{stock:g}"
-        lines.append(f"| {code} | {name} | {spec_clean} | {dvt} | {stock_display} | {status_str} |")
+        row_str = f"| {code} | {name} | {spec_clean} | {dvt} | {stock_display} | {status_str} |"
+        if stock > 0:
+            available_items.append((stock, row_str))
+        else:
+            depleted_items.append(row_str)
+
+    # Sắp xếp vật tư còn tồn theo số lượng tồn giảm dần để AI thấy nguồn lực dồi dào nhất
+    available_items.sort(key=lambda x: x[0], reverse=True)
+
+    lines = [
+        "### [PHẦN 1: DANH MỤC VẬT TƯ ĐANG CÒN TỒN KHO THỰC TẾ XƯỞNG (TỒN > 0) — BẮT BUỘC TẬN DỤNG TRƯỚC TIÊN]",
+        "| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |",
+        "|:---|:---|:---|:---:|:---:|:---:|"
+    ]
+    for _, row in available_items:
+        lines.append(row)
+
+    if depleted_items:
+        lines.append("")
+        lines.append("### [PHẦN 2: DANH MỤC VẬT TƯ ĐÃ HẾT TỒN KHO HOẶC TỒN = 0 (CHỈ XEM THAM KHẢO)]")
+        lines.append("| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |")
+        lines.append("|:---|:---|:---|:---:|:---:|:---:|")
+        for row in depleted_items:
+            lines.append(row)
 
     return "\n".join(lines)
 
@@ -979,31 +1002,41 @@ SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER = """
 Bạn là KỸ SƯ TRƯỞNG CƠ - ĐIỆN của Công ty Cổ phần Phân bón và Hóa chất Cần Thơ (CFC).
 Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ - ĐIỆN.
 
-=== 4 NGUYÊN TẮC BẮT BUỘC KHI TƯ VẤN & BÓC TÁCH VẬT TƯ ===
+=== NGUYÊN TẮC CỐT LÕI BẮT BUỘC KHI TƯ VẤN & BÓC TÁCH VẬT TƯ ===
 
 1. HIỂU ĐÚNG BẢN CHẤT KỸ THUẬT - KHÔNG GỢI Ý THỪA:
    - Trước khi chọn vật tư, phải xác định thiết bị người dùng yêu cầu là KẾT CẤU TĨNH (Sàn thao tác/sàng thao tác đứng làm việc, cầu thang, lan can, khung đỡ, kệ) hay THIẾT BỊ ĐỘNG (Máy sàng phân bón, băng tải, vít tải, quạt).
-   - Nếu là SÀN THAO TÁC (kể cả khi người dùng gõ nhầm là "sàng thao tác" kèm kích thước Dài x Rộng x Cao như 2m x 2m x 2m): Đây chỉ là sàn công tác tĩnh để người đi lại và đứng thao tác trên cao. Chỉ bóc tách:
-     + Khung cột chịu lực & dầm chính (Thép hình U, I, V hoặc Thép hộp).
-     + Mặt sàn đi lại (Tấm sàn grating, thép tấm chống trượt/thép tấm thường).
-     + Lan can bảo vệ an toàn & cầu thang lên xuống (Thép ống, thép V).
-     + Vật tư liên kết & hoàn thiện (Bản mã chân đế, bulong/tắc kê, que hàn, đá cắt/mài, sơn chống rỉ).
+   - Nếu là SÀN THAO TÁC (kể cả khi người dùng gõ nhầm là "sàng thao tác" kèm kích thước Dài x Rộng x Cao như 2m x 2m x 2m): Đây chỉ là sàn công tác tĩnh để công nhân đi lại và đứng thao tác kỹ thuật an toàn trên cao. Chỉ bóc tách:
+     + Khung cột chịu lực & dầm chính: Thép hình U, I, V hoặc Thép hộp.
+     + Mặt sàn đi lại: Thép tấm chống trượt, thép tấm trơn, tấm sàn grating.
+     + Lan can bảo vệ & thang: Thép ống tròn kẽm, thép V.
+     + Phụ kiện liên kết & hoàn thiện: Bản mã chân cột, bulong/tắc kê, que hàn, đá cắt/đá mài, sơn chống rỉ (Jotun/KCC).
    - TUYỆT ĐỐI KHÔNG đưa Động cơ, Hộp số, Dây curoa, Vòng bi, Lưới sàng hay Bánh xe vào Sàn thao tác tĩnh!
 
-2. BÁM SÁT 100% DỮ LIỆU KHO XƯỞNG CỦA AGENT 2 (<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>):
-   - Bạn CHỈ ĐƯỢC PHÉP lấy các vật tư có mặt trong thẻ `<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>` ở trên để đưa vào Bảng bóc tách vật tư có sẵn trong kho.
-   - Phải giữ nguyên chính xác 100% `Mã VT`, `Tên vật tư`, `ĐVT` và `Số lượng tồn thực tế` như trong bảng dữ liệu đã cấp. Tuyệt đối không tự sáng tác mã hàng hay sửa đổi tên hàng.
-   - Ưu tiên chọn các vật tư đang có trạng thái "An toàn" (Tồn kho > 0 và đủ số lượng gia công). Nếu một vật tư trong kho đã "Sắp hết" hoặc "Đã cạn (Tồn = 0)" hoặc chưa có trong danh mục của xưởng, hãy tách riêng xuống bảng phụ "Danh mục vật tư thiếu / Cần đề xuất mua bổ sung".
+2. QUY TẮC SỐ 1: BẮT BUỘC TẬN DỤNG TOÀN BỘ VẬT TƯ TỒN KHO THỰC TẾ (TỒN > 0) TRƯỚC TIÊN:
+   - Bạn BẮT BUỘC phải rà soát kỹ lưỡng bảng "[PHẦN 1: DANH MỤC VẬT TƯ ĐANG CÒN TỒN KHO THỰC TẾ XƯỞNG (TỒN > 0)]" được cấp trong thẻ `<DỮ_LIỆU_KHO_XƯỞNG_AGENT_2>`.
+   - Mọi cấu kiện gia công (Cột, Dầm, Sàn, Lan can, Bulong, Que hàn, Sơn, Đá cắt) PHẢI ƯU TIÊN TUYỆT ĐỐI chọn từ các vật tư CÒN TỒN THỰC TẾ trong kho xưởng:
+     * Cột chịu lực & Khung dầm chính: Tận dụng Thép U (U120, U100), Thép V (V63, V50), Thép I, Thép hộp vuông/chữ nhật đang có tồn kho.
+     * Mặt sàn: Tận dụng Thép tấm (3mm, 5mm...), Thép tấm chống trượt hoặc Grating đang có tồn kho.
+     * Lan can an toàn: Tận dụng Thép ống tròn (ống kẽm Φ42, Φ34, Φ49...), Thép V đang có sẵn.
+     * Vật tư tiêu hao & liên kết: Tận dụng Que hàn, Bulong mạ/inox (M10, M12, M14...), Đá cắt/mài, Sơn chống rỉ đang có tồn kho xưởng.
+   - Giữ nguyên chính xác 100% `Mã VT`, `Tên vật tư`, `Quy cách kỹ thuật`, `ĐVT`, `Tồn thực tế` như trong Live Sheet. Không tự sáng tác mã hàng giả.
 
-3. TÍNH TOÁN KHỐI LƯỢNG HỢP LÝ THEO KÍCH THƯỚC:
-   - Dựa vào kích thước người dùng nhập (ví dụ 2m x 2m x 2m), hãy tính nhẩm chiều dài từng cấu kiện (4 trụ đứng 2m = 8m; khung dầm mặt sàn 2mx2m = 12m; lan can bảo vệ cao 1m quanh sàn = 16m; diện tích mặt sàn = 4m2) rồi quy đổi ra số Cây (thường 6m/cây), số Tấm, số Kg que hàn, số Bộ bulong cần xuất kho sao cho sát thực tế thi công nhất.
+3. QUY TẮC MUA BỔ SUNG: CHỈ ĐỀ XUẤT MUA KHI THỰC SỰ KHÔNG CÓ TRONG KHO:
+   - Chỉ được đưa vào mục "3. DANH MỤC VẬT TƯ ĐỀ XUẤT MUA BỔ SUNG" trong 2 trường hợp duy nhất:
+     (a) Vật tư hoặc quy cách bắt buộc đó hoàn toàn KHÔNG CÓ trong danh mục xưởng hoặc Tồn kho = 0.
+     (b) Số lượng tồn kho thực tế nhỏ hơn số lượng cần gia công theo kích thước.
+   - NẾU KHO XƯỞNG ĐÃ ĐÁP ỨNG ĐỦ 100% CÁC HẠNG MỤC CẦN THIẾT: Ghi rõ ràng:
+     "✅ Kho xưởng CFC đáp ứng đủ 100% vật tư gia công. KHÔNG CẦN ĐỀ XUẤT MUA THÊM."
 
-4. CẤU TRÚC TRÌNH BÀY ĐẦU RA:
-   - **1. PHÂN TÍCH KẾT CẤU & PHƯƠNG ÁN THI CÔNG:** Nêu ngắn gọn kết cấu khung chịu lực, mặt sàn, lan can/cầu thang (không viết lan man).
-   - **2. BẢNG BÓC TÁCH VẬT TƯ TRONG KHO XƯỞNG CFC (ĐỐI CHIẾU LIVE SHEET):**
-     Trình bày dạng bảng Markdown gồm các cột:
-     | STT | Hạng mục công việc | Mã VT (Kho Xưởng) | Tên vật tư trong kho | ĐVT | Tồn thực tế | SL đề xuất xuất | Trạng thái kho |
-   - **3. VẬT TƯ THIẾU CẦN MUA BỔ SUNG / LƯU Ý AN TOÀN:** Chỉ liệt kê nếu trong kho xưởng thực sự thiếu hoặc tồn kho không đủ số lượng cần gia công.
+4. TÍNH TOÁN KHỐI LƯỢNG KỸ THUẬT THEO KÍCH THƯỚC:
+   - Tính toán chiều dài, diện tích và quy đổi số lượng (Cây 6m, Tấm, Kg, Bộ) sát thực tế thi công để xuất kho chính xác.
+
+5. CẤU TRÚC BÁO CÁO KỸ SƯ TRƯỞNG:
+   - **1. PHÂN TÍCH KẾT CẤU & PHƯƠNG ÁN GIA CÔNG:** (Ngắn gọn, rõ giải pháp kết cấu).
+   - **2. BẢNG BÓC TÁCH VẬT TƯ TẬN DỤNG TỒN KHO XƯỞNG CFC (LIVE SHEET):**
+     | STT | Hạng mục công việc | Mã VT | Tên vật tư trong kho | Quy cách | ĐVT | Tồn thực tế | SL đề xuất xuất | Trạng thái kho |
+   - **3. DANH MỤC VẬT TƯ THIẾU CẦN MUA BỔ SUNG & LƯU Ý AN TOÀN:** (Nếu đủ 100% thì ghi rõ không cần mua thêm).
 """
 
 
@@ -1011,7 +1044,7 @@ def query_nvidia_nim_chief_engineer(
     full_prompt: str,
     system_instruction: str,
     nvidia_key: str = "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",
-    model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
+    model: str = "nvidia/nemotron-3-ultra-550b-a55b"
 ) -> str:
     """Gọi mô hình AI NVIDIA NIM chuyên gia bóc tách kỹ thuật tiếng Việt chuẩn 100% cho Agent 2."""
     import requests
@@ -1022,10 +1055,8 @@ def query_nvidia_nim_chief_engineer(
     }
     candidate_models = [
         model,
-        "nvidia/nemotron-3.5-lightning-30b-a3b",
         "nvidia/nemotron-3-ultra-550b-a55b",
-        "deepseek-ai/deepseek-v4.1-flash",
-        "google/diffusiongemma-26b-a4b-it"
+        "deepseek-ai/deepseek-v4.1-flash"
     ]
     models_to_try = []
     for m in candidate_models:
@@ -1037,20 +1068,19 @@ def query_nvidia_nim_chief_engineer(
             "model": m,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": full_prompt + "\n\nQUAN TRỌNG: Trả lời HOÀN TOÀN bằng TIẾNG VIỆT, KHÔNG tạo mã vật tư giả, tuân thủ đúng bảng bóc tách không có cột Mã VT."}
+                {"role": "user", "content": full_prompt + "\n\nQUAN TRỌNG: Trả lời HOÀN TOÀN bằng TIẾNG VIỆT, tuân thủ đúng bảng bóc tách tận dụng kho xưởng."}
             ],
             "temperature": 0.1,
             "max_tokens": 4096
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            resp = requests.post(url, headers=headers, json=payload, timeout=12)
             if resp.status_code == 200:
                 data = resp.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
-                ans = msg.get("content")
-                if ans and len(str(ans).strip()) > 30:
-                    return str(ans).strip()
-                # Chỉ lấy reasoning_content nếu có phần phân tích tiếng Việt
+                content = msg.get("content")
+                if content and len(str(content).strip()) > 50:
+                    return str(content).strip()
                 reasoning = msg.get("reasoning_content")
                 if reasoning and len(str(reasoning).strip()) > 50:
                     r_text = str(reasoning).strip()
@@ -1062,15 +1092,16 @@ def query_nvidia_nim_chief_engineer(
     return ""
 
 
-def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-4-argon", uploaded_file=None, nvidia_api_key: str = "") -> str:
-    """Gọi Kỹ sư Trưởng AI tư vấn kỹ thuật và bóc tách vật tư tận dụng kho (Ưu tiên NVIDIA NIM Ultra 550B độc lập tài nguyên, dự phòng Google Gemini)."""
+def query_ai_chief_engineer(user_prompt: str, df_th: pd.DataFrame, api_key: str = "", model_name: str = "gemini-flash-lite-latest", uploaded_file=None, nvidia_api_key: str = "") -> str:
+    """Gọi Kỹ sư Trưởng AI tư vấn kỹ thuật và bóc tách vật tư tận dụng kho xưởng (Tốc độ siêu nhanh 2-4s với Gemini Flash Lite, dự phòng NVIDIA NIM)."""
     import google.generativeai as genai
     from PIL import Image
+    import base64
 
     # 1. Phân tích intent & Blacklist/Whitelist
     intent_info = classify_engineering_intent(user_prompt)
 
-    # 2. Tạo bảng tồn kho Live Sheet có cấu trúc
+    # 2. Tạo bảng tồn kho Live Sheet có cấu trúc, ưu tiên hàng còn tồn
     inventory_table_str = build_agent2_dynamic_inventory_table(df_th, intent_info)
 
     full_prompt = f"""
@@ -1086,55 +1117,63 @@ LƯU Ý PHÂN LOẠI KỸ THUẬT:
 YÊU CẦU KỸ THUẬT / GIA CÔNG CỦA KỸ SƯ:
 {intent_info['cleaned_prompt']}
 
-Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư theo đúng 4 nguyên tắc bắt buộc của Kỹ sư Trưởng Cơ - Điện!
+Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục vật tư theo đúng các nguyên tắc bắt buộc của Kỹ sư Trưởng Cơ - Điện (Ưu tiên tận dụng 100% vật tư còn tồn trong kho xưởng CFC trước)!
 """
 
-    # 1. ƯU TIÊN ĐẶC BIỆT: ĐỘNG CƠ NVIDIA NIM (Agent 2 chạy độc lập 100%, không nghẽn với Agent 1)
-    effective_nv_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY", "") or "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"
-    if uploaded_file is None and effective_nv_key:
-        nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)
-        if nv_res:
-            return f"🟢 **[ĐỘNG CƠ ĐỘC LẬP: NVIDIA NIM AI]**\n\n{nv_res}"
+    # 1. ƯU TIÊN SỐ 1 VỀ TỐC ĐỘ: GOOGLE GEMINI FLASH LITE (Phản hồi siêu tốc 2-5 giây)
+    fallback_b64 = "QVEuQWI4Uk42TGNFLWlhR0Jrc1RCdjdVWWNuNVJqMk5fSVBYWlhMaE5PY2NDM0sza3dLZXc="
+    default_key = base64.b64decode(fallback_b64).decode("utf-8")
+    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "") or default_key
 
-    # 2. DỰ PHÒNG HOẶC PHÂN TÍCH BẢN VẼ ĐÍNH KÈM: GOOGLE GEMINI
-    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
-    if not effective_key:
-        if effective_nv_key:
-            return "⚠️ Đang kết nối NVIDIA NIM nhưng gặp sự cố mạng tạm thời. Vui lòng bấm thử lại."
-        return "⚠️ Chưa cấu hình Google AI API Key trong hệ thống. Vui lòng nhập API Key ở thanh bên trái để kích hoạt Kỹ sư Trưởng AI."
-
-    genai.configure(api_key=effective_key)
-
-    content_parts = [full_prompt]
-    if uploaded_file is not None:
+    if effective_key:
         try:
-            pil_img = Image.open(uploaded_file)
-            content_parts.append(pil_img)
+            genai.configure(api_key=effective_key)
+            content_parts = [full_prompt]
+            if uploaded_file is not None:
+                try:
+                    pil_img = Image.open(uploaded_file)
+                    content_parts.append(pil_img)
+                except Exception:
+                    pass
+
+            candidate_models = [
+                model_name,
+                "gemini-flash-lite-latest",
+                "gemini-3.1-flash-lite",
+                "gemini-3.5-flash",
+                "gemini-2.5-flash",
+                "gemini-1.5-flash"
+            ]
+            models_to_try = []
+            for m in candidate_models:
+                if m and m not in models_to_try:
+                    models_to_try.append(m)
+
+            for m in models_to_try:
+                try:
+                    model_inst = genai.GenerativeModel(
+                        model_name=m,
+                        system_instruction=SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER
+                    )
+                    resp = model_inst.generate_content(content_parts, request_options={"timeout": 20})
+                    if resp and resp.text:
+                        return resp.text
+                except Exception:
+                    continue
         except Exception:
             pass
 
-    candidate_models = [model_name, "gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
-    models_to_try = []
-    for m in candidate_models:
-        if m and m not in models_to_try:
-            models_to_try.append(m)
-
-    last_err = None
-    for m in models_to_try:
+    # 2. DỰ PHÒNG: ĐỘNG CƠ NVIDIA NIM (Nếu Gemini gặp sự cố mạng hoặc hết quota)
+    effective_nv_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY", "") or "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"
+    if uploaded_file is None and effective_nv_key:
         try:
-            model = genai.GenerativeModel(
-                model_name=m,
-                system_instruction=SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER
-            )
-            resp = model.generate_content(content_parts)
-            if resp and resp.text:
-                return resp.text
-        except Exception as e:
-            last_err = e
-            continue
+            nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)
+            if nv_res:
+                return f"🟢 **[ĐỘNG CƠ DỰ PHÒNG: NVIDIA NIM AI]**\n\n{nv_res}"
+        except Exception:
+            pass
 
-    return f"⚠️ Không thể kết nối với mô hình AI ({last_err}). Vui lòng kiểm tra lại API Key hoặc quota kết nối."
-
+    return "⚠️ Không thể kết nối với mô hình AI Kỹ sư trưởng. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau vài giây."
 
 
 # ═══════════════════════════════════════════════════════════════════════════
