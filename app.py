@@ -350,7 +350,13 @@ def parse_inventory_upload(file_bytes: bytes, filename: str) -> tuple[pd.DataFra
             except Exception:
                 raw_df = pd.read_csv(io.BytesIO(file_bytes), header=None, dtype=str, encoding="latin1")
         else:
-            raw_df = pd.read_excel(io.BytesIO(file_bytes), header=None, dtype=str)
+            try:
+                raw_df = pd.read_excel(io.BytesIO(file_bytes), header=None, dtype=str)
+            except Exception:
+                try:
+                    raw_df = pd.read_csv(io.BytesIO(file_bytes), header=None, dtype=str, encoding="utf-8")
+                except Exception:
+                    raw_df = pd.read_csv(io.BytesIO(file_bytes), header=None, dtype=str, encoding="latin1")
     except Exception as e:
         return None, f"Không thể đọc file: {e}"
 
@@ -2451,9 +2457,52 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 pass
 
             try:
-                # ── EXCEL ──
+                # ── EXCEL & CSV ──
                 if item["type"] == "excel":
-                    df_in = pd.read_excel(io.BytesIO(item["bytes"]))
+                    ext = item.get("ext", "").lower()
+                    if ext == "csv":
+                        try:
+                            df_in = pd.read_csv(io.BytesIO(item["bytes"]), encoding="utf-8")
+                        except Exception:
+                            df_in = pd.read_csv(io.BytesIO(item["bytes"]), encoding="latin1")
+                    else:
+                        try:
+                            df_in = pd.read_excel(io.BytesIO(item["bytes"]))
+                        except Exception:
+                            try:
+                                df_in = pd.read_csv(io.BytesIO(item["bytes"]), encoding="utf-8")
+                            except Exception:
+                                df_in = pd.read_csv(io.BytesIO(item["bytes"]), encoding="latin1")
+
+                    # Tự động nhận diện nếu người dùng nạp Bảng Tổng Hợp Tồn Kho vào Tab 1
+                    _is_master_file = False
+                    if df_in is not None and len(df_in) > 30:
+                        _check_txt = " ".join([str(x).lower() for x in df_in.iloc[:6].values.flatten()])
+                        if any(kw in _check_txt for kw in ["tổng hợp tồn kho", "tồn kho", "cuối kỳ"]):
+                            _is_master_file = True
+
+                    if _is_master_file:
+                        up_ok, up_msg = update_master_inventory(item["bytes"], item["name"], mode="merge")
+                        task_state["status_msg"] = f"✓ {up_msg}"
+                        doc_results = [{
+                            "stt": 1,
+                            "ten_trich_xuat": f"📦 Bảng tổng hợp kho: {item['name']}",
+                            "ten_chuan_hoa": f"Đã tự động nhận diện và cập nhật vào Kho Gốc ({len(df_in)} dòng)",
+                            "quy_cach": "Hợp nhất danh mục kho",
+                            "so_luong": len(df_in),
+                            "don_vi": "Mã",
+                            "trang_thai": "KHỚP",
+                            "ma_vat_tu_cu": "KHO_MASTER",
+                            "ten_trong_kho": up_msg,
+                            "ton_kho": len(df_in),
+                            "ma_de_xuat": "-",
+                            "ghi_chu": f"✓ {up_msg}"
+                        }]
+                        for row in doc_results:
+                            row["chung_tu_goc"] = item["name"]
+                            raw_collected_results.append(row)
+                        continue
+
                     in_text = df_in.to_string(index=False)
                     cands = build_candidates_for_items(in_text, df_master)
                     prompt = (
@@ -3180,7 +3229,8 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
     # SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC (TỐI ƯU CỤC BỘ @st.fragment)
     # ═══════════════════════════════════════════════════════════════════════════
     @st.fragment
-    def render_tab_master(df_master: pd.DataFrame):
+    def render_tab_master(df_master: pd.DataFrame = None):
+        df_master = load_master_df()
         # ── HÀNG ĐIỀU KHIỂN & BỘ LỌC ──
         col_search, col_group, col_zero, col_dl = st.columns([3, 2, 1.3, 2.5])
         with col_search:
@@ -3259,12 +3309,13 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     if not up_inv_file:
                         st.error("Vui lòng chọn file Excel hoặc CSV trước khi bấm cập nhật!")
                     else:
-                        success, msg = update_master_inventory(up_inv_file.read(), up_inv_file.name, mode="merge")
+                        file_bytes = up_inv_file.getvalue() if hasattr(up_inv_file, "getvalue") else up_inv_file.read()
+                        success, msg = update_master_inventory(file_bytes, up_inv_file.name, mode="merge")
                         if success:
                             st.success(f"✓ {msg}")
                             st.toast(f"✓ {msg}", icon="✅")
                             time.sleep(0.5)
-                            st.rerun(scope="fragment")
+                            st.rerun()
                         else:
                             st.error(f"Thất bại: {msg}")
 
