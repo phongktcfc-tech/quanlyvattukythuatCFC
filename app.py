@@ -2629,15 +2629,22 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                     sim_items.append(f"• [{c['score']}%] {c['ma']}: {c['ten']} (Tồn: {c['ton']}{price_txt}{alert_txt}{ly_do})")
                 r["goi_y_tuong_duong"] = "\n".join(sim_items) if sim_items else "Không có mã tương tự"
 
-                # CHỈ TỰ ĐỘNG KHỚP KHI ĐẠT EXACT_MATCH (ĐÚNG CHỦNG LOẠI & QUY CÁCH >= 75%)
-                if best and best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85:
+                # TỰ ĐỘNG KHỚP: EXACT_MATCH (>=85%) HOẶC GENERIC_MATCH (>=65%) cùng chủng loại
+                _best_ten_norm = best.get("ten", "").lower().replace(",", ".").replace("*", "x") if best else ""
+                _search_norm = search_str.lower().replace(",", ".").replace("*", "x")
+                _is_generic_ok = (
+                    best and best.get("tier") == "GENERIC_MATCH" and best.get("score", 0) >= 65
+                    and any(kw in _best_ten_norm for kw in _search_norm.split() if len(kw) >= 3)
+                )
+                if best and ((best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85) or _is_generic_ok):
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
                     r["ton_kho"] = best["ton"]
                     r["ma_de_xuat"] = "-"
                     alert_tag = f" {' '.join(best.get('data_alerts', []))}" if best.get("data_alerts") else ""
-                    r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')}){alert_tag}"
+                    _match_label = 'Khớp tương đương quy cách' if _is_generic_ok else best.get('ly_do', 'Trùng khớp quy cách kỹ thuật')
+                    r["ghi_chu"] = f"✓ Khớp mã kho {best['ma']} ({_match_label}){alert_tag}"
                     if in_price > 0 and best.get("don_gia_bq", 0) > 0:
                         diff = round(((in_price - best["don_gia_bq"]) / best["don_gia_bq"]) * 100, 1)
                         if abs(diff) >= 20:
