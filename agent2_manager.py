@@ -1141,7 +1141,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 # STREAMLIT UI: AGENT 2 — SINGLE-VIEWPORT INDUSTRIAL DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════
 @st.fragment
-def render_agent2_ui(api_key: str = "", model_name: str = "gemini-3.5-flash", is_split: bool = False, nvidia_api_key: str = ""):
+def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-latest", is_split: bool = False, nvidia_api_key: str = ""):
     import streamlit as st
     import html as py_html
     import time
