@@ -649,11 +649,11 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       DARK EMERALD GLASSMORPHISM: NỀN TỔNG THỂ & KHUNG VIEWPORT
+       LIGHT TECHNICAL THEME: NỀN TRẮNG SÁNG & KHUNG VIEWPORT CHUẨN KỸ THUẬT
        ═══════════════════════════════════════════════════════════════ */
     .stApp, [data-testid="stAppViewContainer"] {
-        background: #050C08 !important;
-        color: #FFFFFF !important;
+        background: #F8FAFC !important;
+        color: #0F172A !important;
     }
     
     /* Ẩn header mặc định của Streamlit */
@@ -675,12 +675,10 @@ st.markdown("""
        ═══════════════════════════════════════════════════════════════ */
     .hud-header {
         width: 100% !important;
-        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
-        border-radius: 22px !important;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
         padding: 16px 24px !important;
         margin-bottom: 0.85rem !important;
         display: flex;
@@ -691,20 +689,20 @@ st.markdown("""
         font-size: 1.22rem !important;
         font-weight: 800 !important;
         letter-spacing: -0.2px;
-        color: #FFFFFF !important;
+        color: #0F172A !important;
         display: flex;
         align-items: center;
         gap: 10px;
     }
     .hud-title span {
-        color: #FFFFFF !important;
+        color: #2563EB !important;
         font-weight: 800 !important;
         background: none !important;
         -webkit-text-fill-color: initial !important;
     }
     .hud-subtitle {
         font-size: 0.76rem;
-        color: #8FA89B !important;
+        color: #64748B !important;
         letter-spacing: 0.5px;
         text-transform: uppercase;
         font-weight: 600;
@@ -728,40 +726,40 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        border: 1px solid rgba(143, 168, 155, 0.3) !important;
-        background: rgba(255, 255, 255, 0.06) !important;
-        color: #E2EFE8 !important;
+        border: 1px solid #CBD5E1 !important;
+        background: #F1F5F9 !important;
+        color: #334155 !important;
         text-decoration: none;
         transition: all 0.2s ease;
     }
     .badge-cyan {
-        border-color: rgba(143, 168, 155, 0.3) !important;
-        color: #E2EFE8 !important;
-        background: rgba(255, 255, 255, 0.06) !important;
+        border-color: #CBD5E1 !important;
+        color: #334155 !important;
+        background: #F1F5F9 !important;
     }
     .badge-green {
-        border-color: #2ECC71 !important;
-        color: #4CD964 !important;
-        background: rgba(22, 56, 40, 0.8) !important;
-        box-shadow: 0 0 10px rgba(46, 204, 113, 0.2) !important;
+        border-color: #10B981 !important;
+        color: #059669 !important;
+        background: #ECFDF5 !important;
+        box-shadow: none !important;
     }
     .badge-public {
-        border-color: #F5B041 !important;
-        color: #F5B041 !important;
-        background: rgba(245, 176, 65, 0.15) !important;
-        box-shadow: 0 0 10px rgba(245, 176, 65, 0.15) !important;
+        border-color: #F59E0B !important;
+        color: #D97706 !important;
+        background: #FFFBEB !important;
+        box-shadow: none !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
     @keyframes pulse-ring {
-        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
-        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .status-dot-pulse {
         width: 7px;
         height: 7px;
-        background-color: #2ECC71 !important;
+        background-color: #10B981 !important;
         border-radius: 50%;
         display: inline-block;
         animation: pulse-ring 1.8s infinite ease-in-out;
@@ -787,55 +785,52 @@ st.markdown("""
         padding: 8px 20px !important;
         border-radius: 999px !important;
         margin-right: 10px !important;
-        background: rgba(18, 40, 29, 0.6) !important;
-        border: 1px solid rgba(76, 217, 100, 0.15) !important;
-        color: #8FA89B !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #475569 !important;
         font-weight: 600 !important;
         font-size: 0.88rem !important;
         transition: all 0.2s ease !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
     }
     .stTabs [data-baseweb="tab"]:hover {
-        color: #E2EFE8 !important;
-        border-color: rgba(76, 217, 100, 0.4) !important;
-        background: rgba(24, 54, 38, 0.75) !important;
+        color: #0F172A !important;
+        border-color: #CBD5E1 !important;
+        background: #F8FAFC !important;
     }
     .stTabs [data-baseweb="tab"][aria-selected="true"],
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(38, 92, 62, 0.95) 0%, rgba(24, 62, 42, 0.95)) !important;
-        border: 1.5px solid #4CD964 !important;
+        background: #2563EB !important;
+        border: 1.5px solid #2563EB !important;
         color: #FFFFFF !important;
-        box-shadow: 0 0 15px rgba(76, 217, 100, 0.25) !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
         font-weight: 600 !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       CONTAINER CARDS & EXPANDERS (KHỐI KÍNH MỜ TỐI NỔI KHỐI 3D)
+       CONTAINER CARDS & EXPANDERS (THẺ TRẮNG NỀN NỔI KHỐI ĐẸP MẮT)
        ═══════════════════════════════════════════════════════════════ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
-        border-radius: 22px !important;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
-        padding: 20px 24px !important;
-        color: #FFFFFF !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+        padding: 18px 22px !important;
+        color: #0F172A !important;
     }
     div[data-testid="stExpander"] {
-        background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
-        border-radius: 22px !important;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
         margin-bottom: 12px !important;
         overflow: hidden !important;
     }
     div[data-testid="stExpander"] summary {
-        color: #E2EFE8 !important;
+        color: #1E293B !important;
         font-weight: 600 !important;
         padding: 12px 18px !important;
     }
@@ -844,38 +839,38 @@ st.markdown("""
        NÚT BẤM (BUTTONS: PRIMARY & SECONDARY)
        ═══════════════════════════════════════════════════════════════ */
     button[kind="primary"], .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
-        border: 1px solid #2ECC71 !important;
-        color: #4CD964 !important;
+        background: #2563EB !important;
+        border: 1px solid #2563EB !important;
+        color: #FFFFFF !important;
         font-weight: 600 !important;
         border-radius: 12px !important;
         padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 4px 16px rgba(46, 204, 113, 0.25) !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
         transition: all 0.2s ease !important;
     }
     button[kind="primary"]:hover, .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #246844 0%, #184A30 100%) !important;
-        border-color: #4CD964 !important;
+        background: #1D4ED8 !important;
+        border-color: #1D4ED8 !important;
         color: #FFFFFF !important;
-        box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3) !important;
         transform: translateY(-1px);
     }
     button[kind="secondary"], .stButton > button:not([kind="primary"]) {
-        background: rgba(18, 42, 30, 0.85) !important;
-        border: 1px solid rgba(62, 142, 99, 0.3) !important;
-        color: #E2EFE8 !important;
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #1E293B !important;
         border-radius: 12px !important;
         font-weight: 500 !important;
         padding: 0.45rem 1.2rem !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
         transition: all 0.2s ease !important;
     }
     button[kind="secondary"]:hover, .stButton > button:not([kind="primary"]):hover {
-        background: #163828 !important;
-        border-color: #2ECC71 !important;
-        color: #FFFFFF !important;
+        background: #F1F5F9 !important;
+        border-color: #94A3B8 !important;
+        color: #0F172A !important;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -884,57 +879,57 @@ st.markdown("""
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     input[type="text"], input[type="password"] {
-        background: #08150F !important;
-        border: 1px solid #1E3F2E !important;
-        color: #FFFFFF !important;
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #0F172A !important;
         border-radius: 12px !important;
         font-size: 13.5px !important;
         transition: all 0.2s ease !important;
     }
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {
-        color: #5C7A6B !important;
+        color: #94A3B8 !important;
     }
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus {
-        border-color: #2ECC71 !important;
-        box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2) !important;
+        border-color: #2563EB !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
     }
 
     [data-testid="stFileUploader"] section, section[data-testid="stFileUploadDropzone"] {
-        background-color: #091710 !important;
-        border: 1.5px solid rgba(76, 217, 100, 0.22) !important;
+        background-color: #F8FAFC !important;
+        border: 1.5px dashed #CBD5E1 !important;
         border-radius: 16px !important;
         padding: 16px !important;
-        color: #E2EFE8 !important;
+        color: #1E293B !important;
     }
     [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
     [data-testid="stFileUploader"] span,
     [data-testid="stFileUploader"] small {
-        color: #8FA89B !important;
+        color: #64748B !important;
     }
     [data-testid="stFileUploader"] section:hover, section[data-testid="stFileUploadDropzone"]:hover {
-        border-color: #4CD964 !important;
-        box-shadow: 0 0 16px rgba(76, 217, 100, 0.25) !important;
+        border-color: #2563EB !important;
+        box-shadow: 0 0 12px rgba(37, 99, 235, 0.15) !important;
     }
 
     /* Segmented Control Pill styling */
     [data-testid="stSegmentedControl"] {
-        background: rgba(14, 33, 24, 0.75) !important;
+        background: #F1F5F9 !important;
         border-radius: 9999px !important;
         padding: 3px !important;
-        border: 1px solid rgba(46, 204, 113, 0.2) !important;
+        border: 1px solid #E2E8F0 !important;
     }
     [data-testid="stSegmentedControl"] button {
         border-radius: 9999px !important;
         border: none !important;
-        color: #8FA89B !important;
+        color: #64748B !important;
         font-weight: 600 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-selected="true"] {
-        background: rgba(46, 204, 113, 0.2) !important;
-        color: #4CD964 !important;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -944,52 +939,52 @@ st.markdown("""
         width: 100% !important;
         max-width: 100% !important;
         border-radius: 14px;
-        border: 1px solid #183325 !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
         overflow: hidden;
         margin: 8px 0 12px 0;
-        background: #0A1912 !important;
+        background: #FFFFFF !important;
     }
     .scada-compact-table {
         width: 100% !important;
         border-collapse: collapse;
         font-family: 'Inter', -apple-system, sans-serif;
         font-size: 0.84rem;
-        color: #FFFFFF !important;
+        color: #0F172A !important;
         table-layout: fixed;
-        background: #0A1912 !important;
+        background: #FFFFFF !important;
     }
     .scada-compact-table th {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #112A1E !important;
-        color: #8FA89B !important;
+        background: #F8FAFC !important;
+        color: #475569 !important;
         font-weight: 700;
         padding: 10px 8px;
-        border-bottom: 2px solid #183325 !important;
+        border-bottom: 2px solid #E2E8F0 !important;
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     .scada-compact-table td {
         padding: 10px 8px;
-        border-bottom: 1px solid #183325 !important;
+        border-bottom: 1px solid #F1F5F9 !important;
         vertical-align: top;
         white-space: normal !important;
         word-break: break-word !important;
         line-height: 1.4;
-        color: #FFFFFF !important;
+        color: #0F172A !important;
     }
     .scada-compact-table tr:hover {
-        background: rgba(46, 204, 113, 0.08) !important;
+        background: #F1F5F9 !important;
     }
 
     [data-testid="stDataFrame"] {
-        border: 1px solid #183325 !important;
+        border: 1px solid #E2E8F0 !important;
         border-radius: 14px !important;
-        background: #0A1912 !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        background: #FFFFFF !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
         overflow: hidden !important;
     }
 
@@ -999,14 +994,14 @@ st.markdown("""
         height: 5px;
     }
     ::-webkit-scrollbar-track {
-        background: #07130D;
+        background: #F1F5F9;
     }
     ::-webkit-scrollbar-thumb {
-        background: #1E3F2E;
+        background: #CBD5E1;
         border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: #2ECC71;
+        background: #94A3B8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1899,7 +1894,7 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
                 f'<div style="text-align:center;">'
                 f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(46, 204, 113, 0.15); color:#4CD964; border:1px solid #2ECC71; margin-bottom:3px;">🟢 KHỚP KHO</span>'
                 f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.88rem;">{old_code_str}</div>'
-                f'<div style="font-size:0.72rem; color:#8FA89B;">Tồn: <strong style="color:#FFFFFF;">{ton} {unit}</strong></div>'
+                f'<div style="font-size:0.72rem; color:#8FA89B;">Tồn: <strong style="color:#0F172A;">{ton} {unit}</strong></div>'
                 f'</div>'
             )
         else:
@@ -1913,16 +1908,16 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
         doc_tag = f'<div style="color:#94a3b8; font-size:0.7rem; font-family:JetBrains Mono, monospace; margin-top:2px;">📄 {doc}</div>' if doc and doc != '-' else ''
 
         row_html = (
-            f'<tr style="border-bottom: 1px solid #183325;">'
+            f'<tr style="border-bottom: 1px solid #F1F5F9;">'
             f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
             f'<td style="padding:8px 8px; word-break:break-word;">'
-            f'<div style="font-weight:700; color:#FFFFFF; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
+            f'<div style="font-weight:700; color:#0F172A; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
             f'<div style="color:#8FA89B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
             f'{doc_tag}'
             f'</td>'
             f'<td style="padding:8px 8px; color:#2ECC71; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
             f'<td style="text-align:center; padding:8px 4px; white-space:nowrap;">'
-            f'<div style="font-size:0.95rem; font-weight:700; color:#FFFFFF;">{qty}</div>'
+            f'<div style="font-size:0.95rem; font-weight:700; color:#0F172A;">{qty}</div>'
             f'<div style="font-size:0.72rem; color:#64748B; font-weight:600;">{unit}</div>'
             f'</td>'
             f'<td style="padding:8px 4px;">{badge_html}</td>'
@@ -1932,10 +1927,10 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
         rows.append(row_html)
 
     table_html = (
-        f'<div style="width:100%; border:1px solid #183325; border-radius:12px; overflow:hidden; background:#0A1912; margin-top:6px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">'
+        f'<div style="width:100%; border:1px solid #E2E8F0; border-radius:12px; overflow:hidden; background:#FFFFFF; margin-top:6px; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">'
         f'<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:0.82rem; text-align:left;">'
         f'<thead>'
-        f'<tr style="background:#112A1E; border-bottom:2px solid #183325; color:#8FA89B; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
+        f'<tr style="background:#F8FAFC; border-bottom:2px solid #E2E8F0; color:#475569; font-weight:700; font-size:0.75rem; text-transform:uppercase;">'
         f'<th style="width:5%; text-align:center; padding:8px 4px;">STT</th>'
         f'<th style="width:28%; padding:8px 8px;">Vật tư (Chuẩn & Gốc)</th>'
         f'<th style="width:25%; padding:8px 8px;">Quy cách kỹ thuật</th>'
@@ -1978,7 +1973,7 @@ def render_compact_table_html(items: list) -> str:
             formatted_bullets = []
             for b in raw_bullets[:3]:
                 b_clean = b.lstrip("•").strip()
-                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#E2EFE8; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
+                formatted_bullets.append(f"<div style='margin-bottom:3px; line-height:1.35; color:#1E293B; font-size:0.8rem;'>• {html.escape(b_clean)}</div>")
             goi_y_html = "".join(formatted_bullets) if formatted_bullets else "<span style='color:#94a3b8;'>-</span>"
         else:
             goi_y_html = "<span style='color:#94a3b8;'>-</span>"
@@ -1997,7 +1992,7 @@ def render_compact_table_html(items: list) -> str:
                 f"<div style='text-align:center;'>"
                 f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:{badge_bg}; color:{badge_color}; border:1px solid {badge_border}; margin-bottom:4px;'>{badge_text}</span>"
                 f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:{badge_color}; font-size:0.95rem;'>{ma_vat_tu_cu}</div>"
-                f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#FFFFFF;'>{ton_kho} {don_vi}</strong></div>"
+                f"<div style='font-size:0.75rem; color:#64748B;'>Tồn: <strong style='color:#0F172A;'>{ton_kho} {don_vi}</strong></div>"
                 f"{stock_alert_html}"
                 f"{price_alert_html}"
                 f"</div>"
@@ -2030,7 +2025,7 @@ def render_compact_table_html(items: list) -> str:
             f"<div style='color:#2ECC71; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
             f"</td>"
             f"<td style='text-align:center;'>"
-            f"<div style='font-size:1.05rem; font-weight:700; color:#FFFFFF;'>{so_luong}</div>"
+            f"<div style='font-size:1.05rem; font-weight:700; color:#0F172A;'>{so_luong}</div>"
             f"<div style='font-size:0.75rem; color:#8FA89B; font-weight:600;'>{don_vi}</div>"
             f"</td>"
             f"<td>{status_col}</td>"

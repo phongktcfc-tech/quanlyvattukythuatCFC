@@ -1260,18 +1260,17 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         h1, h2, h3, h4, .section-header {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
             font-weight: 700 !important;
             letter-spacing: -0.02em !important;
         }
 
         .cfc-kpi-card {
-            background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
-            backdrop-filter: blur(12px) !important;
-            border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
-            border-radius: 22px !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 16px !important;
             padding: 16px 20px !important;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             display: flex;
             flex-direction: column;
@@ -1283,15 +1282,15 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         }
 
         .cfc-kpi-card:hover {
-            transform: translateY(-4px) !important;
-            box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(46, 204, 113, 0.15) !important;
-            border-color: #2ECC71 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+            border-color: #2563EB !important;
         }
 
         .cfc-kpi-title {
             font-size: 11.5px !important;
             font-weight: 600 !important;
-            color: #8FA89B !important;
+            color: #64748B !important;
             text-transform: uppercase !important;
             letter-spacing: 0.04em !important;
             display: flex;
@@ -1309,7 +1308,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .cfc-kpi-number {
             font-size: 26px !important;
             font-weight: 700 !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1;
         }
@@ -1317,7 +1316,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .cfc-kpi-unit {
             font-size: 12px !important;
             font-weight: 500 !important;
-            color: #8FA89B !important;
+            color: #64748B !important;
         }
 
         /* 4. Streamlit Interactive 5 KPI Buttons */
@@ -1326,11 +1325,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_warning > button,
         div.st-key-btn_filter_out > button,
         div.st-key-btn_filter_issues > button {
-            background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%) !important;
-            border: 1.5px solid rgba(76, 217, 100, 0.28) !important;
-            border-radius: 20px !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
             padding: 10px 14px !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
             transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             height: 74px !important;
             display: flex !important;
@@ -1340,7 +1339,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             text-align: left !important;
             white-space: pre-line !important;
             cursor: pointer !important;
-            color: #E2EFE8 !important;
+            color: #1E293B !important;
         }
 
         div.st-key-btn_filter_all > button:hover,
@@ -1348,10 +1347,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_warning > button:hover,
         div.st-key-btn_filter_out > button:hover,
         div.st-key-btn_filter_issues > button:hover {
-            transform: translateY(-4px) !important;
-            box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(46, 204, 113, 0.2) !important;
-            border-color: #2ECC71 !important;
-            background: #163828 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+            border-color: #2563EB !important;
+            background: #F8FAFC !important;
         }
 
         div[class*="st-key-btn_filter_"] > button p {
@@ -1363,12 +1362,12 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             font-weight: 600 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.04em !important;
-            color: #8FA89B !important;
+            color: #64748B !important;
         }
         div[class*="st-key-btn_filter_"] > button p:last-child {
             font-size: 26px !important;
             font-weight: 700 !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
             letter-spacing: -0.025em !important;
             line-height: 1.1 !important;
         }
@@ -1379,54 +1378,54 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_warning > button[kind="primary"],
         div.st-key-btn_filter_out > button[kind="primary"],
         div.st-key-btn_filter_issues > button[kind="primary"] {
-            border-color: #2ECC71 !important;
-            box-shadow: 0 0 0 2px #2ECC71, 0 8px 20px rgba(46, 204, 113, 0.3) !important;
-            background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
-            transform: translateY(-2px) !important;
+            border-color: #2563EB !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2), 0 4px 12px rgba(37, 99, 235, 0.15) !important;
+            background: #EFF6FF !important;
+            transform: translateY(-1px) !important;
         }
         div[class*="st-key-btn_filter_"] > button[kind="primary"] p:last-child {
-            color: #4CD964 !important;
+            color: #2563EB !important;
         }
 
         /* 5. Streamlit Interactive Buttons & Inputs */
         .stButton > button {
             border-radius: 12px !important;
             font-weight: 600 !important;
-            border: 1px solid rgba(62, 142, 99, 0.3) !important;
-            background: rgba(18, 42, 30, 0.85) !important;
-            color: #E2EFE8 !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid #CBD5E1 !important;
+            background: #FFFFFF !important;
+            color: #1E293B !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
             transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
         }
 
         .stButton > button:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 4px 16px rgba(46, 204, 113, 0.2) !important;
-            border-color: #2ECC71 !important;
-            background: #163828 !important;
-            color: #FFFFFF !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+            border-color: #2563EB !important;
+            background: #F8FAFC !important;
+            color: #0F172A !important;
         }
 
         .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, #1E5638 0%, #143D27 100%) !important;
-            color: #4CD964 !important;
-            border: 1px solid #2ECC71 !important;
-            box-shadow: 0 4px 16px rgba(46, 204, 113, 0.25) !important;
+            background: #2563EB !important;
+            color: #FFFFFF !important;
+            border: 1px solid #2563EB !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
         }
 
         .stButton > button[kind="primary"]:hover {
-            background: linear-gradient(135deg, #246844 0%, #184A30 100%) !important;
-            border-color: #4CD964 !important;
+            background: #1D4ED8 !important;
+            border-color: #1D4ED8 !important;
             color: #FFFFFF !important;
-            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3) !important;
         }
 
         /* 6. Clean Table / DataFrame Container */
         [data-testid="stDataFrame"] {
-            border: 1px solid #183325 !important;
+            border: 1px solid #E2E8F0 !important;
             border-radius: 14px !important;
-            background: #0A1912 !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
             overflow: hidden !important;
         }
 
@@ -1434,18 +1433,18 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
             border-radius: 12px !important;
-            border: 1px solid #1E3F2E !important;
-            background: #08150F !important;
+            border: 1px solid #CBD5E1 !important;
+            background: #FFFFFF !important;
             padding: 10px 14px !important;
             font-size: 13.5px !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
             transition: all 0.2s ease !important;
         }
 
         .stTextInput > div > div > input:focus,
         .stTextArea > div > div > textarea:focus {
-            border-color: #2ECC71 !important;
-            box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2) !important;
+            border-color: #2563EB !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
         }
 
         /* 8. Custom 5px Scrollbar */
@@ -1456,16 +1455,16 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         }
         .agent2-scroll::-webkit-scrollbar-track,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-track {
-            background: #07130D;
+            background: #F1F5F9;
         }
         .agent2-scroll::-webkit-scrollbar-thumb,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb {
-            background: #1E3F2E;
+            background: #CBD5E1;
             border-radius: 980px;
         }
         .agent2-scroll::-webkit-scrollbar-thumb:hover,
         [data-testid="stDataFrame"] ::-webkit-scrollbar-thumb:hover {
-            background: #2ECC71;
+            background: #94A3B8;
         }
 
         /* 9. Rounded Pills & Tabs */
@@ -1487,29 +1486,30 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             padding: 8px 20px !important;
             border-radius: 999px !important;
             margin-right: 10px !important;
-            background: rgba(18, 40, 29, 0.6) !important;
-            border: 1px solid rgba(76, 217, 100, 0.15) !important;
-            color: #8FA89B !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            color: #475569 !important;
             font-weight: 600 !important;
             font-size: 0.88rem !important;
             transition: all 0.2s ease !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
         }
 
         .stTabs [data-baseweb="tab"]:hover {
-            color: #E2EFE8 !important;
-            border-color: rgba(76, 217, 100, 0.4) !important;
-            background: rgba(24, 54, 38, 0.75) !important;
+            color: #0F172A !important;
+            border-color: #CBD5E1 !important;
+            background: #F8FAFC !important;
         }
 
         .stTabs [data-baseweb="tab"][aria-selected="true"],
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, rgba(38, 92, 62, 0.95) 0%, rgba(24, 62, 42, 0.95)) !important;
-            border: 1.5px solid #4CD964 !important;
+            background: #2563EB !important;
+            border: 1.5px solid #2563EB !important;
             color: #FFFFFF !important;
-            box-shadow: 0 0 15px rgba(76, 217, 100, 0.25) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
             font-weight: 600 !important;
         }
     </style>
@@ -1541,13 +1541,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
     col_h1, col_h2 = st.columns([5.5, 2.5], vertical_alignment="center")
     with col_h1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:10px 18px; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="display:flex; align-items:center; gap:12px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:10px 18px; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
             <div style="font-size:1.35rem;">⚡</div>
             <div>
-                <div style="font-size:1.02rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
+                <div style="font-size:1.02rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">
                     AGENT 2: GIÁM SÁT TỒN KHO
                 </div>
-                <div style="font-size:0.75rem; color:#8FA89B; margin-top:1px;">
+                <div style="font-size:0.75rem; color:#64748B; margin-top:1px;">
                     Đồng bộ trực tiếp Google Sheet • Tự động gửi cảnh báo & báo cáo về <strong>{target_email}</strong> lúc <strong>16:00</strong>
                 </div>
             </div>
@@ -1556,10 +1556,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
     with col_h2:
         st.markdown(f"""
         <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
-            <span style="font-size:0.73rem; color:#4CD964; background:rgba(22, 56, 40, 0.8); border:1px solid #2ECC71; padding:5px 12px; border-radius:980px; font-weight:600; box-shadow:0 0 10px rgba(46,204,113,0.2);">
+            <span style="font-size:0.73rem; color:#059669; background:#ECFDF5; border:1px solid #10B981; padding:5px 12px; border-radius:980px; font-weight:600; box-shadow:0 0 10px rgba(46,204,113,0.2);">
                 ● LIVE SHEET ({last_sync_str})
             </span>
-            <span style="font-size:0.73rem; color:#E2EFE8; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(143,168,155,0.3); padding:5px 12px; border-radius:980px; font-weight:600;">
+            <span style="font-size:0.73rem; color:#334155; background:#F1F5F9; border:1px solid #CBD5E1; padding:5px 12px; border-radius:980px; font-weight:600;">
                 ⏰ CRON: 16:00
             </span>
         </div>
@@ -1573,12 +1573,12 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
     # ── CỘT TRÁI: KỸ SƯ TRƯỞNG AI (ARGON 4) + LỌC DANH MỤC + TIỆN ÍCH ──
     with col_left:
         st.markdown("""
-        <div style="background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:12px 14px; margin-bottom:8px; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:12px 14px; margin-bottom:8px; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.86rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
-                <span style="font-size:0.65rem; background:#10B981; color:#FFFFFF; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM AI</span>
+                <span style="font-size:0.86rem; font-weight:700; color:#0F172A; letter-spacing:-0.02em;">🧠 KỸ SƯ TRƯỞNG AI CƠ-ĐIỆN</span>
+                <span style="font-size:0.65rem; background:#10B981; color:#0F172A; padding:2px 8px; border-radius:980px; font-weight:700;">⚡ NVIDIA NIM AI</span>
             </div>
-            <div style="font-size:0.73rem; color:#8FA89B; margin-top:3px; line-height:1.35;">
+            <div style="font-size:0.73rem; color:#64748B; margin-top:3px; line-height:1.35;">
                 Tư vấn kỹ thuật • Bóc tách bản vẽ / công trình • Tận dụng kho sẵn có
             </div>
         </div>
@@ -1631,7 +1631,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             else:
                 st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
-        st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #183325;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
         search_query = st.text_input(
             "Tra cứu nhanh danh sách:",
@@ -1640,7 +1640,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             label_visibility="collapsed"
         )
 
-        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#E2EFE8; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#1E293B; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
 
         c_sync, c_mail = st.columns(2)
         with c_sync:
@@ -1673,8 +1673,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 if ok: st.toast("✓ Đã gửi báo cáo thanh lý!", icon="📧")
 
         st.markdown(f"""
-        <div style="background:rgba(14, 33, 24, 0.75); backdrop-filter:blur(12px); border:1px solid rgba(46,204,113,0.2); border-radius:16px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#8FA89B; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
-            <div>📌 <strong style="color:#FFFFFF;">Cấu hình tự động:</strong></div>
+        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:10px 12px; margin-top:8px; font-size:0.75rem; color:#64748B; box-shadow:0 4px 16px rgba(0,0,0,0.05);">
+            <div>📌 <strong style="color:#0F172A;">Cấu hình tự động:</strong></div>
             <div>• Điểm đích: <code>{target_email}</code></div>
             <div>• Tự động quét: <strong>Mỗi 60 phút</strong></div>
             <div>• Giờ gửi Daily: <strong>16:00 mỗi ngày</strong></div>
@@ -1768,9 +1768,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 ai_hdr_col1, ai_hdr_col2 = st.columns([7.8, 2.2], vertical_alignment="center")
                 with ai_hdr_col1:
                     st.markdown(
-                        f"<div style='font-size:0.88rem; font-weight:700; color:#FFFFFF; display:flex; align-items:center; gap:8px;'>"
+                        f"<div style='font-size:0.88rem; font-weight:700; color:#0F172A; display:flex; align-items:center; gap:8px;'>"
                         f"<span>💡 KẾT QUẢ TƯ VẤN & BÓC TÁCH KHO TỪ KỸ SƯ TRƯỞNG AI</span>"
-                        f"<span style='font-size:0.72rem; color:#8FA89B; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(143, 168, 155, 0.3); padding:2px 8px; border-radius:12px; font-weight:500;'>⏱️ Tự xóa sau {remaining_min} phút</span>"
+                        f"<span style='font-size:0.72rem; color:#64748B; background:rgba(255, 255, 255, 0.06); border:1px solid rgba(143, 168, 155, 0.3); padding:2px 8px; border-radius:12px; font-weight:500;'>⏱️ Tự xóa sau {remaining_min} phút</span>"
                         f"</div>",
                         unsafe_allow_html=True
                     )
@@ -1782,7 +1782,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                         st.rerun(scope="fragment")
 
                 last_prompt = st.session_state.get('ag2_ai_last_prompt', '')
-                st.markdown(f"<div style='font-size:0.78rem; color:#8FA89B; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:0.78rem; color:#64748B; margin-bottom:6px;'>Yêu cầu: <em>'{last_prompt}'</em></div>", unsafe_allow_html=True)
                 st.markdown(f'<div class="ai-result-scrollbox">\n\n{st.session_state["ag2_ai_response"]}\n\n</div>', unsafe_allow_html=True)
 
                 # Đối chiếu trực tiếp Live Sheet (HOÀN TOÀN KHÔNG CÓ CỘT MÃ VT)
@@ -1790,7 +1790,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 if not verified_df.empty:
                     st.markdown("<div style='font-size:0.82rem; font-weight:700; color:#4CD964; margin-top:10px; margin-bottom:4px;'>🔍 ĐỐI CHIẾU TRỰC TIẾP TỒN KHO THỰC TẾ TRÊN GOOGLE SHEET CỦA AGENT 2 (THEO TÊN & QUY CÁCH):</div>", unsafe_allow_html=True)
                     st.dataframe(verified_df, use_container_width=True, hide_index=True)
-                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #183325;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
             # 2. Lọc bảng theo Thẻ KPI vừa bấm (Sử dụng _status_code nội bộ số hóa chuẩn xác tuyệt đối)
             cur_kpi = st.session_state.get("ag2_kpi_filter", "ALL")
@@ -1820,8 +1820,8 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             # Thông tin chỉ báo bộ lọc
             st.markdown(
                 f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
-                f"<span style='font-size:0.82rem; font-weight:600; color:#FFFFFF;'>Đang lọc theo thẻ: <span style='color:#4CD964; font-weight:700;'>{kpi_desc}</span></span>"
-                f"<span style='font-size:0.78rem; color:#8FA89B;'>Hiển thị: <strong style='color:#FFFFFF;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
+                f"<span style='font-size:0.82rem; font-weight:600; color:#0F172A;'>Đang lọc theo thẻ: <span style='color:#4CD964; font-weight:700;'>{kpi_desc}</span></span>"
+                f"<span style='font-size:0.78rem; color:#64748B;'>Hiển thị: <strong style='color:#0F172A;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
