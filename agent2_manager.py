@@ -902,7 +902,7 @@ def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict)
                 continue
 
         stock_display = f"{stock:g}"
-        row_str = f"| {code} | {name} | {spec_clean} | {dvt} | {stock_display} | {status_str} |"
+        row_str = f"| {name} | {spec_clean} | {dvt} | {stock_display} | {status_str} |"
         if stock > 0:
             available_items.append((stock, row_str))
         else:
@@ -913,8 +913,8 @@ def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict)
 
     lines = [
         "### [PHẦN 1: DANH MỤC VẬT TƯ ĐANG CÒN TỒN KHO THỰC TẾ XƯỞNG (TỒN > 0) — BẮT BUỘC TẬN DỤNG TRƯỚC TIÊN]",
-        "| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |",
-        "|:---|:---|:---|:---:|:---:|:---:|"
+        "| Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |",
+        "|:---|:---|:---:|:---:|:---:|"
     ]
     for _, row in available_items:
         lines.append(row)
@@ -922,8 +922,8 @@ def build_agent2_dynamic_inventory_table(df_th: pd.DataFrame, intent_info: dict)
     if depleted_items:
         lines.append("")
         lines.append("### [PHẦN 2: DANH MỤC VẬT TƯ ĐÃ HẾT TỒN KHO HOẶC TỒN = 0 (CHỈ XEM THAM KHẢO)]")
-        lines.append("| Mã VT | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |")
-        lines.append("|:---|:---|:---|:---:|:---:|:---:|")
+        lines.append("| Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | Trạng thái kho |")
+        lines.append("|:---|:---|:---:|:---:|:---:|")
         for row in depleted_items:
             lines.append(row)
 
@@ -1020,7 +1020,8 @@ Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ -
      * Mặt sàn: Tận dụng Thép tấm (3mm, 5mm...), Thép tấm chống trượt hoặc Grating đang có tồn kho.
      * Lan can an toàn: Tận dụng Thép ống tròn (ống kẽm Φ42, Φ34, Φ49...), Thép V đang có sẵn.
      * Vật tư tiêu hao & liên kết: Tận dụng Que hàn, Bulong mạ/inox (M10, M12, M14...), Đá cắt/mài, Sơn chống rỉ đang có tồn kho xưởng.
-   - Giữ nguyên chính xác 100% `Mã VT`, `Tên vật tư`, `Quy cách kỹ thuật`, `ĐVT`, `Tồn thực tế` như trong Live Sheet. Không tự sáng tác mã hàng giả.
+   - Định danh vật tư HOÀN TOÀN bằng `Tên vật tư trong kho xưởng`, `Quy cách kỹ thuật`, `ĐVT`, `Tồn thực tế` như trong Live Sheet.
+   - TUYỆT ĐỐI KHÔNG ghi cột 'Mã VT' / 'Mã vật tư' trong bất kỳ bảng nào (kho xưởng Agent 2 theo dõi độc lập hoàn toàn với kho gốc Agent 1).
 
 3. QUY TẮC MUA BỔ SUNG: CHỈ ĐỀ XUẤT MUA KHI THỰC SỰ KHÔNG CÓ TRONG KHO:
    - Chỉ được đưa vào mục "3. DANH MỤC VẬT TƯ ĐỀ XUẤT MUA BỔ SUNG" trong 2 trường hợp duy nhất:
@@ -1035,7 +1036,7 @@ Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ -
 5. CẤU TRÚC BÁO CÁO KỸ SƯ TRƯỞNG:
    - **1. PHÂN TÍCH KẾT CẤU & PHƯƠNG ÁN GIA CÔNG:** (Ngắn gọn, rõ giải pháp kết cấu).
    - **2. BẢNG BÓC TÁCH VẬT TƯ TẬN DỤNG TỒN KHO XƯỞNG CFC (LIVE SHEET):**
-     | STT | Hạng mục công việc | Mã VT | Tên vật tư trong kho | Quy cách | ĐVT | Tồn thực tế | SL đề xuất xuất | Trạng thái kho |
+     | STT | Hạng mục công việc | Tên vật tư trong kho xưởng | Quy cách kỹ thuật | ĐVT | Tồn thực tế | SL đề xuất xuất | Trạng thái kho |
    - **3. DANH MỤC VẬT TƯ THIẾU CẦN MUA BỔ SUNG & LƯU Ý AN TOÀN:** (Nếu đủ 100% thì ghi rõ không cần mua thêm).
 """
 
@@ -1201,7 +1202,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             min-height: 100vh !important;
             background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
         }
 
         [data-testid="stMainBlockContainer"], section.main {
@@ -1221,18 +1222,67 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         .ai-result-scrollbox {
             max-height: 70vh;
             overflow-y: auto !important;
-            overflow-x: hidden;
-            padding: 16px 20px;
+            overflow-x: auto !important;
+            padding: 18px 22px;
             background: #FFFFFF !important;
-            backdrop-filter: blur(12px) !important;
-            border: 1px solid #E2E8F0 !important;
-            border-radius: 14px;
+            border: 1.5px solid #E2E8F0 !important;
+            border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-            color: #FFFFFF !important;
+            color: #0F172A !important;
+            line-height: 1.6 !important;
+        }
+
+        .ai-result-scrollbox p,
+        .ai-result-scrollbox li,
+        .ai-result-scrollbox span,
+        .ai-result-scrollbox div {
+            color: #1E293B !important;
+            font-size: 0.9rem !important;
+        }
+
+        .ai-result-scrollbox h1,
+        .ai-result-scrollbox h2,
+        .ai-result-scrollbox h3,
+        .ai-result-scrollbox h4,
+        .ai-result-scrollbox strong {
+            color: #0F172A !important;
+            font-weight: 700 !important;
+        }
+
+        .ai-result-scrollbox table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 14px 0 !important;
+            font-size: 0.85rem !important;
+            background: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 10px !important;
+            overflow: hidden !important;
+        }
+
+        .ai-result-scrollbox th {
+            background: #F1F5F9 !important;
+            color: #0F172A !important;
+            font-weight: 700 !important;
+            padding: 9px 12px !important;
+            border: 1px solid #E2E8F0 !important;
+            text-align: left !important;
+        }
+
+        .ai-result-scrollbox td {
+            padding: 8px 12px !important;
+            border: 1px solid #E2E8F0 !important;
+            color: #334155 !important;
+            background: #FFFFFF !important;
+        }
+
+        .ai-result-scrollbox tr:nth-child(even) td {
+            background: #F8FAFC !important;
         }
 
         .ai-result-scrollbox::-webkit-scrollbar {
             width: 6px;
+            height: 6px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-track {
             background: #F1F5F9;
@@ -1249,7 +1299,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         [data-testid="stAppViewContainer"], .main {
             background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
-            color: #FFFFFF !important;
+            color: #0F172A !important;
         }
     """
 
