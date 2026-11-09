@@ -1199,7 +1199,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             overflow-y: auto !important;
             height: auto !important;
             min-height: 100vh !important;
-            background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
+            background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
             color: #FFFFFF !important;
         }
@@ -1223,11 +1223,11 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             overflow-y: auto !important;
             overflow-x: hidden;
             padding: 16px 20px;
-            background: rgba(14, 33, 24, 0.85) !important;
+            background: #FFFFFF !important;
             backdrop-filter: blur(12px) !important;
-            border: 1px solid rgba(46, 204, 113, 0.25) !important;
+            border: 1px solid #E2E8F0 !important;
             border-radius: 14px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
             color: #FFFFFF !important;
         }
 
@@ -1235,19 +1235,19 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             width: 6px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-track {
-            background: #07130D;
+            background: #F1F5F9;
             border-radius: 8px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-thumb {
-            background: #1E3F2E;
+            background: #CBD5E1;
             border-radius: 8px;
         }
         .ai-result-scrollbox::-webkit-scrollbar-thumb:hover {
-            background: #2ECC71;
+            background: #94A3B8;
         }
     """ if not is_split else """
         [data-testid="stAppViewContainer"], .main {
-            background: radial-gradient(circle at 20% 20%, #0D2318 0%, #07130D 60%, #050E09 100%) !important;
+            background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
             color: #FFFFFF !important;
         }

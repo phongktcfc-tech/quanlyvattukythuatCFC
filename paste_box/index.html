@@ -6,15 +6,15 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background: transparent;
-            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             overflow: hidden;
         }
         #paste-container {
             width: 100%;
             height: 110px;
-            border: 2px dashed rgba(76, 217, 100, 0.55);
-            background: rgba(28, 68, 47, 0.45);
-            border-radius: 18px;
+            border: 2px dashed #CBD5E1;
+            background: #FFFFFF;
+            border-radius: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,12 +23,12 @@
             transition: all 0.2s ease;
             outline: none;
             user-select: none;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         }
         #paste-container:focus, #paste-container:hover {
-            border-color: #4CD964;
-            background: rgba(34, 82, 57, 0.65);
-            box-shadow: 0 0 20px rgba(76, 217, 100, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            border-color: #2563EB;
+            background: #F0F7FF;
+            box-shadow: 0 0 16px rgba(37, 99, 235, 0.12);
             transform: translateY(-1px);
         }
         .icon {
@@ -36,26 +36,26 @@
             margin-bottom: 4px;
         }
         .main-text {
-            color: #E2EFE8;
+            color: #0F172A;
             font-size: 0.96rem;
             font-weight: 700;
             letter-spacing: 0.3px;
             text-align: center;
         }
         .kbd {
-            background: rgba(46, 204, 113, 0.15);
-            border: 1px solid #2ECC71;
-            color: #4CD964;
-            padding: 2px 7px;
+            background: #F1F5F9;
+            border: 1px solid #CBD5E1;
+            color: #2563EB;
+            padding: 2px 8px;
             border-radius: 6px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.88rem;
             margin: 0 4px;
             font-weight: 700;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         .sub-text {
-            color: #8FA89B;
+            color: #64748B;
             font-size: 0.78rem;
             margin-top: 4px;
         }
@@ -63,7 +63,7 @@
             margin-top: 8px;
             font-size: 0.88rem;
             font-weight: 700;
-            color: #4CD964;
+            color: #059669;
             display: none;
             animation: pulse 1s infinite;
         }
@@ -89,7 +89,7 @@
 
         function handleImageFile(file) {
             status.style.display = 'block';
-            status.innerText = '⚡ ĐÃ NHẬN ẢNH TỪ CLIPBOARD! ĐANG NẠP...';
+            status.innerText = '✓ ĐÃ NHẬN ẢNH TỪ CLIPBOARD! ĐANG NẠP...';
             const reader = new FileReader();
             reader.onload = function(e) {
                 Streamlit.setComponentValue(e.target.result);
@@ -133,7 +133,6 @@
             container.focus();
         });
 
-        // Đảm bảo bắt tay (handshake) với Streamlit Client tức thì và định kỳ để tránh timeout gây khung vàng
         let handshakeInterval = setInterval(() => {
             try {
                 Streamlit.setComponentReady();

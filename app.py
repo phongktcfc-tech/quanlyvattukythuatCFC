@@ -651,9 +651,81 @@ st.markdown("""
     /* ═══════════════════════════════════════════════════════════════
        SAMPLE UI/UX DESIGN SYSTEM: CLEAN SAAS PILL & CARD THEME
        ═══════════════════════════════════════════════════════════════ */
-    .stApp, [data-testid="stAppViewContainer"] {
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"], section.main {
+        background-color: #F8FAFC !important;
         background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
         color: #0F172A !important;
+    }
+
+    /* Force all container backgrounds to clean white cards */
+    [data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF !important;
+        border: 1.5px solid #E2E8F0 !important;
+        border-radius: 20px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        padding: 22px 26px !important;
+        color: #0F172A !important;
+    }
+
+    /* Force tab list and tab styling with ultra high specificity */
+    div[data-testid="stTabs"] [data-baseweb="tab-list"],
+    .stTabs [data-baseweb="tab-list"],
+    [data-baseweb="tab-list"] {
+        gap: 10px !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 6px 0 !important;
+        margin-bottom: 0.85rem !important;
+    }
+
+    div[data-testid="stTabs"] button[data-baseweb="tab"],
+    .stTabs [data-baseweb="tab"],
+    button[data-baseweb="tab"] {
+        height: 42px !important;
+        padding: 8px 22px !important;
+        border-radius: 9999px !important;
+        margin-right: 8px !important;
+        background: #FFFFFF !important;
+        border: 1.5px solid #E2E8F0 !important;
+        color: #64748B !important;
+        font-weight: 600 !important;
+        font-size: 0.88rem !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:hover,
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #0F172A !important;
+        border-color: #CBD5E1 !important;
+        background: #F8FAFC !important;
+    }
+
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
+    .stTabs [data-baseweb="tab"][aria-selected="true"],
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: #0F172A !important;
+        border: 1.5px solid #0F172A !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+        font-weight: 700 !important;
+    }
+
+    /* Completely hide tab underline highlights */
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    .stTabs [data-baseweb="tab-highlight"],
+    [data-baseweb="tab-highlight"],
+    div[data-testid="stTabs"] [data-baseweb="tab-border"],
+    .stTabs [data-baseweb="tab-border"],
+    [data-baseweb="tab-border"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
     }
     
     /* Ẩn header mặc định của Streamlit */
@@ -2329,11 +2401,11 @@ is_agent2_only = (current_agent_active == MODE_AGENT2)
 base_url = get_public_url()
 st.markdown(f"""
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin: 2px 0 6px 0;">
-    <span style="font-size:0.73rem; color:#8FA89B;">Mở tab mới:</span>
-    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:rgba(46, 204, 113, 0.15); color:#4CD964; border:1px solid #2ECC71; padding:2px 8px; border-radius:980px; font-weight:600;">
+    <span style="font-size:0.75rem; color:#64748B; font-weight:600;">Mở tab mới:</span>
+    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#EFF6FF; color:#2563EB; border:1px solid #BFDBFE; padding:3px 12px; border-radius:9999px; font-weight:600;">
         🤖 Agent 1 ↗
     </a>
-    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.72rem; background:rgba(22, 56, 40, 0.8); color:#2ECC71; border:1px solid #2ECC71; padding:2px 8px; border-radius:980px; font-weight:600;">
+    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; padding:3px 12px; border-radius:9999px; font-weight:600;">
         ⚡ Agent 2 ↗
     </a>
 </div>
@@ -2666,12 +2738,12 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         def _render_intake_hub():
             st.markdown("""
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <div style="font-size: 1.4rem; color: #4CD964; font-weight: 800; line-height: 1;">➕</div>
+                <div style="font-size: 1.4rem; color: #2563EB; font-weight: 800; line-height: 1;">➕</div>
                 <div>
-                    <div style="font-weight: 700; color: #FFFFFF; font-size: 0.95rem;">
+                    <div style="font-weight: 800; color: #0F172A; font-size: 1rem; letter-spacing: -0.2px;">
                         CỔNG NẠP CHỨNG TỪ ĐA NĂNG (HỖ TRỢ QUÉT & PHÂN TÍCH SONG SONG)
                     </div>
-                    <div style="font-size: 0.75rem; color: #8FA89B;">
+                    <div style="font-size: 0.78rem; color: #64748B; margin-top: 2px;">
                         Chọn hoặc kéo thả đồng thời nhiều file cùng lúc: <strong>Ảnh chụp</strong> (PNG, JPG, WEBP) & <strong>Tài liệu</strong> (PDF, XLSX, XLS, CSV)
                     </div>
                 </div>
@@ -2951,7 +3023,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     st.warning("⚠️ Không tìm thấy vật tư nào phù hợp với bộ lọc hiện tại.")
                 else:
                     st.markdown(
-                        f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #183325; border-radius: 12px; margin-top: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);'>"
+                        f"<div style='max-height: 54vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #E2E8F0; border-radius: 12px; margin-top: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.04);'>"
                         f"{render_compact_table_html(filtered_items)}"
                         f"</div>",
                         unsafe_allow_html=True
