@@ -1,3 +1,6 @@
+# Streamlit Cloud Deployment Config
+# Force Container Redeploy Trigger: 2026-11-10T08:08:00Z
+
 [server]
 address = "0.0.0.0"
 port = 8501
