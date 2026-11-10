@@ -767,11 +767,21 @@ st.markdown("""
     div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
     .stTabs [data-baseweb="tab"][aria-selected="true"],
     button[data-baseweb="tab"][aria-selected="true"] {
-        background: #0F172A !important;
-        border: 1.5px solid #0F172A !important;
+        background: #2563EB !important;
+        border: 1.5px solid #2563EB !important;
         color: #FFFFFF !important;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
         font-weight: 700 !important;
+    }
+
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] p,
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] span,
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] div,
+    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
+    .stTabs [data-baseweb="tab"][aria-selected="true"] span,
+    button[data-baseweb="tab"][aria-selected="true"] p,
+    button[data-baseweb="tab"][aria-selected="true"] span {
+        color: #FFFFFF !important;
     }
 
     /* Completely hide tab underline highlights */
@@ -880,9 +890,9 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
     }
     .badge-public:hover {
-        background: #0F172A !important;
+        background: #2563EB !important;
         color: #FFFFFF !important;
-        border-color: #0F172A !important;
+        border-color: #2563EB !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
@@ -938,11 +948,16 @@ st.markdown("""
     }
     .stTabs [data-baseweb="tab"][aria-selected="true"],
     .stTabs [aria-selected="true"] {
-        background: #0F172A !important;
-        border: 1.5px solid #0F172A !important;
+        background: #2563EB !important;
+        border: 1.5px solid #2563EB !important;
         color: #FFFFFF !important;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
         font-weight: 700 !important;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
+    .stTabs [aria-selected="true"] p,
+    .stTabs [aria-selected="true"] span {
+        color: #FFFFFF !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -974,13 +989,13 @@ st.markdown("""
        NÚT BẤM DẠNG PILL BO TRÒN HOÀN TOÀN (9999PX THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     button[kind="primary"], .stButton > button[kind="primary"] {
-        background: #0F172A !important;
-        border: 1px solid #0F172A !important;
+        background: #2563EB !important;
+        border: 1px solid #2563EB !important;
         color: #FFFFFF !important;
         font-weight: 700 !important;
         border-radius: 9999px !important;
         padding: 0.5rem 1.6rem !important;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
         transition: all 0.2s ease !important;
     }
     button[kind="primary"]:hover, .stButton > button[kind="primary"]:hover {
@@ -1073,9 +1088,9 @@ st.markdown("""
         font-weight: 600 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-selected="true"] {
-        background: #0F172A !important;
+        background: #2563EB !important;
         color: #FFFFFF !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25) !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════

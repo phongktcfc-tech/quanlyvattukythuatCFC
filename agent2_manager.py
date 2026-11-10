@@ -1433,13 +1433,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         div.st-key-btn_filter_warning > button[kind="primary"],
         div.st-key-btn_filter_out > button[kind="primary"],
         div.st-key-btn_filter_issues > button[kind="primary"] {
-            border-color: #0F172A !important;
-            box-shadow: 0 0 0 2px #0F172A, 0 6px 18px rgba(15, 23, 42, 0.15) !important;
-            background: #FFFFFF !important;
+            border-color: #2563EB !important;
+            box-shadow: 0 0 0 2px #2563EB, 0 6px 18px rgba(37, 99, 235, 0.2) !important;
+            background: #EFF6FF !important;
             transform: translateY(-1px) !important;
         }
         div[class*="st-key-btn_filter_"] > button[kind="primary"] p:last-child {
-            color: #0F172A !important;
+            color: #2563EB !important;
         }
 
         /* 5. Streamlit Interactive Buttons & Inputs */
@@ -1462,10 +1462,10 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         }
 
         .stButton > button[kind="primary"] {
-            background: #0F172A !important;
+            background: #2563EB !important;
             color: #FFFFFF !important;
-            border: 1px solid #0F172A !important;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+            border: 1px solid #2563EB !important;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
         }
 
         .stButton > button[kind="primary"]:hover {
@@ -1568,11 +1568,17 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
 
         .stTabs [data-baseweb="tab"][aria-selected="true"],
         .stTabs [aria-selected="true"] {
-            background: #0F172A !important;
-            border: 1.5px solid #0F172A !important;
+            background: #2563EB !important;
+            border: 1.5px solid #2563EB !important;
             color: #FFFFFF !important;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
             font-weight: 700 !important;
+        }
+        .stTabs [data-baseweb="tab"][aria-selected="true"] p,
+        .stTabs [data-baseweb="tab"][aria-selected="true"] span,
+        .stTabs [aria-selected="true"] p,
+        .stTabs [aria-selected="true"] span {
+            color: #FFFFFF !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -1693,14 +1699,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             else:
                 st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
-        st.markdown("<hr style='margin:8px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
-
-        search_query = st.text_input(
-            "Tra cứu nhanh danh sách:",
-            placeholder="🔍 Lọc nhanh bảng (tên, quy cách...)",
-            key="ag2_quick_search_input",
-            label_visibility="collapsed"
-        )
+        st.markdown("<hr style='margin:10px 0; border:none; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
         st.markdown("<div style='font-size:0.8rem; font-weight:700; color:#1E293B; margin:6px 0;'>⚡ THAO TÁC NHANH</div>", unsafe_allow_html=True)
 
@@ -1866,28 +1865,37 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
             elif cur_kpi == "SAFE":
                 filtered_df = df_th[df_th['_status_code'] == 'SAFE'].copy()
                 kpi_desc = "🟢 AN TOÀN"
-
             else:
                 filtered_df = df_th.copy()
                 kpi_desc = "📦 TẤT CẢ VẬT TƯ"
 
-            # 3. Lọc theo Quick Search (nếu có)
-            if search_query.strip():
-                sq = search_query.strip().lower()
+            # 3. Lọc theo Tìm kiếm nhanh trực tiếp trên đầu bảng (Ảnh 2)
+            search_query = st.session_state.get("ag2_table_search_input", "").strip()
+            if search_query:
+                sq = search_query.lower()
                 filtered_df = filtered_df[
                     filtered_df["ten_vat_tu"].astype(str).str.lower().str.contains(sq, na=False) |
                     filtered_df["quy_cach"].astype(str).str.lower().str.contains(sq, na=False) |
                     filtered_df["ghi_chu"].astype(str).str.lower().str.contains(sq, na=False)
                 ]
 
-            # Thông tin chỉ báo bộ lọc
-            st.markdown(
-                f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
-                f"<span style='font-size:0.82rem; font-weight:600; color:#0F172A;'>Đang lọc theo thẻ: <span style='color:#4CD964; font-weight:700;'>{kpi_desc}</span></span>"
-                f"<span style='font-size:0.78rem; color:#64748B;'>Hiển thị: <strong style='color:#0F172A;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
+            # Thanh công cụ trên đầu bảng: Bộ lọc thẻ + Ô tìm kiếm trực tiếp (Ảnh 2)
+            c_tb_info, c_tb_search = st.columns([5.5, 4.5], vertical_alignment="center")
+            with c_tb_info:
+                st.markdown(
+                    f"<div style='font-size:0.85rem; font-weight:600; color:#0F172A; display:flex; align-items:center; gap:8px;'>"
+                    f"<span>Đang lọc theo thẻ: <strong style='color:#2563EB;'>{kpi_desc}</strong></span>"
+                    f"<span style='font-size:0.78rem; color:#64748B;'>• Hiển thị: <strong style='color:#0F172A;'>{len(filtered_df):,}</strong> / {len(df_th):,} vật tư</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+            with c_tb_search:
+                st.text_input(
+                    "Tìm kiếm nhanh vật tư:",
+                    placeholder="🔍 Tìm nhanh vật tư (tên, quy cách, ghi chú)...",
+                    key="ag2_table_search_input",
+                    label_visibility="collapsed"
+                )
 
             # Gán nhãn Huy hiệu trạng thái đẹp mắt
             df_display = filtered_df.copy()
