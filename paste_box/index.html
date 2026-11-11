@@ -13,10 +13,10 @@
         }
         #paste-container {
             width: 100%;
-            height: 110px;
-            border: 2px dashed #CBD5E1;
-            background: #FFFFFF;
-            border-radius: 20px;
+            height: 104px;
+            border: 1.5px dashed #CBD5E1;
+            background: #F8FAFC;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -25,45 +25,42 @@
             transition: all 0.2s ease;
             outline: none;
             user-select: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         }
         #paste-container:focus, #paste-container:hover {
-            border-color: #2563EB;
-            background: #F0F7FF;
-            box-shadow: 0 0 16px rgba(37, 99, 235, 0.12);
-            transform: translateY(-1px);
+            border-color: #0284C7;
+            background: #F0F9FF;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
         }
         .icon {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 4px;
         }
         .main-text {
             color: #0F172A;
-            font-size: 0.96rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
             text-align: center;
         }
         .kbd {
-            background: #F1F5F9;
-            border: 1px solid #CBD5E1;
-            color: #2563EB;
+            background: #F0F9FF;
+            border: 1px solid #BAE6FD;
+            color: #0369A1;
             padding: 2px 8px;
             border-radius: 6px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.88rem;
+            font-size: 0.84rem;
             margin: 0 4px;
             font-weight: 700;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         .sub-text {
             color: #64748B;
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             margin-top: 4px;
         }
         .status-text {
-            margin-top: 8px;
-            font-size: 0.88rem;
+            margin-top: 6px;
+            font-size: 0.85rem;
             font-weight: 700;
             color: #059669;
             display: none;
@@ -138,7 +135,7 @@
         let handshakeInterval = setInterval(() => {
             try {
                 Streamlit.setComponentReady();
-                Streamlit.setFrameHeight(115);
+                Streamlit.setFrameHeight(110);
             } catch(e) {}
         }, 300);
 
@@ -147,12 +144,12 @@
                 clearInterval(handshakeInterval);
                 handshakeInterval = null;
             }
-            Streamlit.setFrameHeight(115);
+            Streamlit.setFrameHeight(110);
         });
 
         try {
             Streamlit.setComponentReady();
-            Streamlit.setFrameHeight(115);
+            Streamlit.setFrameHeight(110);
         } catch(e) {}
     </script>
 </body>

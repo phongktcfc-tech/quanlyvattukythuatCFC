@@ -644,7 +644,7 @@ Trình bày dạng Thẻ thông tin & Bảng barem:
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -655,26 +655,27 @@ st.markdown("""
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       SAMPLE UI/UX DESIGN SYSTEM: CLEAN SAAS PILL & CARD THEME
+       TAIWIND SKY-SLATE DESIGN SYSTEM (THEO MẪU MINI APP XUẤT VẬT TƯ)
+       Nền phẳng #F8FAFC | Card trắng #FFFFFF | Primary Sky #0284C7
        ═══════════════════════════════════════════════════════════════ */
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"], section.main {
         background-color: #F8FAFC !important;
-        background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
+        background: #F8FAFC !important;
         color: #0F172A !important;
     }
 
-    /* Force all container backgrounds to clean white cards */
+    /* Clean White Section Cards (rounded-2xl / border-slate-200 / shadow-sm) */
     [data-testid="stVerticalBlockBorderWrapper"],
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF !important;
-        border: 1.5px solid #E2E8F0 !important;
-        border-radius: 20px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-        padding: 22px 26px !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03) !important;
+        padding: 20px 24px !important;
         color: #0F172A !important;
     }
 
-    /* Markdown typography & tables in White Technical Theme */
+    /* Markdown typography & tables */
     .stMarkdown,
     [data-testid="stMarkdownContainer"] {
         color: #0F172A !important;
@@ -699,25 +700,27 @@ st.markdown("""
     [data-testid="stMarkdownContainer"] table {
         width: 100% !important;
         border-collapse: collapse !important;
-        margin: 14px 0 !important;
+        margin: 12px 0 !important;
         background: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 10px !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
         overflow: hidden !important;
     }
     .stMarkdown th,
     [data-testid="stMarkdownContainer"] th {
         background: #F1F5F9 !important;
-        color: #0F172A !important;
+        color: #334155 !important;
         font-weight: 700 !important;
+        font-size: 0.78rem !important;
+        text-transform: uppercase !important;
         padding: 10px 14px !important;
-        border: 1px solid #CBD5E1 !important;
+        border: 1px solid #E2E8F0 !important;
         text-align: left !important;
     }
     .stMarkdown td,
     [data-testid="stMarkdownContainer"] td {
         padding: 9px 14px !important;
-        border: 1px solid #E2E8F0 !important;
+        border: 1px solid #F1F5F9 !important;
         color: #1E293B !important;
         background: #FFFFFF !important;
     }
@@ -726,74 +729,97 @@ st.markdown("""
         background: #F8FAFC !important;
     }
 
-    /* Force tab list and tab styling with ultra high specificity */
-    div[data-testid="stTabs"] [data-baseweb="tab-list"],
-    .stTabs [data-baseweb="tab-list"],
-    [data-baseweb="tab-list"] {
-        gap: 10px !important;
+    /* ═══════════════════════════════════════════════════════════════
+       SEGMENTED TABS (THEO MẪU: NỀN SLATE-100 TRACK + TAB TRẮNG CHỮ SKY-700)
+       Hỗ trợ cả Streamlit ARIA [role="tablist"]/[role="tab"] lẫn BaseWeb
+       ═══════════════════════════════════════════════════════════════ */
+    div[data-testid="stTabs"] [role="tablist"]::before,
+    div[data-testid="stTabs"] [role="tablist"]::after,
+    [role="tablist"]::before,
+    [role="tablist"]::after,
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    div[data-testid="stTabs"] [data-baseweb="tab-border"],
+    [data-testid="stTabs"] [data-testid="stTab"] > div:not([data-testid="stMarkdownContainer"]),
+    [data-testid="stTabs"] [role="tab"] > div:not([data-testid="stMarkdownContainer"]) {
+        display: none !important;
+        content: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
         background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 6px 0 !important;
-        margin-bottom: 0.85rem !important;
     }
 
-    div[data-testid="stTabs"] button[data-baseweb="tab"],
-    .stTabs [data-baseweb="tab"],
-    button[data-baseweb="tab"] {
-        height: 42px !important;
-        padding: 8px 22px !important;
-        border-radius: 9999px !important;
-        margin-right: 8px !important;
-        background: #FFFFFF !important;
-        border: 1.5px solid #E2E8F0 !important;
-        color: #64748B !important;
+    div[data-testid="stTabs"] [role="tablist"],
+    [role="tablist"],
+    div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+        gap: 6px !important;
+        background: #F1F5F9 !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
+        padding: 4px !important;
+        margin-bottom: 0.85rem !important;
+        width: fit-content !important;
+        height: auto !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"],
+    [role="tablist"] [role="tab"],
+    [data-testid="stTab"],
+    div[data-testid="stTabs"] button[data-baseweb="tab"] {
+        height: 36px !important;
+        padding: 6px 16px !important;
+        border-radius: 8px !important;
+        margin: 0 !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        color: #475569 !important;
         font-weight: 600 !important;
-        font-size: 0.88rem !important;
-        transition: all 0.2s ease !important;
+        font-size: 0.85rem !important;
+        transition: all 0.18s ease !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: none !important;
     }
 
-    div[data-testid="stTabs"] button[data-baseweb="tab"]:hover,
-    .stTabs [data-baseweb="tab"]:hover {
+    div[data-testid="stTabs"] [role="tab"] p,
+    div[data-testid="stTabs"] [role="tab"] span,
+    [data-testid="stTab"] p,
+    [data-testid="stTab"] span {
+        color: #475569 !important;
+        font-weight: 600 !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"]:hover,
+    [data-testid="stTab"]:hover {
         color: #0F172A !important;
-        border-color: #CBD5E1 !important;
-        background: #F8FAFC !important;
+        background: rgba(255, 255, 255, 0.65) !important;
+    }
+    div[data-testid="stTabs"] [role="tab"]:hover p,
+    [data-testid="stTab"]:hover p {
+        color: #0F172A !important;
     }
 
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
-    .stTabs [data-baseweb="tab"][aria-selected="true"],
-    button[data-baseweb="tab"][aria-selected="true"] {
-        background: #2563EB !important;
-        border: 1.5px solid #2563EB !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+    [role="tablist"] [role="tab"][aria-selected="true"],
+    [data-testid="stTab"][aria-selected="true"],
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #0369A1 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         font-weight: 700 !important;
     }
 
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] p,
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] span,
-    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] div,
-    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
-    .stTabs [data-baseweb="tab"][aria-selected="true"] span,
-    button[data-baseweb="tab"][aria-selected="true"] p,
-    button[data-baseweb="tab"][aria-selected="true"] span {
-        color: #FFFFFF !important;
-    }
-
-    /* Completely hide tab underline highlights */
-    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
-    .stTabs [data-baseweb="tab-highlight"],
-    [data-baseweb="tab-highlight"],
-    div[data-testid="stTabs"] [data-baseweb="tab-border"],
-    .stTabs [data-baseweb="tab-border"],
-    [data-baseweb="tab-border"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] p,
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] span,
+    [data-testid="stTab"][aria-selected="true"] p,
+    [data-testid="stTab"][aria-selected="true"] span,
+    [data-testid="stTab"][aria-selected="true"] [data-testid="stMarkdownContainer"],
+    [data-testid="stTab"][aria-selected="true"] [data-testid="stMarkdownContainer"] p {
+        color: #0369A1 !important;
+        font-weight: 700 !important;
     }
     
     /* Ẩn header mặc định của Streamlit */
@@ -803,102 +829,114 @@ st.markdown("""
     }
     
     .block-container {
-        padding-top: 1.2rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 1rem !important;
+        padding-bottom: 0.75rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
         max-width: 100% !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════
-       KHUNG HEADER CONSOLE HUD (CHUẨN GIAO DIỆN THEO MẪU)
+       HEADER BAR (WHITE STICKY NAVBAR THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     .hud-header {
         width: 100% !important;
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 20px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-        padding: 18px 26px !important;
-        margin-bottom: 0.95rem !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+        padding: 14px 22px !important;
+        margin-bottom: 0.9rem !important;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-    .hud-title {
-        font-size: 1.25rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.3px;
-        color: #0F172A !important;
+    .hud-title-wrap {
         display: flex;
         align-items: center;
         gap: 12px;
     }
+    .hud-ai-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: #0284C7;
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        flex-shrink: 0;
+    }
+    .hud-title {
+        font-size: 1.12rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.2px;
+        color: #0F172A !important;
+        line-height: 1.25;
+    }
     .hud-title span {
         color: #0F172A !important;
-        font-weight: 800 !important;
+        font-weight: 700 !important;
     }
     .hud-subtitle {
-        font-size: 0.76rem;
+        font-size: 0.75rem;
         color: #64748B !important;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        font-weight: 700;
-        margin-top: 3px;
+        font-weight: 500;
+        margin-top: 2px;
     }
     .hud-chips {
         display: flex;
         gap: 8px;
         align-items: center;
+        flex-wrap: wrap;
     }
     
-    /* ═══════════════════════════════════════════════════════════════
-       CÁC PILL BADGES BO TRÒN SÂU (CHUẨN PILL THEO MẪU)
-       ═══════════════════════════════════════════════════════════════ */
+    /* PILL & ROUNDED-LG BADGES (THEO MẪU HEADER BUTTONS) */
     .hud-badge {
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-family: 'JetBrains Mono', monospace;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.76rem;
         font-weight: 600;
         display: inline-flex;
         align-items: center;
         gap: 6px;
         border: 1px solid #E2E8F0 !important;
-        background: #F8FAFC !important;
+        background: #F1F5F9 !important;
         color: #334155 !important;
         text-decoration: none;
-        transition: all 0.2s ease;
+        transition: all 0.18s ease;
     }
     .badge-cyan {
-        border-color: #BFDBFE !important;
-        color: #2563EB !important;
-        background: #EFF6FF !important;
-        font-weight: 700 !important;
+        border-color: #BAE6FD !important;
+        color: #0369A1 !important;
+        background: #F0F9FF !important;
+        font-weight: 600 !important;
     }
     .badge-green {
         border-color: #A7F3D0 !important;
-        color: #059669 !important;
+        color: #047857 !important;
         background: #ECFDF5 !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
     }
     .badge-public {
-        border-color: #E2E8F0 !important;
-        color: #0F172A !important;
-        background: #FFFFFF !important;
-        font-weight: 700 !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        border-color: #C7D2FE !important;
+        color: #4338CA !important;
+        background: #EEF2FF !important;
+        font-weight: 600 !important;
     }
     .badge-public:hover {
-        background: #2563EB !important;
+        background: #0284C7 !important;
         color: #FFFFFF !important;
-        border-color: #2563EB !important;
+        border-color: #0284C7 !important;
     }
     
     /* CSS Pulse Animation for Status Dot */
     @keyframes pulse-ring {
         0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .status-dot-pulse {
@@ -909,141 +947,85 @@ st.markdown("""
         display: inline-block;
         animation: pulse-ring 1.8s infinite ease-in-out;
     }
-    
-    /* ═══════════════════════════════════════════════════════════════
-       HỆ THỐNG TABS DẠNG VIÊN THUỐC (PILL TABS THEO MẪU)
-       ═══════════════════════════════════════════════════════════════ */
-    .stTabs [data-baseweb="tab-highlight"],
-    .stTabs [data-baseweb="tab-border"] {
-        display: none !important;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 4px 0 !important;
-        margin-bottom: 0.85rem !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 44px !important;
-        padding: 8px 24px !important;
-        border-radius: 9999px !important;
-        margin-right: 8px !important;
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        color: #64748B !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        transition: all 0.2s ease !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #0F172A !important;
-        border-color: #CBD5E1 !important;
-        background: #F8FAFC !important;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"],
-    .stTabs [aria-selected="true"] {
-        background: #2563EB !important;
-        border: 1.5px solid #2563EB !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
-        font-weight: 700 !important;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
-    .stTabs [aria-selected="true"] p,
-    .stTabs [aria-selected="true"] span {
-        color: #FFFFFF !important;
-    }
 
-    /* ═══════════════════════════════════════════════════════════════
-       CONTAINER CARDS (BO TRÒN SÂU 20PX THEO MẪU)
-       ═══════════════════════════════════════════════════════════════ */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 20px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-        padding: 22px 26px !important;
-        color: #0F172A !important;
-    }
     div[data-testid="stExpander"] {
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 18px !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         margin-bottom: 12px !important;
         overflow: hidden !important;
     }
     div[data-testid="stExpander"] summary {
         color: #0F172A !important;
         font-weight: 700 !important;
-        padding: 14px 20px !important;
+        padding: 12px 18px !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       NÚT BẤM DẠNG PILL BO TRÒN HOÀN TOÀN (9999PX THEO MẪU)
+       BUTTONS (SKY-600 #0284C7 ROUNDED-LG THEO MẪU)
        ═══════════════════════════════════════════════════════════════ */
     button[kind="primary"], .stButton > button[kind="primary"] {
-        background: #2563EB !important;
-        border: 1px solid #2563EB !important;
+        background: #0284C7 !important;
+        border: 1px solid #0284C7 !important;
         color: #FFFFFF !important;
-        font-weight: 700 !important;
-        border-radius: 9999px !important;
-        padding: 0.5rem 1.6rem !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
-        transition: all 0.2s ease !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 0.48rem 1.25rem !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+        transition: all 0.18s ease !important;
+    }
+    button[kind="primary"] p, .stButton > button[kind="primary"] p {
+        color: #FFFFFF !important;
     }
     button[kind="primary"]:hover, .stButton > button[kind="primary"]:hover {
-        background: #2563EB !important;
-        border-color: #2563EB !important;
+        background: #0369A1 !important;
+        border-color: #0369A1 !important;
         color: #FFFFFF !important;
-        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25) !important;
-        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
     }
     button[kind="secondary"], .stButton > button:not([kind="primary"]) {
         background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
+        border: 1px solid #CBD5E1 !important;
         color: #334155 !important;
-        border-radius: 9999px !important;
+        border-radius: 8px !important;
         font-weight: 600 !important;
-        padding: 0.5rem 1.4rem !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-        transition: all 0.2s ease !important;
+        padding: 0.48rem 1.15rem !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+        transition: all 0.18s ease !important;
     }
     button[kind="secondary"]:hover, .stButton > button:not([kind="primary"]):hover {
-        background: #F8FAFC !important;
-        border-color: #CBD5E1 !important;
+        background: #F1F5F9 !important;
+        border-color: #94A3B8 !important;
         color: #0F172A !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    }
+    button[kind="secondary"]:active, .stButton > button:not([kind="primary"]):active,
+    button[kind="secondary"]:focus, .stButton > button:not([kind="primary"]):focus {
+        background: #F0F9FF !important;
+        border-color: #0284C7 !important;
+        color: #0369A1 !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Ô NHẬP LIỆU DẠNG PILL (BO TRÒN THEO MẪU)
+       INPUTS & TEXTAREAS (ROUNDED-LG #CBD5E1 + SKY FOCUS RING)
        ═══════════════════════════════════════════════════════════════ */
     .stTextInput > div > div > input,
     input[type="text"], input[type="password"] {
         background: #FFFFFF !important;
-        border: 1.5px solid #E2E8F0 !important;
+        border: 1px solid #CBD5E1 !important;
         color: #0F172A !important;
-        border-radius: 9999px !important;
-        padding: 11px 20px !important;
-        font-size: 14px !important;
-        transition: all 0.2s ease !important;
-        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        font-size: 0.875rem !important;
+        transition: all 0.18s ease !important;
     }
     .stTextArea > div > div > textarea {
         background: #FFFFFF !important;
-        border: 1.5px solid #E2E8F0 !important;
+        border: 1px solid #CBD5E1 !important;
         color: #0F172A !important;
-        border-radius: 16px !important;
-        padding: 12px 18px !important;
-        font-size: 14px !important;
+        border-radius: 8px !important;
+        padding: 10px 12px !important;
+        font-size: 0.875rem !important;
     }
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {
@@ -1051,17 +1033,17 @@ st.markdown("""
     }
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus {
-        border-color: #2563EB !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+        border-color: #0EA5E9 !important;
+        box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.25) !important;
     }
 
     [data-testid="stFileUploader"] section, section[data-testid="stFileUploadDropzone"] {
         background-color: #F8FAFC !important;
-        border: 2px dashed #CBD5E1 !important;
-        border-radius: 20px !important;
-        padding: 20px !important;
+        border: 1.5px dashed #CBD5E1 !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
         color: #1E293B !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.18s ease !important;
     }
     [data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p,
     [data-testid="stFileUploader"] span,
@@ -1069,39 +1051,39 @@ st.markdown("""
         color: #64748B !important;
     }
     [data-testid="stFileUploader"] section:hover, section[data-testid="stFileUploadDropzone"]:hover {
-        border-color: #2563EB !important;
-        background-color: #F0F7FF !important;
-        box-shadow: 0 0 16px rgba(37, 99, 235, 0.12) !important;
+        border-color: #0284C7 !important;
+        background-color: #F0F9FF !important;
     }
 
-    /* Segmented Control Pill styling */
+    /* Segmented Control (Theo mẫu) */
     [data-testid="stSegmentedControl"] {
         background: #F1F5F9 !important;
-        border-radius: 9999px !important;
+        border-radius: 12px !important;
         padding: 4px !important;
         border: 1px solid #E2E8F0 !important;
     }
     [data-testid="stSegmentedControl"] button {
-        border-radius: 9999px !important;
+        border-radius: 8px !important;
         border: none !important;
-        color: #64748B !important;
+        color: #475569 !important;
         font-weight: 600 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-selected="true"] {
-        background: #2563EB !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25) !important;
+        background: #FFFFFF !important;
+        color: #0369A1 !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+        font-weight: 700 !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       BẢNG KỸ THUẬT GỌN GÀNG (SCADA COMPACT TABLE & DATAFRAME)
+       TABLES & DATAFRAMES (ROUNDED-XL + STICKY SLATE-100 HEADER)
        ═══════════════════════════════════════════════════════════════ */
     .scada-compact-table-wrap {
         width: 100% !important;
         max-width: 100% !important;
-        border-radius: 18px;
+        border-radius: 12px;
         border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         overflow: hidden;
         margin: 10px 0 14px 0;
         background: #FFFFFF !important;
@@ -1119,17 +1101,17 @@ st.markdown("""
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #F8FAFC !important;
-        color: #475569 !important;
+        background: #F1F5F9 !important;
+        color: #334155 !important;
         font-weight: 700;
-        padding: 12px 10px;
-        border-bottom: 2px solid #E2E8F0 !important;
-        font-size: 0.76rem;
+        padding: 11px 10px;
+        border-bottom: 1px solid #E2E8F0 !important;
+        font-size: 0.74rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
     }
     .scada-compact-table td {
-        padding: 12px 10px;
+        padding: 11px 10px;
         border-bottom: 1px solid #F1F5F9 !important;
         vertical-align: top;
         white-space: normal !important;
@@ -1143,13 +1125,13 @@ st.markdown("""
 
     [data-testid="stDataFrame"] {
         border: 1px solid #E2E8F0 !important;
-        border-radius: 18px !important;
+        border-radius: 12px !important;
         background: #FFFFFF !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
         overflow: hidden !important;
     }
 
-    /* Custom 5px Slim Scrollbar (Zero-Scroll Standard) */
+    /* Custom 5px Slim Scrollbar */
     ::-webkit-scrollbar {
         width: 5px;
         height: 5px;
@@ -2053,16 +2035,16 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
         if "KHỚP" in cat or old_code_str:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(46, 204, 113, 0.15); color:#4CD964; border:1px solid #2ECC71; margin-bottom:3px;">🟢 KHỚP KHO</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.88rem;">{old_code_str}</div>'
-                f'<div style="font-size:0.72rem; color:#8FA89B;">Tồn: <strong style="color:#0F172A;">{ton} {unit}</strong></div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; margin-bottom:3px;">🟢 KHỚP KHO</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#047857; font-size:0.88rem;">{old_code_str}</div>'
+                f'<div style="font-size:0.72rem; color:#64748B;">Tồn: <strong style="color:#0F172A;">{ton} {unit}</strong></div>'
                 f'</div>'
             )
         else:
             badge_html = (
                 f'<div style="text-align:center;">'
-                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(245, 176, 65, 0.15); color:#F5B041; border:1px solid #F5B041; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
-                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#F5B041; font-size:0.88rem;">{new_code_str}</div>'
+                f'<span style="display:inline-block; padding:3px 8px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FFFBEB; color:#B45309; border:1px solid #FDE68A; margin-bottom:3px;">🟡 CẤP MÃ MỚI</span>'
+                f'<div style="font-family:JetBrains Mono, monospace; font-weight:700; color:#B45309; font-size:0.88rem;">{new_code_str}</div>'
                 f'</div>'
             )
 
@@ -2070,19 +2052,19 @@ def render_report_detail_html(df: pd.DataFrame) -> str:
 
         row_html = (
             f'<tr style="border-bottom: 1px solid #F1F5F9;">'
-            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
+            f'<td style="text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#0284C7; font-size:0.82rem; padding:8px 4px;">#{stt}</td>'
             f'<td style="padding:8px 8px; word-break:break-word;">'
             f'<div style="font-weight:700; color:#0F172A; font-size:0.86rem; line-height:1.35; margin-bottom:2px;">{t_norm}</div>'
-            f'<div style="color:#8FA89B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
+            f'<div style="color:#64748B; font-size:0.75rem; line-height:1.3;">Gốc: {t_raw}</div>'
             f'{doc_tag}'
             f'</td>'
-            f'<td style="padding:8px 8px; color:#2ECC71; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
+            f'<td style="padding:8px 8px; color:#0369A1; font-size:0.8rem; line-height:1.35; word-break:break-word; font-weight:500;">{spec}</td>'
             f'<td style="text-align:center; padding:8px 4px; white-space:nowrap;">'
             f'<div style="font-size:0.95rem; font-weight:700; color:#0F172A;">{qty}</div>'
             f'<div style="font-size:0.72rem; color:#64748B; font-weight:600;">{unit}</div>'
             f'</td>'
             f'<td style="padding:8px 4px;">{badge_html}</td>'
-            f'<td style="padding:8px 8px; color:#8FA89B; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
+            f'<td style="padding:8px 8px; color:#475569; font-size:0.78rem; line-height:1.35; word-break:break-word;">{note}</td>'
             f'</tr>'
         )
         rows.append(row_html)
@@ -2145,9 +2127,9 @@ def render_compact_table_html(items: list) -> str:
         stock_alert_html = "".join([f"<span style='display:inline-block; margin-top:2px; font-size:0.68rem; padding:1px 5px; border-radius:4px; background:#FEE2E2; color:#DC2626; font-weight:600;'>{html.escape(a)}</span>" for a in alert_tags])
 
         if trang_thai == "KHỚP":
-            badge_bg = "rgba(59, 130, 246, 0.15)" if is_generic else "rgba(46, 204, 113, 0.15)"
-            badge_color = "#60A5FA" if is_generic else "#4CD964"
-            badge_border = "#3B82F6" if is_generic else "#2ECC71"
+            badge_bg = "#F0F9FF" if is_generic else "#ECFDF5"
+            badge_color = "#0369A1" if is_generic else "#047857"
+            badge_border = "#BAE6FD" if is_generic else "#A7F3D0"
             badge_text = "🔵 KHỚP MÃ CHUNG" if is_generic else "🟢 KHỚP KHO"
             status_col = (
                 f"<div style='text-align:center;'>"
@@ -2161,7 +2143,7 @@ def render_compact_table_html(items: list) -> str:
         elif trang_thai == "MỚI":
             status_col = (
                 f"<div style='text-align:center;'>"
-                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:rgba(245, 176, 65, 0.15); color:#F5B041; border:1px solid #F5B041; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
+                f"<span style='display:inline-block; padding:3px 9px; border-radius:9999px; font-size:0.72rem; font-weight:700; background:#FFFBEB; color:#B45309; border:1px solid #FDE68A; margin-bottom:4px;'>🟡 CẤP MÃ MỚI</span>"
                 f"<div style='font-family:JetBrains Mono, monospace; font-weight:700; color:#D97706; font-size:0.95rem;'>{ma_de_xuat}</div>"
                 f"<div style='font-size:0.72rem; color:#B45309;'>(Mã số mới 0x.xxxx)</div>"
                 f"</div>"
@@ -2176,23 +2158,23 @@ def render_compact_table_html(items: list) -> str:
 
         row = (
             f"<tr>"
-            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#4CD964; font-size:0.88rem;'>#{stt}</td>"
+            f"<td style='text-align:center; font-family:JetBrains Mono, monospace; font-weight:700; color:#047857; font-size:0.88rem;'>#{stt}</td>"
             f"<td>"
-            f"<div style='font-weight:700; color:#FFFFFF; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
-            f"<div style='color:#8FA89B; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
+            f"<div style='font-weight:700; color:#0F172A; font-size:0.92rem; line-height:1.35; margin-bottom:3px;'>{ten_chuan_hoa}</div>"
+            f"<div style='color:#475569; font-size:0.78rem; line-height:1.35;'><strong>Gốc:</strong> {ten_trich_xuat}</div>"
             f"<div style='color:#94a3b8; font-size:0.72rem; font-family:JetBrains Mono, monospace; margin-top:2px;'>📄 {chung_tu_goc}</div>"
             f"</td>"
             f"<td>"
-            f"<div style='color:#2ECC71; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
+            f"<div style='color:#0369A1; font-size:0.84rem; font-weight:500; line-height:1.4;'>{quy_cach}</div>"
             f"</td>"
             f"<td style='text-align:center;'>"
             f"<div style='font-size:1.05rem; font-weight:700; color:#0F172A;'>{so_luong}</div>"
-            f"<div style='font-size:0.75rem; color:#8FA89B; font-weight:600;'>{don_vi}</div>"
+            f"<div style='font-size:0.75rem; color:#64748B; font-weight:600;'>{don_vi}</div>"
             f"</td>"
             f"<td>{status_col}</td>"
             f"<td>{goi_y_html}</td>"
             f"<td>"
-            f"<div style='font-size:0.8rem; color:#8FA89B; line-height:1.4;'>💡 {ghi_chu}</div>"
+            f"<div style='font-size:0.8rem; color:#475569; line-height:1.4;'>💡 {ghi_chu}</div>"
             f"</td>"
             f"</tr>"
         )
@@ -2227,7 +2209,7 @@ def render_compact_table_html(items: list) -> str:
 @st.fragment
 def render_mini_chat_assistant(df_master: pd.DataFrame, api_key: str, model_name: str):
     st.markdown("""
-    <div style="font-weight: 700; color: #FFFFFF; font-size: 0.95rem; margin-bottom: 2px;">
+    <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem; margin-bottom: 2px;">
         👨‍🔧 TRỢ LÝ KỸ SƯ TRƯỞNG CƠ - ĐIỆN
     </div>
     <div style="font-size: 0.76rem; color: #64748B; margin-bottom: 8px;">
@@ -2318,9 +2300,9 @@ with st.sidebar:
         status_label = "🤖 Agent 1: Đối chiếu & Cấp mã"
 
     st.markdown(f"""
-    <div style="background: linear-gradient(145deg, rgba(22, 48, 35, 0.92) 0%, rgba(14, 32, 23, 0.95) 100%); border: 1.5px solid rgba(76, 217, 100, 0.28); border-radius: 22px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);">
-        <div style="font-size:0.75rem; color:#8FA89B; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">ĐANG ĐIỀU HÀNH:</div>
-        <div style="font-size:0.92rem; font-weight:700; color:{status_color}; margin-top:4px;">
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);">
+        <div style="font-size:0.72rem; color:#64748B; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Đang điều hành:</div>
+        <div style="font-size:0.9rem; font-weight:700; color:#0369A1; margin-top:4px;">
             {status_label}
         </div>
     </div>
@@ -2391,22 +2373,25 @@ with st.sidebar:
 current_public_url = get_public_url()
 st.markdown(f"""
 <div class="hud-header">
-    <div>
-        <div class="hud-title">
-            ⚙️ <span>HỆ THỐNG AI QUẢN TRỊ & CHUẨN HÓA VẬT TƯ KỸ THUẬT</span>
-        </div>
-        <div class="hud-subtitle">
-            🏢 PHÒNG KỸ THUẬT - CƠ ĐIỆN | CÔNG TY CP PHÂN BÓN & HÓA CHẤT CẦN THƠ
+    <div class="hud-title-wrap">
+        <div class="hud-ai-badge">AI</div>
+        <div>
+            <div class="hud-title">
+                <span>Hệ Thống AI Quản Trị & Chuẩn Hóa Vật Tư Kỹ Thuật</span>
+            </div>
+            <div class="hud-subtitle">
+                Phòng Kỹ Thuật - Cơ Điện | Công ty CP Phân bón & Hóa chất Cần Thơ (CFC)
+            </div>
         </div>
     </div>
     <div class="hud-chips">
         <span class="hud-badge badge-green">
-            <span class="status-dot-pulse"></span> READY
+            <span class="status-dot-pulse"></span> Sẵn sàng
         </span>
-        <span class="hud-badge badge-cyan">KHO: {len(df_master):,} MÃ</span>
+        <span class="hud-badge badge-cyan">📦 Kho: {len(df_master):,} mã</span>
         <span class="hud-badge">LAN: 192.168.1.189:8501</span>
         <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link toàn cầu cho internet truy cập">
-            🌐 CLOUD ↗
+            🌐 Cloud ↗
         </a>
     </div>
 </div>
@@ -2475,10 +2460,10 @@ base_url = get_public_url()
 st.markdown(f"""
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin: 2px 0 6px 0;">
     <span style="font-size:0.75rem; color:#64748B; font-weight:600;">Mở tab mới:</span>
-    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#EFF6FF; color:#2563EB; border:1px solid #BFDBFE; padding:3px 12px; border-radius:9999px; font-weight:600;">
+    <a href="{base_url}/?tab=agent1" target="_blank" title="Mở Agent 1 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; padding:4px 10px; border-radius:8px; font-weight:600;">
         🤖 Agent 1 ↗
     </a>
-    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; padding:3px 12px; border-radius:9999px; font-weight:600;">
+    <a href="{base_url}/?tab=agent2" target="_blank" title="Mở Agent 2 trên tab trình duyệt riêng biệt" style="text-decoration:none; font-size:0.75rem; background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; padding:4px 10px; border-radius:8px; font-weight:600;">
         ⚡ Agent 2 ↗
     </a>
 </div>
@@ -2860,16 +2845,19 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
         def _render_intake_hub():
             st.markdown("""
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <div style="font-size: 1.4rem; color: #2563EB; font-weight: 800; line-height: 1;">➕</div>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px;">
                 <div>
-                    <div style="font-weight: 800; color: #0F172A; font-size: 1rem; letter-spacing: -0.2px;">
-                        CỔNG NẠP CHỨNG TỪ ĐA NĂNG (HỖ TRỢ QUÉT & PHÂN TÍCH SONG SONG)
+                    <div style="font-weight: 700; color: #0F172A; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 10px; height: 10px; border-radius: 9999px; background: #0EA5E9; display: inline-block;"></span>
+                        Cổng Nạp Chứng Từ Đa Năng (Hỗ Trợ Quét & Phân Tích Song Song)
                     </div>
-                    <div style="font-size: 0.78rem; color: #64748B; margin-top: 2px;">
+                    <div style="font-size: 0.78rem; color: #64748B; margin-top: 3px; margin-left: 18px;">
                         Chọn hoặc kéo thả đồng thời nhiều file cùng lúc: <strong>Ảnh chụp</strong> (PNG, JPG, WEBP) & <strong>Tài liệu</strong> (PDF, XLSX, XLS, CSV)
                     </div>
                 </div>
+                <span style="font-size: 0.75rem; background: #F0F9FF; color: #0369A1; border: 1px solid #E0F2FE; padding: 3px 10px; border-radius: 9999px; font-weight: 600;">
+                    AI: Smart Document OCR
+                </span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -2982,9 +2970,9 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
             ts_live = st.session_state["ag1_task_state"]
             if ts_live.get("is_running", False):
                 st.markdown("""
-                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:16px; padding:14px 18px; margin-bottom:12px; box-shadow:0 2px 10px rgba(37,99,235,0.04);">
-                    <div style="font-size:0.85rem; font-weight:700; color:#1D4ED8;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
-                    <div style="font-size:0.75rem; color:#8FA89B; margin-top:2px;">
+                <div style="background:#F0F9FF; border:1px solid #E0F2FE; border-radius:12px; padding:12px 16px; margin-bottom:12px;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#0369A1;">⏳ TIẾN TRÌNH ĐỐI CHIẾU ĐANG CHẠY NGẦM...</div>
+                    <div style="font-size:0.75rem; color:#075985; margin-top:2px;">
                         Tiến trình được bảo vệ độc lập trong background worker. Bạn có thể tự do chuyển sang Agent 2 hoặc các chức năng khác mà không lo bị gián đoạn!
                     </div>
                 </div>
