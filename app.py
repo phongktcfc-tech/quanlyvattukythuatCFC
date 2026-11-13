@@ -3283,6 +3283,219 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
     # ═══════════════════════════════════════════════════════════════════════════
     # SUB-TAB 2: KHO VẬT TƯ & CẬP NHẬT DANH MỤC (TỐI ƯU CỤC BỘ @st.fragment)
     # ═══════════════════════════════════════════════════════════════════════════
+    def render_client_autocomplete_box(items_data: list, input_selector: str, box_id: str):
+        """
+        Component gợi ý thông minh thời gian thực (Client-side Autocomplete Dropdown).
+        Hiển thị tức thì danh sách vật tư gợi ý khi người dùng gõ phím mà không cần bấm Enter.
+        Hỗ trợ tìm kiếm tiếng Việt không dấu/có dấu, click chọn điền tự động và lọc bảng ngay lập tức.
+        """
+        items_json = json.dumps(items_data, ensure_ascii=False)
+        components.html(f"""
+        <script>
+        (function() {{
+            const items = {items_json};
+            
+            function removeVnTones(str) {{
+                if (!str) return '';
+                str = str.toLowerCase();
+                str = str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+                str = str.replace(/[đĐ]/g, "d");
+                str = str.replace(/bulong/g, "bulon");
+                return str.trim();
+            }}
+
+            function initSuggest() {{
+                try {{
+                    const pDoc = window.parent.document;
+                    const input = pDoc.querySelector('{input_selector}') || pDoc.querySelector('input[placeholder*="02.xxx"]');
+                    if (!input) return;
+                    if (input.dataset.suggestBoxId === "{box_id}") return;
+                    input.dataset.suggestBoxId = "{box_id}";
+
+                    let dropdown = pDoc.getElementById("{box_id}");
+                    if (!dropdown) {{
+                        dropdown = pDoc.createElement("div");
+                        dropdown.id = "{box_id}";
+                        dropdown.style.cssText = "position:fixed; z-index:9999999; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; box-shadow:0 12px 28px -4px rgba(0,0,0,0.18), 0 8px 10px -6px rgba(0,0,0,0.1); max-height:300px; overflow-y:auto; display:none; font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;";
+                        pDoc.body.appendChild(dropdown);
+                    }}
+
+                    function updateDropdownPosition() {{
+                        if (!input || !dropdown) return;
+                        const rect = input.getBoundingClientRect();
+                        dropdown.style.top = (rect.bottom + 4) + "px";
+                        dropdown.style.left = rect.left + "px";
+                        dropdown.style.width = Math.max(rect.width, 360) + "px";
+                    }}
+
+                    window.parent.addEventListener('resize', updateDropdownPosition);
+                    window.parent.addEventListener('scroll', updateDropdownPosition, true);
+
+                    let selectedIdx = -1;
+                    let currentMatches = [];
+
+                    function renderSuggestions(query) {{
+                        if (!query || query.trim().length === 0) {{
+                            dropdown.style.display = "none";
+                            dropdown.innerHTML = "";
+                            selectedIdx = -1;
+                            currentMatches = [];
+                            return;
+                        }}
+                        const qRaw = query.trim().toLowerCase();
+                        const qNorm = removeVnTones(query);
+                        const qCompact = qNorm.split(' ').join('');
+
+                        currentMatches = items.filter(it => {{
+                            const nameRaw = (it.ten || "").toLowerCase();
+                            const nameNorm = removeVnTones(it.ten);
+                            const nameCompact = nameNorm.split(' ').join('');
+                            const codeRaw = (it.ma || "").toLowerCase();
+                            const codeCompact = codeRaw.split(' ').join('');
+                            const specRaw = (it.quy_cach || "").toLowerCase();
+                            const specNorm = removeVnTones(it.quy_cach);
+                            const specCompact = specNorm.split(' ').join('');
+
+                            return nameRaw.includes(qRaw) || nameNorm.includes(qNorm) || (qCompact.length >= 2 && nameCompact.includes(qCompact)) ||
+                                   codeRaw.includes(qRaw) || (qCompact.length >= 2 && codeCompact.includes(qCompact)) ||
+                                   specRaw.includes(qRaw) || specNorm.includes(qNorm) || (qCompact.length >= 2 && specCompact.includes(qCompact));
+                        }}).slice(0, 8);
+
+                        selectedIdx = -1;
+
+                        if (currentMatches.length === 0) {{
+                            dropdown.innerHTML = `<div style="padding:10px 14px; font-size:0.8rem; color:#94A3B8; text-align:center;">Không tìm thấy vật tư khớp với "${{query}}"</div>`;
+                            updateDropdownPosition();
+                            dropdown.style.display = "block";
+                            return;
+                        }}
+
+                        let html = `<div style="padding:6px 12px; background:#F8FAFC; border-bottom:1px solid #F1F5F9; font-size:0.75rem; font-weight:700; color:#0369A1; display:flex; justify-content:space-between; align-items:center;">` +
+                                   `<span>VẬT TƯ GỢI Ý (${{currentMatches.length}})</span><span style="color:#64748B; font-size:0.7rem; font-weight:normal;">Bấm để chọn</span></div>`;
+
+                        currentMatches.forEach((it, idx) => {{
+                            const tonVal = (it.ton !== undefined && it.ton !== null) ? it.ton : 0;
+                            const tonColor = tonVal > 0 ? "#059669" : "#DC2626";
+                            const tonBg = tonVal > 0 ? "#ECFDF5" : "#FEF2F2";
+                            const codeStr = it.ma || "";
+                            const specStr = it.quy_cach || "";
+                            const dvtStr = it.dvt || "";
+
+                            html += `
+                            <div class="cfc-item" data-idx="${{idx}}" style="padding:8px 12px; border-bottom:1px solid #F8FAFC; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s ease;">
+                                <div style="flex:1; min-width:0; padding-right:8px;">
+                                    <div style="font-size:0.85rem; font-weight:600; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        ${{codeStr ? `<span style="background:#E0F2FE; color:#0284C7; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700; margin-right:6px;">${{codeStr}}</span>` : ''}}
+                                        ${{it.ten}}
+                                    </div>
+                                    ${{specStr ? `<div style="font-size:0.75rem; color:#64748B; margin-top:2px;">Quy cách: <strong style="color:#334155;">${{specStr}}</strong></div>` : ''}}
+                                </div>
+                                <div style="text-align:right; flex-shrink:0;">
+                                    <span style="background:${{tonBg}}; color:${{tonColor}}; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-block;">
+                                        ${{tonVal}} ${{dvtStr}}
+                                    </span>
+                                </div>
+                            </div>`;
+                        }});
+
+                        dropdown.innerHTML = html;
+                        updateDropdownPosition();
+                        dropdown.style.display = "block";
+
+                        dropdown.querySelectorAll('.cfc-item').forEach(el => {{
+                            el.addEventListener('mouseenter', function() {{
+                                selectedIdx = parseInt(this.getAttribute('data-idx'));
+                                updateHighlight();
+                            }});
+                            el.addEventListener('click', function(e) {{
+                                e.stopPropagation();
+                                const idx = parseInt(this.getAttribute('data-idx'));
+                                if (currentMatches[idx]) {{
+                                    selectItem(currentMatches[idx].ten);
+                                }}
+                            }});
+                        }});
+                    }}
+
+                    function updateHighlight() {{
+                        const itemEls = dropdown.querySelectorAll('.cfc-item');
+                        itemEls.forEach((el, i) => {{
+                            if (i === selectedIdx) {{
+                                el.style.background = "#F0F9FF";
+                            }} else {{
+                                el.style.background = "transparent";
+                            }}
+                        }});
+                    }}
+
+                    function selectItem(val) {{
+                        const prototype = Object.getPrototypeOf(input);
+                        const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set || Object.getOwnPropertyDescriptor(input, 'value')?.set;
+                        setter.call(input, val);
+                        input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        input.dispatchEvent(new KeyboardEvent('keydown', {{
+                            key: 'Enter',
+                            code: 'Enter',
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true
+                        }}));
+                        dropdown.style.display = "none";
+                    }}
+
+                    input.addEventListener('input', function(e) {{
+                        renderSuggestions(this.value);
+                    }});
+
+                    input.addEventListener('focus', function(e) {{
+                        if (this.value) {{
+                            renderSuggestions(this.value);
+                        }}
+                    }});
+
+                    pDoc.addEventListener('click', function(e) {{
+                        if (!input.contains(e.target) && !dropdown.contains(e.target)) {{
+                            dropdown.style.display = "none";
+                        }}
+                    }});
+
+                    input.addEventListener('keydown', function(e) {{
+                        if (dropdown.style.display === "block" && currentMatches.length > 0) {{
+                            if (e.key === 'ArrowDown') {{
+                                e.preventDefault();
+                                selectedIdx = (selectedIdx + 1) % currentMatches.length;
+                                updateHighlight();
+                                return;
+                            }} else if (e.key === 'ArrowUp') {{
+                                e.preventDefault();
+                                selectedIdx = (selectedIdx - 1 + currentMatches.length) % currentMatches.length;
+                                updateHighlight();
+                                return;
+                            }} else if (e.key === 'Enter') {{
+                                if (selectedIdx >= 0 && selectedIdx < currentMatches.length) {{
+                                    e.preventDefault();
+                                    selectItem(currentMatches[selectedIdx].ten);
+                                    return;
+                                }}
+                                dropdown.style.display = "none";
+                            }} else if (e.key === 'Escape') {{
+                                dropdown.style.display = "none";
+                            }}
+                        }}
+                    }});
+
+                }} catch(err) {{
+                    console.error("Init suggest error:", err);
+                }}
+            }}
+
+            setTimeout(initSuggest, 400);
+            setInterval(initSuggest, 1200);
+        }})();
+        </script>
+        """, height=0)
+
     @st.fragment
     def render_tab_master(df_master: pd.DataFrame = None):
         df_master = load_master_df()
@@ -3336,6 +3549,31 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
 
         st.dataframe(df_view, use_container_width=True, height=320, column_config=column_config)
         st.caption(f"Đang hiển thị {len(df_display):,} / {len(df_master):,} mã hàng trong kho.")
+
+        # Kích hoạt gợi ý tức thì khi gõ ký tự (Real-time Instant Autocomplete Dropdown)
+        if not df_master.empty:
+            suggest_items_ag1 = []
+            for _, r in df_master.iterrows():
+                m_code = str(r.get("Mã hàng", "") or "").strip()
+                if m_code.endswith(".0"):
+                    m_code = m_code[:-2]
+                if m_code and not m_code.startswith("0") and len(m_code) > 2:
+                    m_code = "0" + m_code
+                t_name = str(r.get("Tên hàng", "") or "").strip()
+                if not t_name:
+                    continue
+                suggest_items_ag1.append({
+                    "ma": m_code,
+                    "ten": t_name,
+                    "quy_cach": "",
+                    "ton": float(r.get("Cuối kỳ SL", 0) or 0),
+                    "dvt": str(r.get("ĐVT", "") or "").strip()
+                })
+            render_client_autocomplete_box(
+                items_data=suggest_items_ag1,
+                input_selector='input[aria-label="🔍 Tìm kiếm danh mục kho:"]',
+                box_id="cfc_ag1_master_suggest_box"
+            )
 
         # ── KHU VỰC CẬP NHẬT FILE KHO MỚI & TỪ ĐIỂN ÁNH XẠ ──
         col_up_box, col_alias_box = st.columns([1, 1], gap="medium")
