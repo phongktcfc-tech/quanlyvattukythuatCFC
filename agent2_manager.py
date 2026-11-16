@@ -180,17 +180,55 @@ def get_smtp_credentials():
 def sync_live_google_sheet(sheet_id: str = GOOGLE_SHEET_ID, target_path: Path = LOCAL_SHEET_FILE) -> tuple[bool, str]:
     """Tải trực tiếp file Excel từ link Google Sheet thời gian thực."""
     export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+    tmp_path = Path(str(target_path) + ".download")
     try:
         req = urllib.request.Request(
             export_url,
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         )
-        with urllib.request.urlopen(req, timeout=30) as response, open(target_path, "wb") as out_file:
-            out_file.write(response.read())
+        with urllib.request.urlopen(req, timeout=30) as response:
+            payload = response.read()
+        # Chỉ thay file cũ khi tải đủ VÀ đúng là file .xlsx (tránh ghi đè bằng trang đăng nhập/lỗi HTML hoặc file cụt)
+        if len(payload) < 1024 or payload[:2] != b"PK":
+            return False, "Lỗi đồng bộ Google Sheet: dữ liệu tải về không phải file Excel hợp lệ (giữ nguyên dữ liệu cũ)"
+        tmp_path.write_bytes(payload)
+        os.replace(tmp_path, target_path)
         now_str = format_vn_time(get_vn_now())
         return True, f"Đồng bộ thành công lúc {now_str}"
     except Exception as e:
-        return False, f"Lỗi đồng bộ Google Sheet: {e}"
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+        return False, f"Lỗi đồng bộ Google Sheet: {e} (giữ nguyên dữ liệu cũ)"
+
+
+# Cảnh báo bố cục Google Sheet lần đọc gần nhất (hiển thị trên giao diện Agent 2)
+LAST_DATA_WARNINGS: list = []
+
+# Vị trí cột (1-based) → từ khóa BẮT BUỘC có trong ô tiêu đề dòng 1; code đang đọc dữ liệu theo đúng các vị trí này
+_EXPECTED_TONGHOP_HEADERS = {2: "tên", 4: "đơn vị", 5: "tồn đầu", 6: "nhập", 7: "xuất", 8: "tồn kho", 9: "định mức"}
+_EXPECTED_MONTH_HEADERS = {2: "tên", 4: "nhập", 9: "tên", 11: "xuất"}
+
+
+def validate_sheet_layout(wb) -> list:
+    """Kiểm tra tiêu đề cột Google Sheet còn đúng vị trí mà code đang đọc. Trả về danh sách cảnh báo (rỗng = ổn)."""
+    warns = []
+
+    def _check(ws, expected: dict):
+        for col, kw in expected.items():
+            head = str(ws.cell(1, col).value or "").strip().lower()
+            if kw not in head:
+                warns.append(f"Sheet '{ws.title}': cột {col} cần có '{kw}' nhưng đang là '{head or '(trống)'}' — số liệu có thể bị lệch")
+
+    if "Tổng Hợp Vật Tư" in wb.sheetnames:
+        _check(wb["Tổng Hợp Vật Tư"], _EXPECTED_TONGHOP_HEADERS)
+    else:
+        warns.append("Không tìm thấy sheet 'Tổng Hợp Vật Tư' — Agent 2 không có dữ liệu tồn kho")
+    for name in wb.sheetnames:
+        if "tháng" in name.lower():
+            _check(wb[name], _EXPECTED_MONTH_HEADERS)
+    return warns
 
 
 def load_data_from_sheets(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
@@ -246,6 +284,10 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
     except Exception as e:
         print(f"[Agent 2] Lỗi mở file Excel: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    LAST_DATA_WARNINGS[:] = validate_sheet_layout(wb)
+    for _w in LAST_DATA_WARNINGS:
+        print(f"[Agent 2] ⚠️ {_w}")
 
     # 1. Đọc sheet 'Tổng Hợp Vật Tư'
     tonghop_data = []
@@ -1731,6 +1773,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         df_th, df_nh, df_xt, last_sync_str = load_data_from_sheets(force_sync=force_sync)
 
     df_th = process_inventory_dataframe(df_th)
+
+    if LAST_DATA_WARNINGS:
+        st.warning("⚠️ **Bố cục Google Sheet đã thay đổi — số liệu có thể sai, hãy kiểm tra lại Sheet:**\n\n" + "\n".join(f"- {w}" for w in LAST_DATA_WARNINGS[:6]))
 
     if df_th.empty:
         st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")

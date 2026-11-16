@@ -42,6 +42,7 @@ from PIL import Image
 import google.generativeai as genai
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
+from auto_match_gate import decide_auto_match
 from secrets_config import get_secret
 
 # ── PDF Parser ──
@@ -2733,11 +2734,22 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 # TỰ ĐỘNG KHỚP: EXACT_MATCH (>=85%) HOẶC GENERIC_MATCH (>=65%) cùng chủng loại
                 _best_ten_norm = best.get("ten", "").lower().replace(",", ".").replace("*", "x") if best else ""
                 _search_norm = search_str.lower().replace(",", ".").replace("*", "x")
+                # Cổng chống khớp nhầm thông số (auto_match_gate, chế độ strict) — chủ dự án đã duyệt sửa vùng này
+                _auto_decision, _auto_note = decide_auto_match(search_str, best, strict_exact=True)
                 _is_generic_ok = (
                     best and best.get("tier") == "GENERIC_MATCH" and best.get("score", 0) >= 65
                     and any(kw in _best_ten_norm for kw in _search_norm.split() if len(kw) >= 3)
+                    and _auto_decision == "KHỚP"
                 )
-                if best and ((best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85) or _is_generic_ok):
+                if best and _auto_decision == "CẦN_XÁC_NHẬN" and not (r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu") and str(r.get("ma_vat_tu_cu")).strip() not in ["null", "-", "None", ""]):
+                    # Có ứng viên gần giống nhưng lệch thông số → để kỹ sư chọn, KHÔNG tự cấp mã mới, KHÔNG tự khớp
+                    r["trang_thai"] = "CẦN_XÁC_NHẬN"
+                    r["ma_vat_tu_cu"] = None
+                    r["ten_trong_kho"] = "-"
+                    r["ton_kho"] = 0
+                    r["ma_de_xuat"] = "-"
+                    r["ghi_chu"] = f"⚠️ CẦN XÁC NHẬN: {_auto_note}"
+                elif best and ((best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85 and _auto_decision == "KHỚP") or _is_generic_ok):
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
@@ -3201,7 +3213,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                         t_raw = item.get("ten_trich_xuat", "")
                         q_spec = item.get("quy_cach", "")
                         curr_code = item.get("ma_vat_tu_cu") if item.get("trang_thai") == "KHỚP" else item.get("ma_de_xuat")
-                        status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else "🟡 Cấp mã mới"
+                        status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else ("🔴 Cần xác nhận" if item.get("trang_thai") == "CẦN_XÁC_NHẬN" else "🟡 Cấp mã mới")
 
                         item_cands = item.get("candidates") or []
                         if not item_cands or any("pct_str" not in c for c in item_cands):
