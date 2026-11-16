@@ -200,6 +200,14 @@ def init_db():
     conn.close()
     _DB_INITIALIZED = True
 
+# ── Lưu trữ bền vững: kéo dữ liệu từ nhánh data-store trước khi mở DB (chống mất dữ liệu khi Cloud khởi động lại) ──
+import persistent_store
+PERSIST = persistent_store.get_store(BASE_DIR)
+PERSIST.startup_sync(
+    files={MASTER_FILE: persistent_store.KIND_MASTER, DB_PATH: persistent_store.KIND_SQLITE},
+    dirs={REPORT_DIR: persistent_store.KIND_IMMUTABLE},
+)
+
 init_db()
 
 @st.cache_data(ttl=60)
@@ -333,8 +341,10 @@ def save_approved_material(
         
     conn.commit()
     conn.close()
-    
+
     append_material_to_master_excel(code, name_normalized, unit, spec)
+    PERSIST.persist(DB_PATH, persistent_store.KIND_SQLITE)
+    PERSIST.persist(MASTER_FILE, persistent_store.KIND_MASTER)
     try:
         load_master_df.clear()
         get_all_approved_materials.clear()
@@ -540,6 +550,7 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
 
         merged_df = merged_df.sort_values(by="Mã hàng").reset_index(drop=True)
         merged_df.to_excel(MASTER_FILE, index=False)
+        PERSIST.persist(MASTER_FILE, persistent_store.KIND_MASTER)
         load_master_df.clear()
         build_search_corpus.clear()
         try:
@@ -2001,6 +2012,7 @@ def save_batch_report_excel(results: list, batch_name: str = "TongHop") -> Path:
 
     ws.freeze_panes = "A2"
     wb.save(report_path)
+    PERSIST.persist(report_path, persistent_store.KIND_IMMUTABLE)
     return report_path
 
 

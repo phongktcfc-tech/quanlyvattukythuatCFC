@@ -20,4 +20,5 @@ agent2_cron.log
 .codegraph/
 scratch/
 backup/
+.persist_manifest.json
 
