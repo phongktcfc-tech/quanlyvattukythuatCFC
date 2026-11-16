@@ -25,6 +25,8 @@ import pandas as pd
 import openpyxl
 import streamlit as st
 
+from secrets_config import get_secret
+
 # ── THIẾT LẬP THƯ MỤC & ĐƯỜNG DẪN (TỰ ĐỘNG THÍCH ỨNG LOCAL & CLOUD) ──
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "Agent2_Data"
@@ -32,10 +34,11 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 LOCAL_SHEET_FILE = DATA_DIR / "Kho_CoDien_Live.xlsx"
 GOOGLE_SHEET_ID = "13cATeOG2G62QXP9F6luZ0V5OHij-b0kPj_r0-Wb97JE"
-DEFAULT_RECIPIENT = "linhb1702638@gmail.com"
+# Email nhận báo cáo lấy từ khóa bí mật RECIPIENT_EMAIL (hoặc EMAIL_ADDRESS) — không ghi thẳng vào code
+DEFAULT_RECIPIENT = get_secret("RECIPIENT_EMAIL") or get_secret("EMAIL_ADDRESS")
 TARGET_EMAIL = DEFAULT_RECIPIENT
 
-# Nạp thông tin cấu hình Gmail từ file .env dùng chung hoặc st.secrets / env var
+# Nạp thông tin cấu hình Gmail: xem secrets_config.py (env var → st.secrets → .env)
 ENV_FILE = Path("D:/Agent EmailAssistant/.env")
 
 # ── MÚI GIỜ VIỆT NAM (UTC+7) & ĐỊNH DẠNG THỜI GIAN ──
@@ -159,44 +162,17 @@ def format_status_badge(val: str) -> str:
 
 def get_smtp_credentials():
     """Lấy thông tin tài khoản SMTP an toàn từ st.secrets, .env hoặc cấu hình chuẩn."""
-    creds = {
-        "user": "linhb1702638@gmail.com",
-        "password": "tgnr ejny ffuy bwmx",
-        "server": "smtp.gmail.com",
-        "port": 587,
-        "recipient": TARGET_EMAIL
-    }
-    # Thử nạp từ st.secrets nếu đang chạy trên Streamlit Cloud
     try:
-        import streamlit as st
-        if "EMAIL_APP_PASSWORD" in st.secrets:
-            creds["password"] = st.secrets["EMAIL_APP_PASSWORD"]
-        if "EMAIL_ADDRESS" in st.secrets:
-            creds["user"] = st.secrets["EMAIL_ADDRESS"]
-    except Exception:
-        pass
-
-    if ENV_FILE.exists():
-        try:
-            with open(ENV_FILE, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        k = k.strip()
-                        v = v.strip().strip("\"'")
-                        if k == "EMAIL_ADDRESS":
-                            creds["user"] = v
-                        elif k == "EMAIL_APP_PASSWORD":
-                            creds["password"] = v
-                        elif k == "SMTP_SERVER":
-                            creds["server"] = v
-                        elif k == "SMTP_PORT":
-                            creds["port"] = int(v)
-                        elif k == "RECIPIENT_EMAIL":
-                            creds["recipient"] = v
-        except Exception as e:
-            print(f"[Agent 2] Lỗi đọc .env: {e}")
+        port = int(get_secret("SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+    creds = {
+        "user": get_secret("EMAIL_ADDRESS"),
+        "password": get_secret("EMAIL_APP_PASSWORD"),
+        "server": get_secret("SMTP_SERVER", "smtp.gmail.com"),
+        "port": port,
+        "recipient": get_secret("RECIPIENT_EMAIL") or TARGET_EMAIL
+    }
     return creds
 
 
@@ -1044,7 +1020,7 @@ Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ -
 def query_nvidia_nim_chief_engineer(
     full_prompt: str,
     system_instruction: str,
-    nvidia_key: str = "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",
+    nvidia_key: str = "",
     model: str = "nvidia/nemotron-3-ultra-550b-a55b"
 ) -> str:
     """Gọi mô hình AI NVIDIA NIM chuyên gia bóc tách kỹ thuật tiếng Việt chuẩn 100% cho Agent 2."""
@@ -1122,9 +1098,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 """
 
     # 1. ƯU TIÊN SỐ 1 VỀ TỐC ĐỘ: GOOGLE GEMINI FLASH LITE (Phản hồi siêu tốc 2-5 giây)
-    fallback_b64 = "QVEuQWI4Uk42TGNFLWlhR0Jrc1RCdjdVWWNuNVJqMk5fSVBYWlhMaE5PY2NDM0sza3dLZXc="
-    default_key = base64.b64decode(fallback_b64).decode("utf-8")
-    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "") or default_key
+    effective_key = api_key or get_secret("GOOGLE_API_KEY")
 
     if effective_key:
         try:
@@ -1165,7 +1139,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
             pass
 
     # 2. DỰ PHÒNG: ĐỘNG CƠ NVIDIA NIM (Nếu Gemini gặp sự cố mạng hoặc hết quota)
-    effective_nv_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY", "") or "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"
+    effective_nv_key = nvidia_api_key or get_secret("NVIDIA_API_KEY")
     if uploaded_file is None and effective_nv_key:
         try:
             nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)

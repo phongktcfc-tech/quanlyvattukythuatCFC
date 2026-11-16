@@ -42,6 +42,7 @@ from PIL import Image
 import google.generativeai as genai
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
+from secrets_config import get_secret
 
 # ── PDF Parser ──
 try:
@@ -2312,43 +2313,30 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚙️ THIẾT LẬP HỆ THỐNG")
     
-    default_key = os.environ.get("GOOGLE_API_KEY", "")
-    if not default_key:
-        try:
-            default_key = st.secrets.get("GOOGLE_API_KEY", "")
-        except Exception:
-            pass
-    if not default_key:
-        try:
-            import base64
-            default_key = base64.b64decode("QVEuQWI4Uk42TGNFLWlhR0Jrc1RCdjdVWWNuNVJqMk5fSVBYWlhMaE5PY2NDM0sza3dLZXc=").decode("utf-8")
-        except Exception:
-            pass
+    # Khóa mặc định chỉ đọc phía máy chủ (secrets), KHÔNG điền sẵn vào ô nhập để tránh lộ ra trình duyệt
+    default_key = get_secret("GOOGLE_API_KEY")
 
-    api_key = st.text_input(
+    api_key_input = st.text_input(
         "🔑 GOOGLE AI KEY (Agent 1)",
         type="password",
-        value=default_key,
+        value="",
+        placeholder="Đã cấu hình sẵn trên máy chủ" if default_key else "Dán Google AI Key",
     )
+    api_key = api_key_input.strip() or default_key
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
         genai.configure(api_key=api_key)
 
-    default_nv_key = os.environ.get("NVIDIA_API_KEY", "")
-    if not default_nv_key:
-        try:
-            default_nv_key = st.secrets.get("NVIDIA_API_KEY", "")
-        except Exception:
-            pass
-    if not default_nv_key:
-        default_nv_key = "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"
+    default_nv_key = get_secret("NVIDIA_API_KEY")
 
-    nvidia_api_key = st.text_input(
+    nvidia_key_input = st.text_input(
         "🟢 NVIDIA NIM KEY (Agent 2)",
         type="password",
-        value=default_nv_key,
+        value="",
+        placeholder="Đã cấu hình sẵn trên máy chủ" if default_nv_key else "Dán NVIDIA NIM Key",
         help="Khóa API của NVIDIA giúp Agent 2 chạy độc lập 100% tài nguyên, không nghẽn với Agent 1"
     )
+    nvidia_api_key = nvidia_key_input.strip() or default_nv_key
     if nvidia_api_key:
         os.environ["NVIDIA_API_KEY"] = nvidia_api_key
 
