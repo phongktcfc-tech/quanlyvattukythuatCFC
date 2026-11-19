@@ -523,26 +523,46 @@ def parse_inventory_upload(file_bytes: bytes, filename: str) -> tuple[pd.DataFra
     return final_df, f"Đã nhận diện {len(final_df)} vật tư."
 
 
-def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge") -> tuple[bool, str]:
-    """Cập nhật Master_Inventory: tự động bóc tách định dạng ERP/Kế toán, luôn cố định chế độ Hợp nhất (Merge/Upsert)."""
+def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "sync") -> tuple[bool, str]:
+    """
+    Cập nhật Master_Inventory: tự động bóc tách định dạng ERP/Kế toán. Ba chế độ (tham số `mode`):
+      - "sync"   (mặc định, khuyến nghị): file là báo cáo tồn kho ERP đầy đủ → số liệu mã có trong file được cập nhật,
+                 các mã KHÔNG có trong file vẫn giữ trong danh mục (để dò mã/tránh cấp trùng) nhưng tồn kho được đặt = 0
+                 (ERP chỉ liệt kê mã còn tồn). Nếu file nhỏ hơn nhiều so với kho hiện tại thì tự lùi về "merge" để không xóa nhầm tồn.
+      - "replace": kho chỉ gồm đúng các mã trong file (cộng các mã kỹ sư đã duyệt chưa có trong ERP).
+      - "merge"  : chỉ cập nhật mã có trong file, giữ nguyên số liệu các mã còn lại (hành vi cũ).
+    """
     try:
         new_df, parse_msg = parse_inventory_upload(file_bytes, filename)
         if new_df is None:
             return False, parse_msg
 
-        # Luôn thực hiện chế độ Hợp nhất (Merge / Upsert)
+        n_zeroed = 0
+        sync_note = ""
         if MASTER_FILE.exists():
             cur_df = pd.read_excel(MASTER_FILE, dtype={"Mã hàng": str})
             cur_df["Mã hàng"] = cur_df["Mã hàng"].astype(str).str.strip()
             cur_df = cur_df.loc[:, ~cur_df.columns.duplicated()]
             new_df = new_df.reset_index(drop=True)
             cur_df = cur_df.reset_index(drop=True)
-            # Cập nhật thông tin mới từ new_df, giữ các mã cũ không có trong new_df
+            # Cập nhật thông tin mới từ new_df; xử lý các mã cũ không có trong new_df theo `mode`
             new_codes = set(new_df["Mã hàng"])
             remaining_cur = cur_df[~cur_df["Mã hàng"].isin(new_codes)].reset_index(drop=True)
+            if mode == "replace":
+                remaining_cur = remaining_cur.iloc[0:0]
+            elif mode == "sync":
+                cur_in_stock = int((pd.to_numeric(cur_df["Cuối kỳ SL"], errors="coerce").fillna(0) > 0).sum())
+                new_in_stock = int((pd.to_numeric(new_df["Cuối kỳ SL"], errors="coerce").fillna(0) > 0).sum())
+                if cur_in_stock == 0 or new_in_stock >= 0.5 * cur_in_stock:
+                    n_zeroed = int((pd.to_numeric(remaining_cur["Cuối kỳ SL"], errors="coerce").fillna(0) > 0).sum())
+                    _zero_cols = [c for c in remaining_cur.columns if str(c).endswith(" SL") or str(c).endswith(" GT")]
+                    remaining_cur[_zero_cols] = 0
+                else:
+                    sync_note = " (file nhỏ hơn nhiều so với kho hiện tại nên chỉ hợp nhất, KHÔNG đặt tồn = 0 cho các mã còn lại)"
             merged_df = pd.concat([new_df, remaining_cur], ignore_index=True)
         else:
             merged_df = new_df
+        merged_df = merged_df.drop_duplicates(subset="Mã hàng", keep="first")
 
         merged_df = merged_df.loc[:, ~merged_df.columns.duplicated()]
         merged_df = merged_df.reset_index(drop=True)
@@ -582,7 +602,12 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
             get_global_sku_matcher.clear()
         except Exception:
             pass
-        return True, f"Hợp nhất thành công kho vật tư: Tổng {len(merged_df):,} mã hàng (Đã cập nhật từ file '{filename}')."
+        _in_stock = int((pd.to_numeric(merged_df["Cuối kỳ SL"], errors="coerce").fillna(0) > 0).sum())
+        _detail = f"{_in_stock:,} mã có tồn kho"
+        if n_zeroed:
+            _detail += f", {n_zeroed:,} mã không có trong file được đặt tồn = 0 (vẫn giữ trong danh mục)"
+        label = "Thay thế" if mode == "replace" else "Đồng bộ" if mode == "sync" else "Hợp nhất"
+        return True, f"{label} thành công kho vật tư: Tổng {len(merged_df):,} mã hàng, trong đó {_detail}{sync_note} (từ file '{filename}')."
     except Exception as e:
         return False, f"Lỗi cập nhật kho: {e}"
 
@@ -1207,6 +1232,12 @@ def get_global_sku_matcher() -> UniversalTechnicalSKUMatcher:
     df = load_master_df()
     return UniversalTechnicalSKUMatcher(df)
 
+
+def count_in_stock(df: pd.DataFrame) -> int:
+    """Số mã vật tư thực sự còn tồn kho (Cuối kỳ SL > 0) — khác với tổng số mã trong danh mục."""
+    if df is None or df.empty or "Cuối kỳ SL" not in df.columns:
+        return 0
+    return int((pd.to_numeric(df["Cuối kỳ SL"], errors="coerce").fillna(0) > 0).sum())
 
 def format_vnd_currency(val) -> str:
     """Định dạng số tiền sang chuẩn kế toán Việt Nam: 1.000.000, 10.000.000 (dùng dấu chấm ngăn cách hàng nghìn)."""
@@ -2388,7 +2419,7 @@ with st.sidebar:
     df_master = load_master_df()
     current_public_url = get_public_url()
     st.markdown("---")
-    st.markdown(f"**📦 KHO GỐC**: `{len(df_master):,}` mã")
+    st.markdown(f"**📦 KHO GỐC**: `{len(df_master):,}` mã (`{count_in_stock(df_master):,}` có tồn)")
     st.markdown(f"**🏠 MẠNG NỘI BỘ LAN**: `http://192.168.1.189:8501`")
     st.markdown(f"**🌐 TOÀN CẦU (INTERNET)**:\n[{current_public_url}]({current_public_url})")
     st.caption("✓ Bất kỳ ai đều truy cập được trên điện thoại / 4G / máy tính ngoài nhà máy, không giới hạn mạng.")
@@ -2415,7 +2446,7 @@ st.markdown(f"""
         <span class="hud-badge badge-green">
             <span class="status-dot-pulse"></span> Sẵn sàng
         </span>
-        <span class="hud-badge badge-cyan">📦 Kho: {len(df_master):,} mã</span>
+        <span class="hud-badge badge-cyan">📦 Kho: {len(df_master):,} mã · {count_in_stock(df_master):,} có tồn</span>
         <span class="hud-badge">LAN: 192.168.1.189:8501</span>
         <a class="hud-badge badge-public" href="{current_public_url}" target="_blank" title="Mở link toàn cầu cho internet truy cập">
             🌐 Cloud ↗
@@ -2561,7 +2592,7 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                             _is_master_file = True
 
                     if _is_master_file:
-                        up_ok, up_msg = update_master_inventory(item["bytes"], item["name"], mode="merge")
+                        up_ok, up_msg = update_master_inventory(item["bytes"], item["name"], mode="sync")
                         task_state["status_msg"] = f"✓ {up_msg}"
                         doc_results = [{
                             "stt": 1,
@@ -3602,7 +3633,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
         }
 
         st.dataframe(df_view, use_container_width=True, height=320, column_config=column_config)
-        st.caption(f"Đang hiển thị {len(df_display):,} / {len(df_master):,} mã hàng trong kho.")
+        st.caption(f"Đang hiển thị {len(df_display):,} / {len(df_master):,} mã hàng trong kho ({count_in_stock(df_master):,} mã có tồn).")
 
         # Kích hoạt gợi ý tức thì khi gõ ký tự (Real-time Instant Autocomplete Dropdown)
         if not df_master.empty:
@@ -3645,19 +3676,24 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     type=["xlsx", "xls", "csv"],
                     key="uploader_master_inventory"
                 )
-                st.markdown("""
-                <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; color: #065F46;">
-                    🔄 <b>Chế độ cập nhật cố định: Hợp nhất (Merge / Upsert)</b><br>
-                    Tự động nhận diện định dạng ERP/Kế toán, cập nhật số lượng tồn mới và bổ sung các mã hàng mới mà <b>không làm mất</b> danh mục và các mã đã học.
-                </div>
-                """, unsafe_allow_html=True)
+                _up_mode_options = {
+                    "🔄 Đồng bộ theo file ERP (khuyến nghị): giữ danh mục, mã không có trong file → tồn = 0": "sync",
+                    "🧹 Thay thế hoàn toàn: kho chỉ gồm đúng các mã trong file": "replace",
+                    "➕ Chỉ hợp nhất: cập nhật mã có trong file, giữ nguyên số liệu các mã còn lại": "merge",
+                }
+                _up_mode_label = st.radio("Cách cập nhật:", list(_up_mode_options.keys()), key="up_master_mode")
+                _up_mode = _up_mode_options[_up_mode_label]
+                if _up_mode == "replace":
+                    st.warning("Các mã không có trong file (kể cả mã tồn = 0 dùng để dò mã) sẽ bị xóa khỏi danh mục. Chỉ giữ lại các mã kỹ sư đã duyệt trong hệ thống.")
+                else:
+                    st.caption("Tự động nhận diện định dạng ERP/Kế toán. Danh mục và các mã đã học được giữ nguyên.")
 
                 if st.button("🚀 XÁC NHẬN CẬP NHẬT KHO VẬT TƯ", type="primary", use_container_width=True, key="btn_confirm_up_master"):
                     if not up_inv_file:
                         st.error("Vui lòng chọn file Excel hoặc CSV trước khi bấm cập nhật!")
                     else:
                         file_bytes = up_inv_file.getvalue() if hasattr(up_inv_file, "getvalue") else up_inv_file.read()
-                        success, msg = update_master_inventory(file_bytes, up_inv_file.name, mode="merge")
+                        success, msg = update_master_inventory(file_bytes, up_inv_file.name, mode=_up_mode)
                         if success:
                             st.success(f"✓ {msg}")
                             st.toast(f"✓ {msg}", icon="✅")
