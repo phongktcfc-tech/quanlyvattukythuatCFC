@@ -42,6 +42,8 @@ from PIL import Image
 import google.generativeai as genai
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
+from auto_match_gate import decide_auto_match
+from secrets_config import get_secret
 
 # ── PDF Parser ──
 try:
@@ -199,6 +201,14 @@ def init_db():
     conn.close()
     _DB_INITIALIZED = True
 
+# ── Lưu trữ bền vững: kéo dữ liệu từ nhánh data-store trước khi mở DB (chống mất dữ liệu khi Cloud khởi động lại) ──
+import persistent_store
+PERSIST = persistent_store.get_store(BASE_DIR)
+PERSIST.startup_sync(
+    files={MASTER_FILE: persistent_store.KIND_MASTER, DB_PATH: persistent_store.KIND_SQLITE},
+    dirs={REPORT_DIR: persistent_store.KIND_IMMUTABLE},
+)
+
 init_db()
 
 @st.cache_data(ttl=60)
@@ -332,8 +342,10 @@ def save_approved_material(
         
     conn.commit()
     conn.close()
-    
+
     append_material_to_master_excel(code, name_normalized, unit, spec)
+    PERSIST.persist(DB_PATH, persistent_store.KIND_SQLITE)
+    PERSIST.persist(MASTER_FILE, persistent_store.KIND_MASTER)
     try:
         load_master_df.clear()
         get_all_approved_materials.clear()
@@ -539,6 +551,7 @@ def update_master_inventory(file_bytes: bytes, filename: str, mode: str = "merge
 
         merged_df = merged_df.sort_values(by="Mã hàng").reset_index(drop=True)
         merged_df.to_excel(MASTER_FILE, index=False)
+        PERSIST.persist(MASTER_FILE, persistent_store.KIND_MASTER)
         load_master_df.clear()
         build_search_corpus.clear()
         try:
@@ -2000,6 +2013,7 @@ def save_batch_report_excel(results: list, batch_name: str = "TongHop") -> Path:
 
     ws.freeze_panes = "A2"
     wb.save(report_path)
+    PERSIST.persist(report_path, persistent_store.KIND_IMMUTABLE)
     return report_path
 
 
@@ -2312,43 +2326,30 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚙️ THIẾT LẬP HỆ THỐNG")
     
-    default_key = os.environ.get("GOOGLE_API_KEY", "")
-    if not default_key:
-        try:
-            default_key = st.secrets.get("GOOGLE_API_KEY", "")
-        except Exception:
-            pass
-    if not default_key:
-        try:
-            import base64
-            default_key = base64.b64decode("QVEuQWI4Uk42TGNFLWlhR0Jrc1RCdjdVWWNuNVJqMk5fSVBYWlhMaE5PY2NDM0sza3dLZXc=").decode("utf-8")
-        except Exception:
-            pass
+    # Khóa mặc định chỉ đọc phía máy chủ (secrets), KHÔNG điền sẵn vào ô nhập để tránh lộ ra trình duyệt
+    default_key = get_secret("GOOGLE_API_KEY")
 
-    api_key = st.text_input(
+    api_key_input = st.text_input(
         "🔑 GOOGLE AI KEY (Agent 1)",
         type="password",
-        value=default_key,
+        value="",
+        placeholder="Đã cấu hình sẵn trên máy chủ" if default_key else "Dán Google AI Key",
     )
+    api_key = api_key_input.strip() or default_key
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
         genai.configure(api_key=api_key)
 
-    default_nv_key = os.environ.get("NVIDIA_API_KEY", "")
-    if not default_nv_key:
-        try:
-            default_nv_key = st.secrets.get("NVIDIA_API_KEY", "")
-        except Exception:
-            pass
-    if not default_nv_key:
-        default_nv_key = "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"
+    default_nv_key = get_secret("NVIDIA_API_KEY")
 
-    nvidia_api_key = st.text_input(
+    nvidia_key_input = st.text_input(
         "🟢 NVIDIA NIM KEY (Agent 2)",
         type="password",
-        value=default_nv_key,
+        value="",
+        placeholder="Đã cấu hình sẵn trên máy chủ" if default_nv_key else "Dán NVIDIA NIM Key",
         help="Khóa API của NVIDIA giúp Agent 2 chạy độc lập 100% tài nguyên, không nghẽn với Agent 1"
     )
+    nvidia_api_key = nvidia_key_input.strip() or default_nv_key
     if nvidia_api_key:
         os.environ["NVIDIA_API_KEY"] = nvidia_api_key
 
@@ -2733,11 +2734,22 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 # TỰ ĐỘNG KHỚP: EXACT_MATCH (>=85%) HOẶC GENERIC_MATCH (>=65%) cùng chủng loại
                 _best_ten_norm = best.get("ten", "").lower().replace(",", ".").replace("*", "x") if best else ""
                 _search_norm = search_str.lower().replace(",", ".").replace("*", "x")
+                # Cổng chống khớp nhầm thông số (auto_match_gate, chế độ strict) — chủ dự án đã duyệt sửa vùng này
+                _auto_decision, _auto_note = decide_auto_match(search_str, best, strict_exact=True)
                 _is_generic_ok = (
                     best and best.get("tier") == "GENERIC_MATCH" and best.get("score", 0) >= 65
                     and any(kw in _best_ten_norm for kw in _search_norm.split() if len(kw) >= 3)
+                    and _auto_decision == "KHỚP"
                 )
-                if best and ((best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85) or _is_generic_ok):
+                if best and _auto_decision == "CẦN_XÁC_NHẬN" and not (r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu") and str(r.get("ma_vat_tu_cu")).strip() not in ["null", "-", "None", ""]):
+                    # Có ứng viên gần giống nhưng lệch thông số → để kỹ sư chọn, KHÔNG tự cấp mã mới, KHÔNG tự khớp
+                    r["trang_thai"] = "CẦN_XÁC_NHẬN"
+                    r["ma_vat_tu_cu"] = None
+                    r["ten_trong_kho"] = "-"
+                    r["ton_kho"] = 0
+                    r["ma_de_xuat"] = "-"
+                    r["ghi_chu"] = f"⚠️ CẦN XÁC NHẬN: {_auto_note}"
+                elif best and ((best.get("tier") == "EXACT_MATCH" and best.get("score", 0) >= 85 and _auto_decision == "KHỚP") or _is_generic_ok):
                     r["trang_thai"] = "KHỚP"
                     r["ma_vat_tu_cu"] = best["ma"]
                     r["ten_trong_kho"] = best["ten"]
@@ -3201,7 +3213,7 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                         t_raw = item.get("ten_trich_xuat", "")
                         q_spec = item.get("quy_cach", "")
                         curr_code = item.get("ma_vat_tu_cu") if item.get("trang_thai") == "KHỚP" else item.get("ma_de_xuat")
-                        status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else "🟡 Cấp mã mới"
+                        status_txt = "🟢 Khớp kho" if item.get("trang_thai") == "KHỚP" else ("🔴 Cần xác nhận" if item.get("trang_thai") == "CẦN_XÁC_NHẬN" else "🟡 Cấp mã mới")
 
                         item_cands = item.get("candidates") or []
                         if not item_cands or any("pct_str" not in c for c in item_cands):

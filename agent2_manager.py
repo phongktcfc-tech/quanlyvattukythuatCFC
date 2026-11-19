@@ -25,6 +25,8 @@ import pandas as pd
 import openpyxl
 import streamlit as st
 
+from secrets_config import get_secret
+
 # ── THIẾT LẬP THƯ MỤC & ĐƯỜNG DẪN (TỰ ĐỘNG THÍCH ỨNG LOCAL & CLOUD) ──
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "Agent2_Data"
@@ -32,10 +34,11 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 LOCAL_SHEET_FILE = DATA_DIR / "Kho_CoDien_Live.xlsx"
 GOOGLE_SHEET_ID = "13cATeOG2G62QXP9F6luZ0V5OHij-b0kPj_r0-Wb97JE"
-DEFAULT_RECIPIENT = "linhb1702638@gmail.com"
+# Email nhận báo cáo lấy từ khóa bí mật RECIPIENT_EMAIL (hoặc EMAIL_ADDRESS) — không ghi thẳng vào code
+DEFAULT_RECIPIENT = get_secret("RECIPIENT_EMAIL") or get_secret("EMAIL_ADDRESS")
 TARGET_EMAIL = DEFAULT_RECIPIENT
 
-# Nạp thông tin cấu hình Gmail từ file .env dùng chung hoặc st.secrets / env var
+# Nạp thông tin cấu hình Gmail: xem secrets_config.py (env var → st.secrets → .env)
 ENV_FILE = Path("D:/Agent EmailAssistant/.env")
 
 # ── MÚI GIỜ VIỆT NAM (UTC+7) & ĐỊNH DẠNG THỜI GIAN ──
@@ -159,44 +162,17 @@ def format_status_badge(val: str) -> str:
 
 def get_smtp_credentials():
     """Lấy thông tin tài khoản SMTP an toàn từ st.secrets, .env hoặc cấu hình chuẩn."""
-    creds = {
-        "user": "linhb1702638@gmail.com",
-        "password": "tgnr ejny ffuy bwmx",
-        "server": "smtp.gmail.com",
-        "port": 587,
-        "recipient": TARGET_EMAIL
-    }
-    # Thử nạp từ st.secrets nếu đang chạy trên Streamlit Cloud
     try:
-        import streamlit as st
-        if "EMAIL_APP_PASSWORD" in st.secrets:
-            creds["password"] = st.secrets["EMAIL_APP_PASSWORD"]
-        if "EMAIL_ADDRESS" in st.secrets:
-            creds["user"] = st.secrets["EMAIL_ADDRESS"]
-    except Exception:
-        pass
-
-    if ENV_FILE.exists():
-        try:
-            with open(ENV_FILE, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        k = k.strip()
-                        v = v.strip().strip("\"'")
-                        if k == "EMAIL_ADDRESS":
-                            creds["user"] = v
-                        elif k == "EMAIL_APP_PASSWORD":
-                            creds["password"] = v
-                        elif k == "SMTP_SERVER":
-                            creds["server"] = v
-                        elif k == "SMTP_PORT":
-                            creds["port"] = int(v)
-                        elif k == "RECIPIENT_EMAIL":
-                            creds["recipient"] = v
-        except Exception as e:
-            print(f"[Agent 2] Lỗi đọc .env: {e}")
+        port = int(get_secret("SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+    creds = {
+        "user": get_secret("EMAIL_ADDRESS"),
+        "password": get_secret("EMAIL_APP_PASSWORD"),
+        "server": get_secret("SMTP_SERVER", "smtp.gmail.com"),
+        "port": port,
+        "recipient": get_secret("RECIPIENT_EMAIL") or TARGET_EMAIL
+    }
     return creds
 
 
@@ -204,17 +180,55 @@ def get_smtp_credentials():
 def sync_live_google_sheet(sheet_id: str = GOOGLE_SHEET_ID, target_path: Path = LOCAL_SHEET_FILE) -> tuple[bool, str]:
     """Tải trực tiếp file Excel từ link Google Sheet thời gian thực."""
     export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+    tmp_path = Path(str(target_path) + ".download")
     try:
         req = urllib.request.Request(
             export_url,
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         )
-        with urllib.request.urlopen(req, timeout=30) as response, open(target_path, "wb") as out_file:
-            out_file.write(response.read())
+        with urllib.request.urlopen(req, timeout=30) as response:
+            payload = response.read()
+        # Chỉ thay file cũ khi tải đủ VÀ đúng là file .xlsx (tránh ghi đè bằng trang đăng nhập/lỗi HTML hoặc file cụt)
+        if len(payload) < 1024 or payload[:2] != b"PK":
+            return False, "Lỗi đồng bộ Google Sheet: dữ liệu tải về không phải file Excel hợp lệ (giữ nguyên dữ liệu cũ)"
+        tmp_path.write_bytes(payload)
+        os.replace(tmp_path, target_path)
         now_str = format_vn_time(get_vn_now())
         return True, f"Đồng bộ thành công lúc {now_str}"
     except Exception as e:
-        return False, f"Lỗi đồng bộ Google Sheet: {e}"
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+        return False, f"Lỗi đồng bộ Google Sheet: {e} (giữ nguyên dữ liệu cũ)"
+
+
+# Cảnh báo bố cục Google Sheet lần đọc gần nhất (hiển thị trên giao diện Agent 2)
+LAST_DATA_WARNINGS: list = []
+
+# Vị trí cột (1-based) → từ khóa BẮT BUỘC có trong ô tiêu đề dòng 1; code đang đọc dữ liệu theo đúng các vị trí này
+_EXPECTED_TONGHOP_HEADERS = {2: "tên", 4: "đơn vị", 5: "tồn đầu", 6: "nhập", 7: "xuất", 8: "tồn kho", 9: "định mức"}
+_EXPECTED_MONTH_HEADERS = {2: "tên", 4: "nhập", 9: "tên", 11: "xuất"}
+
+
+def validate_sheet_layout(wb) -> list:
+    """Kiểm tra tiêu đề cột Google Sheet còn đúng vị trí mà code đang đọc. Trả về danh sách cảnh báo (rỗng = ổn)."""
+    warns = []
+
+    def _check(ws, expected: dict):
+        for col, kw in expected.items():
+            head = str(ws.cell(1, col).value or "").strip().lower()
+            if kw not in head:
+                warns.append(f"Sheet '{ws.title}': cột {col} cần có '{kw}' nhưng đang là '{head or '(trống)'}' — số liệu có thể bị lệch")
+
+    if "Tổng Hợp Vật Tư" in wb.sheetnames:
+        _check(wb["Tổng Hợp Vật Tư"], _EXPECTED_TONGHOP_HEADERS)
+    else:
+        warns.append("Không tìm thấy sheet 'Tổng Hợp Vật Tư' — Agent 2 không có dữ liệu tồn kho")
+    for name in wb.sheetnames:
+        if "tháng" in name.lower():
+            _check(wb[name], _EXPECTED_MONTH_HEADERS)
+    return warns
 
 
 def load_data_from_sheets(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
@@ -270,6 +284,10 @@ def load_agent2_data(force_sync: bool = False) -> tuple[pd.DataFrame, pd.DataFra
     except Exception as e:
         print(f"[Agent 2] Lỗi mở file Excel: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    LAST_DATA_WARNINGS[:] = validate_sheet_layout(wb)
+    for _w in LAST_DATA_WARNINGS:
+        print(f"[Agent 2] ⚠️ {_w}")
 
     # 1. Đọc sheet 'Tổng Hợp Vật Tư'
     tonghop_data = []
@@ -1044,7 +1062,7 @@ Bạn đang vận hành trên AGENT 2: GIÁM SÁT KHO THỰC TẾ XƯỞNG CƠ -
 def query_nvidia_nim_chief_engineer(
     full_prompt: str,
     system_instruction: str,
-    nvidia_key: str = "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",
+    nvidia_key: str = "",
     model: str = "nvidia/nemotron-3-ultra-550b-a55b"
 ) -> str:
     """Gọi mô hình AI NVIDIA NIM chuyên gia bóc tách kỹ thuật tiếng Việt chuẩn 100% cho Agent 2."""
@@ -1122,9 +1140,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
 """
 
     # 1. ƯU TIÊN SỐ 1 VỀ TỐC ĐỘ: GOOGLE GEMINI FLASH LITE (Phản hồi siêu tốc 2-5 giây)
-    fallback_b64 = "QVEuQWI4Uk42TGNFLWlhR0Jrc1RCdjdVWWNuNVJqMk5fSVBYWlhMaE5PY2NDM0sza3dLZXc="
-    default_key = base64.b64decode(fallback_b64).decode("utf-8")
-    effective_key = api_key or os.environ.get("GOOGLE_API_KEY", "") or default_key
+    effective_key = api_key or get_secret("GOOGLE_API_KEY")
 
     if effective_key:
         try:
@@ -1165,7 +1181,7 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
             pass
 
     # 2. DỰ PHÒNG: ĐỘNG CƠ NVIDIA NIM (Nếu Gemini gặp sự cố mạng hoặc hết quota)
-    effective_nv_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY", "") or "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"
+    effective_nv_key = nvidia_api_key or get_secret("NVIDIA_API_KEY")
     if uploaded_file is None and effective_nv_key:
         try:
             nv_res = query_nvidia_nim_chief_engineer(full_prompt, SYSTEM_PROMPT_AGENT2_CHIEF_ENGINEER, nvidia_key=effective_nv_key)
@@ -1757,6 +1773,9 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         df_th, df_nh, df_xt, last_sync_str = load_data_from_sheets(force_sync=force_sync)
 
     df_th = process_inventory_dataframe(df_th)
+
+    if LAST_DATA_WARNINGS:
+        st.warning("⚠️ **Bố cục Google Sheet đã thay đổi — số liệu có thể sai, hãy kiểm tra lại Sheet:**\n\n" + "\n".join(f"- {w}" for w in LAST_DATA_WARNINGS[:6]))
 
     if df_th.empty:
         st.error("Chưa có dữ liệu từ Google Sheet. Vui lòng bấm nút 'Đồng bộ Google Sheet' bên dưới.")

@@ -14,9 +14,11 @@ cloudflared.exe
 public_url.txt
 *.bat
 .env
+.streamlit/secrets.toml
 
 agent2_cron.log
 .codegraph/
 scratch/
 backup/
+.persist_manifest.json
 
