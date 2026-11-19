@@ -3676,17 +3676,8 @@ def render_agent1_ui(df_master: pd.DataFrame, api_key: str = "", model_name: str
                     type=["xlsx", "xls", "csv"],
                     key="uploader_master_inventory"
                 )
-                _up_mode_options = {
-                    "🔄 Đồng bộ theo file ERP (khuyến nghị): giữ danh mục, mã không có trong file → tồn = 0": "sync",
-                    "🧹 Thay thế hoàn toàn: kho chỉ gồm đúng các mã trong file": "replace",
-                    "➕ Chỉ hợp nhất: cập nhật mã có trong file, giữ nguyên số liệu các mã còn lại": "merge",
-                }
-                _up_mode_label = st.radio("Cách cập nhật:", list(_up_mode_options.keys()), key="up_master_mode")
-                _up_mode = _up_mode_options[_up_mode_label]
-                if _up_mode == "replace":
-                    st.warning("Các mã không có trong file (kể cả mã tồn = 0 dùng để dò mã) sẽ bị xóa khỏi danh mục. Chỉ giữ lại các mã kỹ sư đã duyệt trong hệ thống.")
-                else:
-                    st.caption("Tự động nhận diện định dạng ERP/Kế toán. Danh mục và các mã đã học được giữ nguyên.")
+                _up_mode = "sync"
+                st.caption("Tự động nhận diện định dạng ERP/Kế toán. Tồn kho được thay bằng số trong file mới; mã không có trong file giữ trong danh mục với tồn = 0; các mã đã học được giữ nguyên.")
 
                 if st.button("🚀 XÁC NHẬN CẬP NHẬT KHO VẬT TƯ", type="primary", use_container_width=True, key="btn_confirm_up_master"):
                     if not up_inv_file:
