@@ -27,6 +27,25 @@ def extract_spec_numbers(text: str) -> set:
     return out
 
 
+def check_ai_claimed_match(query: str, code: str, name_by_code: Dict[str, str]) -> Tuple[bool, str]:
+    """
+    Kiểm tra mã kho do AI tự chọn cho một dòng phiếu (AI báo KHỚP kèm mã).
+      - Mã phải tồn tại trong kho (chống AI bịa mã).
+      - Mọi số thông số trong tên mã kho phải xuất hiện trong dòng phiếu (chống "sửa lỗi đánh máy" 202→200, 301/5A→300/5A).
+    Trả về (hợp_lệ, lý_do_nếu_không).
+    """
+    code = str(code or "").strip()
+    if code not in name_by_code:
+        return False, f"Mã {code} AI chọn không có trong kho — cần kiểm tra lại"
+    stock_name = str(name_by_code[code])
+    c_nums = extract_spec_numbers(stock_name)
+    q_nums = extract_spec_numbers(query)
+    if c_nums and not c_nums.issubset(q_nums):
+        missing = ", ".join(sorted(c_nums - q_nums))
+        return False, f"AI chọn {code} '{stock_name}' nhưng lệch thông số (kho có {missing} mà chứng từ không có)"
+    return True, ""
+
+
 def decide_auto_match(query: str, best: Optional[Dict[str, Any]], strict_exact: bool = False) -> Tuple[str, str]:
     """
     Trả về (quyết_định, ghi_chú) với quyết_định ∈ {"KHỚP", "MỚI", "CẦN_XÁC_NHẬN"}.

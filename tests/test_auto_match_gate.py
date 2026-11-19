@@ -36,6 +36,14 @@ def main():
     # Không có ứng viên / điểm thấp → MỚI
     assert s("abc", None) == "MỚI"
     assert s("abc", cand("xyz", 30.0, "SIMILAR_MISMATCH")) == "MỚI"
+    # Mã do AI tự chọn: phải có trong kho và không lệch thông số
+    from auto_match_gate import check_ai_claimed_match
+    names = {"03.0372": "Thép I 200 (6m/cây)", "02.1298": "Biến dòng 300/5A", "03.2035": "Băng keo điện"}
+    assert check_ai_claimed_match("Thép I 200 (6m/cây)", "03.0372", names)[0]
+    assert not check_ai_claimed_match("Thép I 202 (6m/cây)", "03.0372", names)[0]      # AI "sửa lỗi đánh máy"
+    assert not check_ai_claimed_match("Biến dòng 301/5A", "02.1298", names)[0]
+    assert check_ai_claimed_match("Băng keo điện bản rộng 5cm (20m/cuộn)", "03.2035", names)[0]  # kho tên chung, không có số
+    assert not check_ai_claimed_match("Bạc đạn 6205", "99.9999", names)[0]               # mã AI bịa
     print("TẤT CẢ TEST CỔNG CHỐNG KHỚP NHẦM ĐẠT")
 
 
