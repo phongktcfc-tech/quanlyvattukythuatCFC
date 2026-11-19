@@ -40,6 +40,30 @@ from PIL import Image
 
 # ── Google Generative AI ──
 import google.generativeai as genai
+
+# ── Nạp lại module phụ khi file của chúng thay đổi ──
+# Streamlit Cloud kéo code mới về nhưng giữ module cũ trong bộ nhớ tới khi khởi động lại, gây ImportError
+# (hoặc chạy nhầm bản cũ). Hàm này so sánh thời gian sửa file và chỉ nạp lại module nào vừa đổi.
+# Cố ý KHÔNG áp dụng cho sku_matching_engine (vùng FROZEN CORE, có đối tượng được cache).
+import importlib
+def _refresh_local_modules(names):
+    for _name in names:
+        try:
+            _mod = importlib.import_module(_name)
+            _file = getattr(_mod, "__file__", None)
+            if not _file:
+                continue
+            _mtime = os.path.getmtime(_file)
+            _prev = getattr(_mod, "_loaded_mtime", None)
+            if _prev is None:
+                _mod._loaded_mtime = _mtime
+            elif _prev != _mtime:
+                _mod = importlib.reload(_mod)
+                _mod._loaded_mtime = _mtime
+        except Exception as _reload_err:
+            print(f"[reload] Không nạp lại được {_name}: {_reload_err}")
+_refresh_local_modules(["secrets_config", "auto_match_gate", "persistent_store", "agent2_manager"])
+
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
 from auto_match_gate import decide_auto_match, check_ai_claimed_match, extract_spec_numbers
