@@ -42,7 +42,7 @@ from PIL import Image
 import google.generativeai as genai
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
-from auto_match_gate import decide_auto_match
+from auto_match_gate import decide_auto_match, check_ai_claimed_match, extract_spec_numbers
 from secrets_config import get_secret
 
 # ── PDF Parser ──
@@ -2702,6 +2702,8 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
             next_02_codes = allocate_next_codes(df_master, needed_count, group="02")
             idx_03 = 0
             idx_02 = 0
+            # Tra tên kho theo mã để kiểm tra mã do AI tự chọn (check_ai_claimed_match)
+            _name_by_code = dict(zip(df_master["Mã hàng"].astype(str).str.strip(), df_master["Tên hàng"].astype(str)))
 
             for i, r in enumerate(raw_collected_results, 1):
                 r["stt"] = i
@@ -2709,6 +2711,9 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 t_chuan = r.get("ten_chuan_hoa", "") or ""
                 q_cach = r.get("quy_cach", "") or ""
                 search_str = f"{t_goc} {q_cach}".strip()
+                # Văn bản dùng để kiểm tra số thông số: ưu tiên tên GỐC trên phiếu (cột quy cách do AI viết có thể đã "sửa" số liệu);
+                # chỉ dùng thêm quy cách khi tên gốc không có số nào (ví dụ tên "Bạc đạn", quy cách "6205")
+                _gate_text = t_goc if extract_spec_numbers(t_goc) else search_str
 
                 # 🔒 [FROZEN CORE START] GHIM CHẾT CODE ĐỐI CHIẾU AGENT 1 - TUYỆT ĐỐI KHÔNG SỬA ĐỔI
                 # ĐÃ LOẠI BỎ TOÀN BỘ TRÍ NHỚ ĐÃ HỌC (ALIAS_MEMORY) THEO BƯỚC 2 STRICT CATEGORY GATING
@@ -2735,7 +2740,7 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                 _best_ten_norm = best.get("ten", "").lower().replace(",", ".").replace("*", "x") if best else ""
                 _search_norm = search_str.lower().replace(",", ".").replace("*", "x")
                 # Cổng chống khớp nhầm thông số (auto_match_gate, chế độ strict) — chủ dự án đã duyệt sửa vùng này
-                _auto_decision, _auto_note = decide_auto_match(search_str, best, strict_exact=True)
+                _auto_decision, _auto_note = decide_auto_match(_gate_text, best, strict_exact=True)
                 _is_generic_ok = (
                     best and best.get("tier") == "GENERIC_MATCH" and best.get("score", 0) >= 65
                     and any(kw in _best_ten_norm for kw in _search_norm.split() if len(kw) >= 3)
@@ -2764,6 +2769,17 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                             sign = "+" if diff > 0 else ""
                             r["canh_bao_gia"] = f"⚠️ Giá lệch {sign}{diff}% (Xuất: {in_price:,.0f}đ vs BQ: {best['don_gia_bq']:,.0f}đ)"
                             r["ghi_chu"] += f" | {r['canh_bao_gia']}"
+                elif (r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu") and str(r.get("ma_vat_tu_cu")).strip() not in ["null", "-", "None", ""]
+                      and not check_ai_claimed_match(_gate_text, r.get("ma_vat_tu_cu"), _name_by_code)[0]):
+                    # AI tự báo KHỚP nhưng mã không có trong kho hoặc lệch thông số → kỹ sư xác nhận, không tin AI
+                    _ai_code = str(r.get("ma_vat_tu_cu")).strip()
+                    _ai_why = check_ai_claimed_match(_gate_text, _ai_code, _name_by_code)[1]
+                    r["trang_thai"] = "CẦN_XÁC_NHẬN"
+                    r["ma_vat_tu_cu"] = None
+                    r["ten_trong_kho"] = "-"
+                    r["ton_kho"] = 0
+                    r["ma_de_xuat"] = "-"
+                    r["ghi_chu"] = f"⚠️ CẦN XÁC NHẬN: {_ai_why}"
                 elif r.get("trang_thai") == "KHỚP" and r.get("ma_vat_tu_cu") and str(r.get("ma_vat_tu_cu")).strip() not in ["null", "-", "None", ""]:
                     r["ma_de_xuat"] = "-"
                     old_code = str(r.get("ma_vat_tu_cu")).strip()
