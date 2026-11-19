@@ -43,7 +43,7 @@ import google.generativeai as genai
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
 from auto_match_gate import decide_auto_match, check_ai_claimed_match, extract_spec_numbers
-from secrets_config import get_secret
+from secrets_config import get_secret, clean_secret_value, SANITIZED_KEYS
 
 # ── PDF Parser ──
 try:
@@ -2335,7 +2335,7 @@ with st.sidebar:
         value="",
         placeholder="Đã cấu hình sẵn trên máy chủ" if default_key else "Dán Google AI Key",
     )
-    api_key = api_key_input.strip() or default_key
+    api_key = clean_secret_value("GOOGLE_API_KEY", api_key_input) or default_key
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
         genai.configure(api_key=api_key)
@@ -2349,9 +2349,11 @@ with st.sidebar:
         placeholder="Đã cấu hình sẵn trên máy chủ" if default_nv_key else "Dán NVIDIA NIM Key",
         help="Khóa API của NVIDIA giúp Agent 2 chạy độc lập 100% tài nguyên, không nghẽn với Agent 1"
     )
-    nvidia_api_key = nvidia_key_input.strip() or default_nv_key
+    nvidia_api_key = clean_secret_value("NVIDIA_API_KEY", nvidia_key_input) or default_nv_key
     if nvidia_api_key:
         os.environ["NVIDIA_API_KEY"] = nvidia_api_key
+    if SANITIZED_KEYS:
+        st.warning("⚠️ Khóa **" + ", ".join(sorted(SANITIZED_KEYS)) + "** trong Secrets có ký tự lạ (xuống dòng/khoảng trắng đặc biệt) đã được tự làm sạch. Nên dán lại khóa cho sạch.")
 
     model_name = st.selectbox(
         "⚡ ENGINE",

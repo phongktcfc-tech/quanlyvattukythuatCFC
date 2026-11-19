@@ -17,6 +17,8 @@ import datetime
 import smtplib
 import unicodedata
 import urllib.request
+import io
+import threading
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -1193,6 +1195,55 @@ Hãy phân tích, tư vấn kỹ thuật cặn kẽ và bóc tách danh mục v�
     return "⚠️ Không thể kết nối với mô hình AI Kỹ sư trưởng. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau vài giây."
 
 
+# Thời gian tối đa chờ một lượt hỏi AI chạy nền (giây) — quá hạn thì báo lỗi thay vì treo vô hạn
+AG2_AI_JOB_TIMEOUT = 150
+
+
+def rerun_fragment_safe():
+    """st.rerun(scope='fragment') chỉ hợp lệ khi đang chạy lại một fragment; khi app chạy lại toàn trang thì chạy lại toàn trang."""
+    try:
+        st.rerun(scope="fragment")
+    except st.errors.StreamlitAPIException:
+        st.rerun()
+
+
+def start_agent2_ai_job(user_prompt: str, df_th: pd.DataFrame, api_key: str, model_name: str,
+                        uploaded_bytes, nvidia_api_key: str) -> dict:
+    """
+    Chạy lượt hỏi Kỹ sư AI của Agent 2 trong LUỒNG NỀN để không chặn giao diện (và không chặn Agent 1).
+    Trả về dict trạng thái dùng chung giữa luồng nền và giao diện: running / result / error / started / prompt.
+    """
+    job = {"running": True, "result": None, "error": None, "started": time.time(), "prompt": user_prompt}
+
+    def _run():
+        try:
+            file_obj = io.BytesIO(uploaded_bytes) if uploaded_bytes else None
+            job["result"] = query_ai_chief_engineer(
+                user_prompt=user_prompt, df_th=df_th, api_key=api_key, model_name=model_name,
+                uploaded_file=file_obj, nvidia_api_key=nvidia_api_key,
+            )
+        except Exception as e:
+            job["error"] = f"{type(e).__name__}: {e}"
+        finally:
+            job["running"] = False
+
+    threading.Thread(target=_run, name="agent2-ai-job", daemon=True).start()
+    return job
+
+
+def collect_agent2_ai_job(job: dict):
+    """
+    Trả về ("running", None) nếu còn chạy; ("done", văn_bản_trả_lời) khi xong; ("failed", thông_báo_lỗi) khi lỗi/quá hạn.
+    """
+    if job["running"]:
+        if time.time() - job["started"] > AG2_AI_JOB_TIMEOUT:
+            return "failed", f"⚠️ Kỹ sư AI không phản hồi sau {AG2_AI_JOB_TIMEOUT} giây. Kiểm tra khóa API trong Secrets rồi thử lại."
+        return "running", None
+    if job["error"]:
+        return "failed", f"⚠️ Lỗi khi gọi Kỹ sư AI: {job['error']}"
+    return "done", job["result"] or "⚠️ Kỹ sư AI không trả về nội dung."
+
+
 def render_client_autocomplete_box(items_data: list, input_selector: str, box_id: str):
     """
     Component gợi ý thông minh thời gian thực (Client-side Autocomplete Dropdown).
@@ -1857,6 +1908,7 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 submit_clr = st.form_submit_button("Xóa", use_container_width=True, help="Xóa câu hỏi và kết quả")
 
         if submit_clr:
+            st.session_state.pop("ag2_ai_job", None)
             st.session_state.pop("ag2_ai_response", None)
             st.session_state.pop("ag2_ai_last_prompt", None)
             st.session_state.pop("ag2_ai_timestamp", None)
@@ -1865,19 +1917,13 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
         if submit_ask:
             if user_ai_inquiry.strip() or uploaded_doc is not None:
                 prompt_text = user_ai_inquiry.strip() if user_ai_inquiry.strip() else "Phân tích bản vẽ kỹ thuật / hình ảnh đính kèm và bóc tách vật tư tận dụng kho."
-                with st.spinner("Đang phân tích kỹ thuật & đối chiếu vật tư kho xưởng..."):
-                    ans = query_ai_chief_engineer(
-                        user_prompt=prompt_text,
-                        df_th=df_th,
-                        api_key=api_key,
-                        model_name=model_name,
-                        uploaded_file=uploaded_doc,
-                        nvidia_api_key=nvidia_api_key
-                    )
-                    st.session_state["ag2_ai_response"] = ans
-                    st.session_state["ag2_ai_last_prompt"] = prompt_text
-                    st.session_state["ag2_ai_timestamp"] = time.time()
-                    st.rerun(scope="fragment")
+                # Chạy AI ở luồng nền (không chặn giao diện/Agent 1); kết quả được thu về ở cuối hàm render
+                st.session_state["ag2_ai_job"] = start_agent2_ai_job(
+                    prompt_text, df_th, api_key, model_name,
+                    uploaded_doc.getvalue() if uploaded_doc is not None else None,
+                    nvidia_api_key,
+                )
+                rerun_fragment_safe()
             else:
                 st.warning("Vui lòng nhập bài toán kỹ thuật hoặc tải ảnh bản vẽ gia công.")
 
@@ -2363,3 +2409,19 @@ def render_agent2_ui(api_key: str = "", model_name: str = "gemini-flash-lite-lat
                 subj, email_html = generate_email_html(report_choice, df_th, df_nh, df_xt)
                 st.caption(f"Tiêu đề: **{subj}**")
                 st.components.v1.html(email_html, height=380, scrolling=True)
+
+    # ── THU KẾT QUẢ LƯỢT HỎI AI CHẠY NỀN (đặt cuối hàm để toàn bộ giao diện vẫn hiển thị trong lúc chờ) ──
+    _ag2_job = st.session_state.get("ag2_ai_job")
+    if _ag2_job is not None:
+        _state, _payload = collect_agent2_ai_job(_ag2_job)
+        if _state == "running":
+            st.info(f"⏳ Kỹ sư AI đang phân tích ở chế độ nền ({int(time.time() - _ag2_job['started'])}s) — "
+                    "bạn có thể chuyển sang Agent 1 hoặc xem kho trong lúc chờ.")
+            time.sleep(1)
+            rerun_fragment_safe()
+        else:
+            st.session_state["ag2_ai_response"] = _payload
+            st.session_state["ag2_ai_last_prompt"] = _ag2_job["prompt"]
+            st.session_state["ag2_ai_timestamp"] = time.time()
+            st.session_state.pop("ag2_ai_job", None)
+            rerun_fragment_safe()

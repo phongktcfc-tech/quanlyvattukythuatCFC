@@ -69,6 +69,32 @@ def main():
         df = a2.process_inventory_dataframe(pd.DataFrame([{"Tồn Kho Thực Tế": ton, "Định Mức Tồn Tối Thiểu": mn}]))
         assert df["status_code"].iloc[0] == s1, f"hai hàm trạng thái lệch ở {ton},{mn}"
 
+    # 6. Lượt hỏi AI chạy nền: không chặn, thu kết quả đúng, lỗi và quá hạn đều trả về thông báo (không treo)
+    import time
+    real = a2.query_ai_chief_engineer
+    try:
+        a2.query_ai_chief_engineer = lambda **kw: (time.sleep(0.6), "TRẢ LỜI " + kw["user_prompt"])[1]
+        t0 = time.time()
+        job = a2.start_agent2_ai_job("hỏi thử", pd.DataFrame(), "k", "m", None, "n")
+        assert time.time() - t0 < 0.3, "start_agent2_ai_job bị chặn"
+        assert a2.collect_agent2_ai_job(job)[0] == "running"
+        time.sleep(1.0)
+        assert a2.collect_agent2_ai_job(job) == ("done", "TRẢ LỜI hỏi thử")
+
+        def boom(**kw): raise RuntimeError("hỏng")
+        a2.query_ai_chief_engineer = boom
+        job = a2.start_agent2_ai_job("x", pd.DataFrame(), "k", "m", None, "n"); time.sleep(0.3)
+        st, msg = a2.collect_agent2_ai_job(job)
+        assert st == "failed" and "hỏng" in msg
+
+        a2.query_ai_chief_engineer = lambda **kw: time.sleep(5)
+        old_to = a2.AG2_AI_JOB_TIMEOUT; a2.AG2_AI_JOB_TIMEOUT = 0.2
+        job = a2.start_agent2_ai_job("x", pd.DataFrame(), "k", "m", b"abc", "n"); time.sleep(0.4)
+        assert a2.collect_agent2_ai_job(job)[0] == "failed", "không báo quá hạn"
+        a2.AG2_AI_JOB_TIMEOUT = old_to
+    finally:
+        a2.query_ai_chief_engineer = real
+
     print("TẤT CẢ TEST AGENT 2 ĐẠT")
 
 
