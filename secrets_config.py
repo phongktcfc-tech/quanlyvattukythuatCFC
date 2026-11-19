@@ -13,6 +13,7 @@ Các khóa dùng trong hệ thống:
 """
 
 import os
+import re
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,17 +45,42 @@ def _load_env_files() -> dict:
     return values
 
 
+# Tên các khóa đã bị tự động làm sạch (do có ký tự lạ) — giao diện dùng để cảnh báo người quản trị. Không chứa giá trị khóa.
+SANITIZED_KEYS: set = set()
+_SKIP_SANITIZE = {"SMTP_SERVER"}
+
+
+def clean_secret_value(name: str, val: str) -> str:
+    """
+    Làm sạch giá trị khóa: bỏ dấu nháy bao quanh, khoảng trắng, xuống dòng, ký tự không in được/không phải ASCII
+    (dấu cách không ngắt NBSP, ký tự zero-width... thường lẫn vào khi copy-dán và gây lỗi 'Illegal header value').
+    Không khóa/mật khẩu hợp lệ nào chứa các ký tự đó (mật khẩu ứng dụng Gmail 'abcd efgh ijkl mnop' vẫn dùng được khi bỏ dấu cách).
+    """
+    if not isinstance(val, str):
+        val = str(val)
+    original = val
+    if name not in _SKIP_SANITIZE:
+        val = val.strip().strip("\"'")
+        val = re.sub(r"[^\x21-\x7E]", "", val)
+    # Chỉ báo động khi có ký tự "lạ" (không phải ASCII/ký tự điều khiển) hoặc xuống dòng giữa khóa.
+    # Dấu cách thường (mật khẩu ứng dụng Gmail) và khoảng trắng/xuống dòng ở hai đầu là bình thường.
+    if re.search(r"[^\x20\x09\x0a\x0d\x21-\x7E]", original) or re.search(r"[\r\n]", original.strip(" \t\r\n")):
+        SANITIZED_KEYS.add(name)
+    return val
+
+
 def get_secret(name: str, default: str = "") -> str:
-    """Trả về giá trị khóa bí mật, hoặc `default` nếu không cấu hình ở đâu cả."""
+    """Trả về giá trị khóa bí mật (đã làm sạch), hoặc `default` nếu không cấu hình ở đâu cả."""
     val = os.environ.get(name, "")
     if val:
-        return val
+        return clean_secret_value(name, val)
     try:
         import streamlit as st
         if name in st.secrets:
             val = str(st.secrets[name])
             if val:
-                return val
+                return clean_secret_value(name, val)
     except Exception:
         pass
-    return _load_env_files().get(name, default) or default
+    val = _load_env_files().get(name, default) or default
+    return clean_secret_value(name, val) if val else val

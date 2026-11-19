@@ -7,6 +7,8 @@ Các khóa cũ từng nằm trong code và đã lên GitHub → coi như **đã 
 3. Streamlit Cloud: App → Settings → Secrets → dán cùng nội dung.
 
 Thứ tự code tìm khóa: biến môi trường → `st.secrets` → `.env` (xem `secrets_config.py`).
+
+> Khi dán khóa vào Secrets, dán đúng một dòng, nằm trong dấu nháy kép, không xuống dòng. Khóa lẫn ký tự lạ (xuống dòng, dấu cách không ngắt…) làm Google báo `Illegal header value` và AI không chạy. App đã tự làm sạch các ký tự này và hiện cảnh báo ở thanh bên, nhưng vẫn nên dán lại cho sạch.
 Ô nhập khóa trên thanh bên giờ để trống; nếu để trống thì dùng khóa trên máy chủ.
 
 > `.streamlit/secrets.toml` hiện đang chứa **khóa cũ** (để app chạy được cho tới khi anh đổi). Hãy thay bằng khóa mới.
