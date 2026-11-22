@@ -62,11 +62,12 @@ def _refresh_local_modules(names):
                 _mod._loaded_mtime = _mtime
         except Exception as _reload_err:
             print(f"[reload] Không nạp lại được {_name}: {_reload_err}")
-_refresh_local_modules(["secrets_config", "auto_match_gate", "persistent_store", "agent2_manager"])
+_refresh_local_modules(["secrets_config", "worker_language", "auto_match_gate", "persistent_store", "agent2_manager"])
 
 import agent2_manager
 from sku_matching_engine import UniversalTechnicalSKUMatcher
 from auto_match_gate import decide_auto_match, check_ai_claimed_match, extract_spec_numbers
+from worker_language import resolve_candidates
 from secrets_config import get_secret, clean_secret_value, SANITIZED_KEYS
 
 # ── PDF Parser ──
@@ -2782,6 +2783,8 @@ def run_agent1_background_worker(all_queue, df_master, corpus, model_name, task_
                     in_price = 0.0
 
                 candidates = get_candidate_matches(search_str, corpus, top_k=5, input_price=in_price)
+                # Cách tìm thường không ra mã → thử lại theo ngôn ngữ của thợ (fi 10 = 100mm, ly = mm, tên chuẩn hóa của AI)
+                candidates, _ = resolve_candidates(candidates, t_goc, t_chuan, q_cach, df_master, UniversalTechnicalSKUMatcher, input_price=in_price, top_k=5)
                 r["candidates"] = candidates
                 best = candidates[0] if candidates else None
 

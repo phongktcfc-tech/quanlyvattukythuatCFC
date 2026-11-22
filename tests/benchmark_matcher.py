@@ -77,8 +77,20 @@ def policy_current(query, best):
     return "MỚI"
 
 
+WORKER = {"on": False, "df": None}
+
+
 def decisions(matcher, query):
-    best = as_app_best(matcher.match_item(query))
+    res = matcher.match_item(query)
+    best = as_app_best(res)
+    if WORKER["on"]:  # mô phỏng thêm bước resolve_candidates (ngôn ngữ của thợ) như app.py
+        from worker_language import resolve_candidates
+        prim = [{"score": c["score"], "ma": str(c["ma_hang"]), "ten": str(c["ten_hang"]), "tier": c.get("tier"),
+                 "ton": c["cuoi_ky_sl"], "ly_do": "", "reasons": c.get("reasons", [])} for c in (res.get("top_candidates") or [])]
+        cands, _ = resolve_candidates(prim, query, "", "", WORKER["df"], UniversalTechnicalSKUMatcher)
+        if cands:
+            c = cands[0]
+            best = {"ma": c["ma"], "ten": c["ten"], "score": c["score"], "tier": c.get("tier"), "reasons": c.get("reasons", [])}
     return best, {
         "current": policy_current(query, best),
         "gate": decide_auto_match(query, best)[0],
@@ -88,6 +100,7 @@ def decisions(matcher, query):
 
 def run(limit, max_show, out_json):
     df = load_master()
+    WORKER["df"] = df
     matcher = UniversalTechnicalSKUMatcher(df)
     rng = random.Random(20261116)
     counts = df["Tên hàng"].str.lower().value_counts()
@@ -149,5 +162,7 @@ if __name__ == "__main__":
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--max-show", type=int, default=12)
     ap.add_argument("--json", default=None)
+    ap.add_argument("--worker", action="store_true", help="áp thêm lớp ngôn ngữ của thợ (worker_language.resolve_candidates)")
     a = ap.parse_args()
+    WORKER["on"] = a.worker
     run(a.limit, a.max_show, a.json)
