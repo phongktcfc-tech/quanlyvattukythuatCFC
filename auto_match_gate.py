@@ -9,6 +9,8 @@ Module này chỉ ĐỌC kết quả của engine, không sửa engine. app.py h
 import re
 from typing import Any, Dict, Optional, Tuple
 
+from worker_language import canon
+
 _SPEC_NUM_RE = re.compile(
     r'(?<![\w.,])(\d+(?:[.,]\d+)?)(?:\s?(?:mm|ly|kw|hp|a|v|w|m|l|cm|kg|bar|inch))?(?![\w])',
     re.IGNORECASE,
@@ -18,7 +20,7 @@ _SPEC_NUM_RE = re.compile(
 def extract_spec_numbers(text: str) -> set:
     """Tập các số thông số đứng riêng (có thể kèm đơn vị): 6205, 13mm, 7.5kw... Bỏ qua số dính chữ như '2RS', 'NN102WM'."""
     out = set()
-    for m in _SPEC_NUM_RE.finditer(str(text or "").lower()):
+    for m in _SPEC_NUM_RE.finditer(canon(str(text or ""))):  # quy đổi cách gọi của thợ (fi 10 = 100mm, ly = mm) trước khi lấy số
         s = m.group(1).replace(",", ".")
         try:
             out.add(str(float(s)).rstrip("0").rstrip(".") if "." in s else str(int(s)))
@@ -91,5 +93,15 @@ def decide_auto_match(query: str, best: Optional[Dict[str, Any]], strict_exact: 
             missing = ", ".join(sorted(c_nums - q_nums))
             return "CẦN_XÁC_NHẬN", f"Gợi ý {best.get('ma')} nhưng lệch thông số (kho có {missing} mà chứng từ không có)"
         return "KHỚP", ""
+
+    # Gợi ý số 1 chưa đủ điểm tự khớp nhưng RẤT giống (đủ số thông số của tên kho + chung từ khóa chủng loại):
+    # đừng cấp mã mới ngay (dễ trùng mã) — để kỹ sư xem và chọn.
+    if score >= 50 and not conflict:
+        c_nums = extract_spec_numbers(cand_name)
+        q_nums = extract_spec_numbers(query)
+        q_words = {w for w in re.findall(r"[^\W\d_]{3,}", canon(query))}
+        c_words = {w for w in re.findall(r"[^\W\d_]{3,}", canon(cand_name))}
+        if c_nums and c_nums.issubset(q_nums) and (q_words & c_words):
+            return "CẦN_XÁC_NHẬN", f"Gợi ý {best.get('ma')} '{cand_name}' có thể là cùng vật tư (trùng thông số {', '.join(sorted(c_nums))}) — kỹ sư xem lại trước khi cấp mã mới"
 
     return "MỚI", ""
