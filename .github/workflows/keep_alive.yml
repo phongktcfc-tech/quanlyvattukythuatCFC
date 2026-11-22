@@ -10,11 +10,21 @@ jobs:
   keep-alive:
     name: Wake & Keep Alive Streamlit App
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
-      - name: Keep Streamlit App Awake
-        uses: gpenessot/streamlit-keep-alive@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          app-urls: |
-            https://quanlyvattucfc.streamlit.app
+          python-version: '3.12'
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Keep Streamlit App Awake
+        run: python scripts/keep_app_awake.py https://quanlyvattucfc.streamlit.app
